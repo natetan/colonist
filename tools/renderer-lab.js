@@ -125,7 +125,7 @@ function controls(state){
   if(!g){$('turn').textContent='Waiting to start';if(state.host===joined.playerId){button('Start with bots',()=>send('StartGame',{bots:true}));button('Start game',()=>send('StartGame'),state.players.filter(p=>p.online&&!p.bot).length<2);}return;}
   const player=state.players.find(p=>p.id===g.currentPlayer);
   $('turn').textContent=`${player?.name||'Player'}: ${g.phase}${g.dice?' · Dice '+g.dice.join(' + '):''}${mine?' · Your turn':''}`;
-  $('hand').textContent='Your resources: '+Object.entries(g.resources||{}).map(([name,n])=>`${name} ${n}`).join(' · ');
+  for(const [resource,count]of Object.entries(g.resources||{})){const card=document.createElement('div');card.className=`resource-card resource-${resource}`;const name=document.createElement('span');name.textContent=resource;const number=document.createElement('strong');number.textContent=count;card.append(name,number);card.setAttribute('aria-label',`${resource}: ${count} cards`);$('hand').append(card);}
   ScoreControls.render($('actions'),state,joined.playerId,send);if(g.phase==='finished'){$('turn').textContent=`${player.name} wins with ${g.scoring.winningPoints} points!`;return;}
   if(mine&&g.phase==='roll')button('Roll dice',()=>send('RollDice'));
   if(mine&&g.phase==='build'){

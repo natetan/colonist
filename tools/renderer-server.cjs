@@ -5,6 +5,7 @@ const root=path.resolve(__dirname,'../.rea-tools/renderer');
 const routes={
   '/':path.join(__dirname,'renderer-lab.html'),
   '/lab.js':path.join(__dirname,'renderer-lab.js'),
+  '/game.css':path.join(__dirname,'renderer-lab.css'),
   '/scoring.js':path.resolve(__dirname,'../public/scoring.js'),
   '/development.js':path.resolve(__dirname,'../public/development.js'),
   '/trading.js':path.resolve(__dirname,'../public/trading.js'),
