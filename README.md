@@ -238,3 +238,5 @@ Trade creation keeps the original inventory visible and selectable. Click resour
 Trade-creator columns share the inventory and dock edges; bank and player buttons align with their corresponding selector and offer rows.
 
 Trade bank/player actions form an evenly spaced column immediately above the dock close button, independent of the height of the resource-selection rows.
+
+Game completion opens a full-screen results overlay over the final board, with winner, ranked public overview, piece/development summaries, board-view controls, and host-only rematch. It contains no advertising. Dice distributions, timed duration, and resource/activity statistics are not tracked and are not fabricated; losing players retain private card identities.
