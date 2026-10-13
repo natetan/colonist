@@ -220,3 +220,7 @@ The renderer dice use six locally cached reference SVG faces rather than font gl
 History and chat use player-colored names and icons; game history includes piece art, dice faces, played development cards, and your own resource gains. Up to 500 entries are retained in the current browser session; scrolling upward pauses automatic scrolling. Opponent resource identities are never inferred from private hands. History is not yet persisted across refresh.
 
 The renderer includes fallback card metadata so owned development cards remain visible even if an older running server cannot serve the JSON catalog. Action cost tooltips show resource-card art and quantities, including on disabled actions, with keyboard focus support for available buttons.
+
+Trade selections update inside a stable popup element, preserving its open state and avoiding repeated entrance animations.
+
+Trade-hand counters show resources remaining after the draft offer; removing offered cards restores those counters without changing the actual hand before a trade completes.
