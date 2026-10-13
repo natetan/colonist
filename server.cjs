@@ -26,9 +26,18 @@ function createApp() {
   function snapshot(room, viewer) {
     const g = room.game;
     const game = g ? { phase: g.phase, currentPlayer: g.order[g.step] || null, solo: g.solo, colors: g.colors, vertices: g.vertices, edges: g.edges, legalVertices: g.phase === 'settlement' ? rules.legalVertices(g) : [], legalEdges: g.phase === 'road' ? rules.legalEdges(g) : [], resources: g.resources[viewer.id] || null } : null;
-    return { type: 'RoomState', code: room.code, host: room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, online: !!p.ws, playing: !!g && g.players.includes(p.id) })), board: room.board, game };
+    return { type: 'RoomState', code: room.code, host: room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id) })), board: room.board, game };
   }
   function broadcast(room) { for (const player of room.players) if (player.ws) send(player.ws, snapshot(room, player)); }
+  function playBotTurns(room) {
+    while (room.game.phase !== 'complete') {
+      const current = room.players.find(p => p.id === room.game.order[room.game.step]);
+      if (!current.bot) break;
+      const move = rules.botMove(room.game, room.board);
+      rules.place(room.game, room.board, current.id, move.type, move.id);
+      broadcast(room);
+    }
+  }
   function board() {
     const resources = ['wood','wood','wood','wood','sheep','sheep','sheep','sheep','wheat','wheat','wheat','wheat','brick','brick','brick','ore','ore','ore','desert'];
     for (let i = resources.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [resources[i], resources[j]] = [resources[j], resources[i]]; }
@@ -55,19 +64,30 @@ function createApp() {
             if (room.game) throw new Error('The match has already started.');
             const ids = room.players.filter(p => p.ws).map(p => p.id);
             const solo = message.solo === true;
+            const bots = message.bots === true;
+            if (solo && bots) throw new Error('Choose bots or solo placement test.');
+            if (bots && ids.length > 4) throw new Error('Start with bots supports at most four online humans.');
             if (solo && ids.length !== 1) throw new Error('Solo test requires exactly one online player.');
-            if (!solo && ids.length < 2) throw new Error('Join with another player or use Solo placement test.');
+            if (!solo && !bots && ids.length < 2) throw new Error('Join with another player or use Start with bots.');
+            if (bots) {
+              for (let i = 1; ids.length < 4; i++) {
+                const bot = { id: crypto.randomUUID(), name: `Bot ${i}`, bot: true, ws: null };
+                room.players.push(bot); ids.push(bot.id);
+              }
+            }
             room.game = rules.start(room.board, ids, solo);
           } else {
             if (!room.game) throw new Error('The host must start the match first.');
             rules.place(room.game, room.board, ws.player.id, message.type, message.id);
           }
-          return broadcast(room);
+          broadcast(room);
+          playBotTurns(room);
+          return;
         }
         if (message.type === 'Resume') {
           if (ws.room) throw new Error('Already in a room.');
           const room = rooms.get(message.code);
-          const player = room && room.players.find(p => p.token === message.token);
+          const player = room && typeof message.token === 'string' && room.players.find(p => !p.bot && p.token === message.token);
           if (!player) throw new Error('Saved session is unavailable. Create or join a room.');
           if (player.ws) throw new Error('This player is already connected in another window.');
           player.ws = ws; ws.room = room; ws.player = player;

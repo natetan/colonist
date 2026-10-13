@@ -48,3 +48,11 @@ Target the standard four-player game first. Five/six-player and larger matches r
 ## Initial placement
 
 The host sees Start game, enabled with at least two online players. Offline seats are excluded from the placement order. When alone, use Solo placement test to place both settlement/road pairs yourself (no bots). Players take turns placing a settlement on a white corner, then a road on an adjacent white edge. The second round runs in reverse order and grants starting resources from the second settlement. Other players cannot place during your turn; reconnect restores match state. New players cannot join after start. The prototype stops after placement, with a clear completion message. Refresh both tabs after updating the app; restarting the server requires creating a new room.
+
+## Playing alone with bots
+
+Create a room and click **Start with bots** on the host's tab. The server fills the active match to four players: one human gets three bots, two humans get two, and three humans get one. Offline lobby seats do not count. This option supports at most four online humans; use Start game for larger human groups.
+
+Place your settlement and adjacent road. Computer players automatically take their placement turns using the same server validation as humans, then return control for your second settlement/road pair. Bots favor corners with higher expected resource production and pick a legal adjacent road. They do not control your seat or replace disconnected humans. Their hands remain private.
+
+This milestone implements automatic **initial placement only**. Dice rolls, resource production during regular turns, bot building/trading, and victory conditions are still pending. Solo placement test remains available as a manual debugging shortcut.

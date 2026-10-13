@@ -33,4 +33,16 @@ function place(game, tiles, playerId, type, id) {
     game.edges[id].owner = playerId; game.pendingVertex = null; game.step++; game.phase = game.step === game.order.length ? 'complete' : 'settlement';
   } else throw new Error(`Place a ${game.phase} first.`);
 }
-module.exports = { start, place, legalVertices, legalEdges, topology };
+function botMove(game, tiles) {
+  if (game.phase === 'complete') return null;
+  if (game.phase === 'road') return { type: 'PlaceRoad', id: legalEdges(game)[0] };
+  const candidates = legalVertices(game);
+  // Favor resource production; ties use stable corner IDs for reproducible tests.
+  const score = id => game.vertices[id].tiles.reduce((total, index) => {
+    const tile = tiles[index];
+    return total + (tile.resource === 'desert' ? 0 : 6 - Math.abs(7 - tile.number));
+  }, 0);
+  candidates.sort((a, b) => score(b) - score(a) || a - b);
+  return { type: 'PlaceSettlement', id: candidates[0] };
+}
+module.exports = { start, place, legalVertices, legalEdges, topology, botMove };

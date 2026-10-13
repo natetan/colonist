@@ -54,8 +54,25 @@ async function run() {
       assert.equal(Object.values(game.resources[player]).reduce((a,b)=>a+b,0),second.tiles.filter(i=>first.board[i].resource!=='desert').length);
     }
     const solo = rules.start(first.board,['A'],true); assert.deepStrictEqual(solo.order,['A','A']);
+    const botHost = client(); await botHost.next('SessionEstablished');
+    botHost.send({ type:'CreateRoom', name:'Solo human' }); const botJoined = await botHost.next('Joined'); await botHost.next('RoomState');
+    botHost.send({ type:'StartGame', bots:true }); let botState = await botHost.next('RoomState');
+    assert.equal(botState.players.filter(p=>p.bot).length,3); assert.equal(botState.players.filter(p=>p.playing).length,4);
+    const impostor = client(); await impostor.next('SessionEstablished'); impostor.send({ type:'Resume', code:botJoined.code }); assert((await impostor.next('Error')).message.includes('unavailable'));
+    botHost.send({ type:'PlaceSettlement', id:botState.game.legalVertices[0] }); botState = await botHost.next('RoomState');
+    botHost.send({ type:'PlaceRoad', id:botState.game.legalEdges[0] });
+    do { botState = await botHost.next('RoomState'); } while (botState.game.currentPlayer !== botJoined.playerId || botState.game.phase !== 'settlement');
+    for (const bot of botState.players.filter(p=>p.bot)) {
+      assert.equal(botState.game.vertices.filter(v=>v.owner===bot.id).length,2);
+      assert.equal(botState.game.edges.filter(e=>e.owner===bot.id).length,2);
+    }
+    assert(!Object.keys(botState.game.resources).includes(botState.players.find(p=>p.bot).id));
+    botHost.send({ type:'PlaceSettlement', id:botState.game.legalVertices[0] }); botState = await botHost.next('RoomState');
+    botHost.send({ type:'PlaceRoad', id:botState.game.legalEdges[0] }); botState = await botHost.next('RoomState');
+    assert.equal(botState.game.phase,'complete'); assert.equal(botState.game.vertices.filter(v=>v.owner).length,8); assert.equal(botState.game.edges.filter(e=>e.owner).length,8);
+    botHost.send({ type:'StartGame', bots:true }); assert((await botHost.next('Error')).message.includes('already started'));
     const html = await new Promise(resolve => http.get(`http://127.0.0.1:${port}/`, res => { let text=''; res.on('data', data => text += data); res.on('end', () => resolve(text)); })); assert(html.includes('Private Settlers'));
-    console.log('PASS: lobby/reconnect, host-only start, turn validation, 54 corners/72 edges, distance rule, reverse placement order, adjacent roads, starting resources, solo order, late-join rejection, HTTP page');
+    console.log('PASS: lobby/reconnect, host-only start, placement rules, starting resources, solo test, one human plus three automatic bots completing setup, bot impersonation rejection, resource privacy, duplicate-start rejection, HTTP page');
   } finally { await app.close(); }
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });

@@ -45,6 +45,7 @@ function connect() {
     if (message.type === 'SessionEstablished') {
       $('connection').textContent = 'Connected to your local server'; $('create').disabled = $('join').disabled = false;
       $('solo').disabled = false;
+      $('bots').disabled = false;
       let saved; try { saved = JSON.parse(sessionStorage.getItem(savedKey)); } catch {}
       if (saved) socket.send(JSON.stringify({ type: 'Resume', ...saved }));
     }
@@ -52,24 +53,26 @@ function connect() {
     if (message.type === 'RoomState') {
       roomState = message;
       $('lobby').hidden = true; $('room').hidden = false; $('room-code').textContent = message.code;
-      $('players').replaceChildren(...message.players.map(player => { const li = document.createElement('li'); li.textContent = `${player.name}${player.id === message.host ? ' · Host' : ''}${player.online ? '' : ' · Offline'}`; return li; }));
+      $('players').replaceChildren(...message.players.map(player => { const li = document.createElement('li'); li.textContent = `${player.name}${player.bot ? ' · Computer' : ''}${player.id === message.host ? ' · Host' : ''}${player.online ? '' : ' · Offline'}`; return li; }));
       const host = message.host === joined.playerId;
       $('start').hidden = !!message.game || !host; $('solo').hidden = !!message.game || !host || message.players.filter(p => p.online).length !== 1;
       $('start').disabled = message.players.filter(p => p.online).length < 2;
+      $('bots').hidden = !!message.game || !host;
+      $('bots').disabled = message.players.filter(p => p.online && !p.bot).length > 4;
       $('resources').textContent = message.game && message.game.resources ? 'Your resources: ' + Object.entries(message.game.resources).map(([name,count]) => `${name} ${count}`).join(' · ') : '';
       draw(message.board, message.game);
       const g = message.game, current = g && message.players.find(p => p.id === g.currentPlayer);
-      $('hint').textContent = !g ? (host ? 'Start with two online players, or use Solo placement test.' : 'Waiting for the host to start.') : g.phase === 'complete' ? 'Initial placement complete! Dice and regular turns are the next milestone.' : `${current.name}${current.id === joined.playerId ? ' (you)' : ''}: place a ${g.phase}${current.online ? '' : ' · waiting for reconnect'}. Click a white ${g.phase === 'road' ? 'edge' : 'corner'}.`;
+      $('hint').textContent = !g ? (host ? 'Start with bots to fill four seats, or Start game with your online friends.' : 'Waiting for the host to start.') : g.phase === 'complete' ? 'Initial placement complete! Dice and regular turns are the next milestone.' : `${current.name}${current.id === joined.playerId ? ' (you)' : ''}: place a ${g.phase}${current.online ? '' : ' · waiting for reconnect'}. ${current.bot ? 'Computer is placing automatically.' : 'Click a white ' + (g.phase === 'road' ? 'edge' : 'corner') + '.'}`;
     }
     if (message.type === 'Error') {
       $('error').textContent = message.message;
       if (message.message.startsWith('Saved session')) { sessionStorage.removeItem(savedKey); joined = null; $('lobby').hidden = false; $('room').hidden = true; }
     }
   };
-  socket.onclose = () => { $('connection').textContent = 'Disconnected. Reconnecting…'; $('create').disabled = $('join').disabled = $('start').disabled = $('solo').disabled = true; clearTimeout(retry); retry = setTimeout(connect, 1500); };
+  socket.onclose = () => { $('connection').textContent = 'Disconnected. Reconnecting…'; $('create').disabled = $('join').disabled = $('start').disabled = $('solo').disabled = $('bots').disabled = true; clearTimeout(retry); retry = setTimeout(connect, 1500); };
   socket.onerror = () => { $('connection').textContent = 'Unable to reach the local server.'; };
 }
 for (const [id, type] of [['create', 'CreateRoom'], ['join', 'JoinRoom']]) $(id).onclick = () => { $('error').textContent = ''; socket.send(JSON.stringify({ type, name: $('name').value, code: $('code').value })); };
 $('copy').onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/?room=${joined.code}`); $('copy').textContent = 'Copied!'; } catch { $('error').textContent = `Room code: ${joined.code}`; } };
-for (const id of ['start','solo']) $(id).onclick = () => { $('error').textContent = ''; socket.send(JSON.stringify({ type:'StartGame', solo:id === 'solo' })); };
+for (const id of ['start','solo','bots']) $(id).onclick = () => { $('error').textContent = ''; socket.send(JSON.stringify({ type:'StartGame', solo:id === 'solo', bots:id === 'bots' })); };
 connect();
