@@ -14,3 +14,19 @@
 .action-panel>.reference-trade{position:fixed;left:12px;right:auto;bottom:100px;max-height:65vh;overflow:auto}.trade-rail button:disabled{opacity:.4}
 
 #hand{align-items:center;flex-wrap:wrap}.hand-divider{height:60px;border-left:2px solid #b5ad99;margin:0 8px}.hand-development{border:0;background:transparent;padding:0;cursor:pointer}.hand-development:disabled{opacity:.5;cursor:default}.hand-development:not(:disabled):hover{transform:translateY(-6px)}.development-choices{display:flex;align-items:center;gap:6px;flex-basis:100%;padding:6px;color:#222}.development-choices button{padding:2px;border:1px solid #bbb;background:#fff5df}.development-choices button:disabled{opacity:.4}
+
+/* One bottom grid aligns the hand, dock, status and dice. */
+.bottom-bar{--dock-size:clamp(48px,7.5vw,82px);width:100%;flex:none;display:grid;grid-template-columns:minmax(0,1fr) calc(var(--dock-size)*6 + 25px);grid-template-rows:auto 42px auto;gap:5px;align-items:end;padding:0 3px 3px}
+.bottom-bar #dice{grid-column:2;grid-row:1;justify-self:end;padding:0 8px 16px}
+.bottom-bar .turn-banner{grid-column:2;grid-row:2;display:grid;grid-template-columns:minmax(0,1fr) var(--dock-size);gap:5px;align-self:stretch;max-width:none;width:100%;margin:0;padding:0;background:none;animation:none}
+.bottom-bar #turn,.bottom-bar #phase-clock{background:linear-gradient(#fcfaf5,#e0d5bf);border-radius:4px;display:flex;align-items:center;justify-content:center;margin:0;padding:4px 8px;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bottom-bar #turn{grid-column:1;grid-row:1}.bottom-bar #phase-clock{grid-column:2;grid-row:1;float:none}.bottom-bar #hint{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.bottom-bar #hand{grid-column:1;grid-row:3;width:100%;min-width:0;min-height:var(--dock-size);align-self:stretch;align-items:center;justify-content:flex-start;padding:7px;background:linear-gradient(#fcfaf5,#e0d5bf);border-radius:4px;gap:4px;overflow-x:auto;flex-wrap:nowrap}
+.bottom-bar .control-area{grid-column:2;grid-row:3;padding:0;width:100%;position:relative}.bottom-bar #actions{gap:5px;flex-wrap:nowrap;align-items:stretch;justify-content:flex-end}
+.bottom-bar .control-area #actions>button,.bottom-bar .action-panel>summary{width:var(--dock-size);min-width:var(--dock-size);height:var(--dock-size);min-height:var(--dock-size);max-width:none;padding:4px;flex:none;margin:0}
+.bottom-bar .action-panel{flex:none}.bottom-bar .action-panel>summary{list-style:none}.bottom-bar .action-panel>summary::-webkit-details-marker{display:none}
+.bottom-bar #error{position:absolute;bottom:100%;right:0;max-width:100%;z-index:20}.bottom-bar .development-choices{position:absolute;bottom:100%;left:0;background:#f3ecde;z-index:15;border-radius:4px;flex-wrap:wrap}.bottom-bar .resource-notice{bottom:100%}
+@media(max-width:1100px) and (min-width:701px){.bottom-bar{--dock-size:clamp(44px,6vw,65px)}.bottom-bar #hand .resource-card{margin-right:-10px}.bottom-bar #turn{font-size:13px}}
+@media(max-width:700px){.bottom-bar{--dock-size:clamp(42px,14vw,65px);grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto auto}.bottom-bar #dice{grid-column:1;grid-row:1}.bottom-bar .turn-banner{grid-column:1;grid-row:2}.bottom-bar #hand{grid-column:1;grid-row:3}.bottom-bar .control-area{grid-column:1;grid-row:4}.bottom-bar #actions{justify-content:space-between}}
+
+@media(min-width:701px){.bottom-bar .turn-banner{width:calc(var(--dock-size)*4 + 15px);justify-self:end}.bottom-bar .dice-button{font-size:92px}}

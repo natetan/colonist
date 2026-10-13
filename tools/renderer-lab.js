@@ -198,7 +198,7 @@ function controls(state){
   const button=(label,action,disabled=false)=>{const b=document.createElement('button');b.textContent=label;b.disabled=disabled;b.onclick=action;$('actions').append(b);return b;};
   if(!g){$('turn').textContent='Waiting to start';if(state.host===joined.playerId){button('Start with bots',()=>send('StartGame',{bots:true}));button('Start game',()=>send('StartGame'),state.players.filter(p=>p.online&&!p.bot).length<2);}return;}
   const player=state.players.find(p=>p.id===g.currentPlayer);
-  $('turn').textContent=`${player?.name||'Player'}: ${g.phase}${g.dice?' · Dice '+g.dice.join(' + '):''}${mine?' · Your turn':''}`;
+  $('turn').textContent=mine?(g.phase==='roll'?'Roll Dice':g.phase==='build'?'Your Turn':hints[g.phase]||g.phase):`${player?.name||'Player'} · ${g.phase}`;$('turn').title=$('hint').textContent;
   for(const [resource,count]of Object.entries(g.resources||{}))$('hand').append(cardBadge(resource,count));
   developmentHand(state,mine);
   $('score-panel').replaceChildren();ScoreControls.render($('score-panel'),state,joined.playerId,send);if(g.phase==='finished'){$('turn').textContent=`${player.name} wins with ${g.scoring.winningPoints} points!`;return;}
