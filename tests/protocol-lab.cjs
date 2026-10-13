@@ -12,7 +12,7 @@ const { createActionSequence, encodeActionPacket, applyStateDiffs } = require('.
       const timer = setTimeout(() => { socket.terminate(); reject(new Error('Fixture timed out')); }, 5000);
       let step = 0;
       const state = {};
-      socket.on('error', reject);
+      socket.on('error', error => { clearTimeout(timer); socket.terminate(); reject(error); });
       socket.on('message', (bytes, binary) => {
         try {
           step++;
@@ -42,6 +42,23 @@ const { createActionSequence, encodeActionPacket, applyStateDiffs } = require('.
         } catch (error) { clearTimeout(timer); socket.terminate(); reject(error); }
       });
     });
+    for (const invalid of [
+      'text command',
+      Buffer.from([3, 1, 8]),
+      encodeActionPacket('wrong-server', createActionSequence()('roll')),
+    ]) {
+      await new Promise((resolve, reject) => {
+        const socket = new WebSocket(`ws://127.0.0.1:${lab.port}`);
+        const timer = setTimeout(() => { socket.terminate(); reject(new Error('Invalid command was not rejected')); }, 5000);
+        socket.on('open', () => socket.send(invalid));
+        socket.on('error', error => { clearTimeout(timer); socket.terminate(); reject(error); });
+        socket.on('close', code => {
+          clearTimeout(timer);
+          try { assert.equal(code, 1008); resolve(); } catch (error) { reject(error); }
+        });
+      });
+    }
     console.log('PASS: local JSON handshake, binary game events, action packet, state update');
+    console.log('PASS: rejection of text commands, truncated packets, and wrong recipients');
   } finally { await lab.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
