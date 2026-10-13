@@ -23,9 +23,7 @@ assert.throws(()=>turns.act(g,tiles,'A',{type:'Discard',cards:{wood:3}}),/exactl
 assert.throws(()=>turns.act(g,tiles,'A',{type:'Discard',cards:{wood:-1,brick:5}}),/exactly/);
 turns.act(g,tiles,'A',{type:'Discard',cards:{wood:4}});assert.equal(g.resources.A.wood,5);assert.equal(g.phase,'robber');
 assert.throws(()=>turns.act(g,tiles,'B',{type:'MoveRobber',id:g.robber}),/different tile/);
-const target=city.tiles[0];turns.act(g,tiles,'B',{type:'MoveRobber',id:target});assert.equal(g.phase,'steal');
-assert.throws(()=>turns.act(g,tiles,'B',{type:'Steal',player:'B'}),/neighboring/);
-turns.act(g,tiles,'B',{type:'Steal',player:'A'},()=>0);assert.equal(g.resources.A.wood,4);assert.equal(g.resources.B.wood,3);assert.equal(g.phase,'build');
+const target=city.tiles[0];turns.act(g,tiles,'B',{type:'MoveRobber',id:target},()=>0);assert.equal(g.resources.A.wood,4);assert.equal(g.resources.B.wood,3);assert.equal(g.phase,'build');assert.deepEqual(g.victims,[]);
 // One blocked tile contributes nothing; cities produce two on unblocked matching tiles.
 const production=fixture();production.vertices.forEach(v=>{v.owner=null;});production.vertices[city.id].owner='A';production.vertices[city.id].city=true;production.robber=city.tiles[0];production.resources.A.wood=0;production.bank.wood=19;
 turns.act(production,tiles,'A',{type:'RollDice'},()=>3);assert.equal(production.resources.A.wood,2*(city.tiles.length-1));

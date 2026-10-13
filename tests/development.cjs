@@ -17,7 +17,7 @@ function conserved(g){for(const r of Object.keys(g.bank))assert.equal(g.bank[r]+
 }
 for(const phase of ['roll','build']){
  const g=fixture(phase);hand(g,'A',{wood:9});hand(g,'B',{wood:2});const c=card(g,'Knight');play(g,c);assert.equal(g.phase,'robber');assert.deepEqual(g.discards,{});assert.equal(g.knightsPlayed.A,1);unchanged(g,()=>act(g,{type:'EndTurn'}));
- const tile=g.vertices.find(v=>v.owner==='B').tiles.find(i=>i!==g.robber);act(g,{type:'MoveRobber',id:tile});assert.equal(g.phase,'steal');act(g,{type:'Steal',player:'B'});assert.equal(g.phase,phase);assert.equal(g.resources.A.wood,10);conserved(g);
+ const tile=g.vertices.find(v=>v.owner==='B').tiles.find(i=>i!==g.robber);act(g,{type:'MoveRobber',id:tile});assert.equal(g.phase,phase);assert.deepEqual(g.victims,[]);assert.equal(g.resources.A.wood,10);conserved(g);
  const secondKnight=card(g,'Knight');unchanged(g,()=>play(g,secondKnight));
 }
 {

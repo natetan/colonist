@@ -49,7 +49,7 @@ function applyAct(g, tiles, id, message, random = crypto.randomInt, developmentR
   }
   if(type==='MoveRobber') {
     if(g.phase!=='robber'||!Number.isInteger(message.id)||!tiles[message.id]||message.id===g.robber)throw new Error('Move the robber to a different tile.');
-    g.robber=message.id;g.victims=[...new Set(g.vertices.filter(v=>v.owner&&v.owner!==id&&v.tiles.includes(g.robber)&&total(g.resources[v.owner])>0).map(v=>v.owner))];if(g.victims.length)g.phase='steal';else development.finish(g);return;
+    g.robber=message.id;g.victims=[...new Set(g.vertices.filter(v=>v.owner&&v.owner!==id&&v.tiles.includes(g.robber)&&total(g.resources[v.owner])>0).map(v=>v.owner))];if(g.victims.length){g.phase='steal';if(g.victims.length===1)act(g,tiles,id,{type:'Steal',player:g.victims[0]},random,developmentRandom);}else development.finish(g);return;
   }
   if(type==='Steal') {
     if(g.phase!=='steal'||!g.victims.includes(message.player))throw new Error('Choose a neighboring opponent with cards.');
