@@ -1,5 +1,40 @@
 [
   {
+    "file": "pixi.0d3da6198b196c2999cb.js",
+    "bytes": 494778,
+    "signals": {
+      "WebSocket": 0,
+      "gameStateUpdated": 0,
+      "applyStateUpdate": 0,
+      "mapValidator": 0,
+      "canPlayerBuyDevelopmentCard": 0,
+      "initializeSocket": 0,
+      "sourceMappingURL": 0,
+      "PIXI": 3,
+      "Phaser": 0
+    },
+    "urls": [
+      "https://github.com/mitsuhiko/webgl-meincraft",
+      "https://pixijs.com"
+    ]
+  },
+  {
+    "file": "shared-async.ea6ade250f9df0b52883.js",
+    "bytes": 92984,
+    "signals": {
+      "WebSocket": 0,
+      "gameStateUpdated": 0,
+      "applyStateUpdate": 0,
+      "mapValidator": 0,
+      "canPlayerBuyDevelopmentCard": 0,
+      "initializeSocket": 0,
+      "sourceMappingURL": 0,
+      "PIXI": 0,
+      "Phaser": 0
+    },
+    "urls": []
+  },
+  {
     "file": "shared-web.5e0f9c9aae9f433aa985.js",
     "bytes": 149352,
     "signals": {
@@ -75,6 +110,41 @@
       "https://react.dev/errors/",
       "https://browser.sentry-cdn.com"
     ]
+  },
+  {
+    "file": "ui-game.ef351c1079ae7886fa5e.js",
+    "bytes": 643242,
+    "signals": {
+      "WebSocket": 0,
+      "gameStateUpdated": 4,
+      "applyStateUpdate": 3,
+      "mapValidator": 35,
+      "canPlayerBuyDevelopmentCard": 1,
+      "initializeSocket": 1,
+      "sourceMappingURL": 0,
+      "PIXI": 56,
+      "Phaser": 0
+    },
+    "urls": [
+      "https://blog.colonist.io/balanced-dice-designing/",
+      "https://colonist.io"
+    ]
+  },
+  {
+    "file": "vendors-async.314ebd0bd0dea1ef16e6.js",
+    "bytes": 319788,
+    "signals": {
+      "WebSocket": 0,
+      "gameStateUpdated": 0,
+      "applyStateUpdate": 0,
+      "mapValidator": 0,
+      "canPlayerBuyDevelopmentCard": 0,
+      "initializeSocket": 0,
+      "sourceMappingURL": 0,
+      "PIXI": 0,
+      "Phaser": 0
+    },
+    "urls": []
   },
   {
     "file": "vendors.5b0d06c9ea06c399fd41.js",

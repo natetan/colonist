@@ -9,3 +9,4 @@ coverage/
 # Downloaded third-party client files stay local.
 research/*.js
 research/*.html
+research/*.png
