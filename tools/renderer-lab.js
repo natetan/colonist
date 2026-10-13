@@ -67,8 +67,8 @@ async function render(fixture,presentation,state){
     const tile=map.tiles[presentation.robber],point=tile.hexFace.toPixel(view.mapCenter,view.hexagonHeight/2);
     // Local robber view uses the original texture; no original gameplay mechanic is invoked.
     const sprite=new pixi.Sprite(load(78046).UIGameSpriteHandler.getTextureFromSpritesheet(load(28398).tM.icon_robber));
-    sprite.anchor.set(.5,.8);sprite.height=view.robberRadius;sprite.scale.x=sprite.scale.y;
-    sprite.position.set(point.x-1.2*view.robberRadius,point.y-.7*view.robberRadius);sprite.zIndex=view.layers.robber;view.addChild(sprite);
+    sprite.anchor.set(.5,.5);sprite.height=view.hexagonHeight*.38;sprite.scale.x=sprite.scale.y;
+    sprite.position.set(point.x-view.hexagonWidth*.28,point.y+view.hexagonHeight*.08);sprite.zIndex=view.layers.robber;view.addChild(sprite);
   }
   const harborMarkers=[];
   for(const harbor of state?.harbors||[]){
@@ -169,7 +169,14 @@ document.addEventListener('pointerdown',()=>{if(soundEnabled){audioContext??=new
 function cue(dice=false){if(!soundEnabled||!audioContext||audioContext.state!=='running')return;for(let i=0;i<(dice?5:2);i++){const oscillator=audioContext.createOscillator(),gain=audioContext.createGain(),start=audioContext.currentTime+i*.075;oscillator.type=dice?'triangle':'sine';oscillator.frequency.value=dice?180+i*67:660+i*220;gain.gain.setValueAtTime(.035,start);gain.gain.exponentialRampToValueAtTime(.001,start+.065);oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(start);oscillator.stop(start+.07);}}
 function turnFeedback(state){const g=state.game,key=state.code+':'+g?.currentPlayer+':'+g?.phase;if(key!==turnKey){turnStarted=Date.now();turnKey=key;if(g?.currentPlayer===joined.playerId&&['roll','settlement'].includes(g.phase))cue();}if(g?.dice&&latestState?.game?.phase==='roll'&&g.phase!=='roll')cue(true);}
 setInterval(()=>{const elapsed=Math.floor((Date.now()-turnStarted)/1000);$('phase-clock').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;},1000);
-let developmentChoice;
+let developmentChoice,selectedVictim;
+function robberAction(state,mine){
+  const g=state.game,box=$('action-box');box.replaceChildren();box.hidden=!mine||!['robber','steal'].includes(g?.phase);if(box.hidden){selectedVictim=null;return;}
+  const header=document.createElement('div');header.className='robber-header';header.append(sprite('icon_robber'));const text=document.createElement('div');const title=document.createElement('strong');title.textContent='The Robber';const help=document.createElement('p');help.textContent=g.phase==='robber'?'Choose a tile to move the robber':'Choose a player to steal 1 random card';text.append(title,help);header.append(text);box.append(header);if(g.phase!=='steal')return;
+  if(!g.victims.includes(selectedVictim))selectedVictim=g.victims.length===1?g.victims[0]:null;const row=document.createElement('div');row.className='robber-victims';
+  for(const id of g.victims){const p=state.players.find(p=>p.id===id),b=document.createElement('button');b.className='robber-victim';b.setAttribute('aria-label',`Select ${p.name}, ${p.resourceCount} resource cards`);b.setAttribute('aria-pressed',String(selectedVictim===id));const avatar=document.createElement('span');avatar.className='victim-avatar';avatar.style.borderColor=g.colors[id];avatar.append(sprite(p.bot?'icon_bot':'icon_player'));const name=document.createElement('span');name.textContent=p.name;const count=document.createElement('span');count.textContent=`${p.resourceCount} cards · ${p.points} VP`;b.append(avatar,name,count);b.onclick=()=>{selectedVictim=id;robberAction(state,mine);};row.append(b);}
+  const confirm=document.createElement('button');confirm.className='robber-confirm';confirm.textContent='✓';confirm.setAttribute('aria-label','Confirm robbery');confirm.disabled=!selectedVictim;confirm.onclick=()=>send('Steal',{player:selectedVictim});row.append(confirm);box.append(row);
+}
 function developmentHand(state,mine){
   const g=state.game,d=g.development;if(!d)return;
   const art={Knight:'card_knight',RoadBuilding:'card_roadbuilding',YearOfPlenty:'card_yearofplenty',Monopoly:'card_monopoly',VictoryPoint:'card_victorypoint'};
@@ -183,6 +190,7 @@ function developmentHand(state,mine){
 }
 function controls(state){
   const g=state.game, mine=g?.currentPlayer===joined?.playerId;
+  robberAction(state,mine);
   $('hand').hidden=!g;
   $('hand').textContent='';
   $('dice').replaceChildren();if(g){const roll=document.createElement('button');roll.className='dice-button';roll.setAttribute('aria-label','Roll dice');roll.title=g.phase==='roll'&&g.currentPlayer===joined.playerId?'Click to roll':'Latest dice roll';roll.disabled=g.phase!=='roll'||g.currentPlayer!==joined.playerId;for(const value of g.dice||[1,1]){const die=document.createElement('span');die.textContent=['','⚀','⚁','⚂','⚃','⚄','⚅'][value];roll.append(die);}roll.onclick=()=>send('RollDice');$('dice').append(roll);}
@@ -213,7 +221,6 @@ function controls(state){
     for(const [name,n]of Object.entries(g.resources)){const label=document.createElement('label');label.textContent=`${name} (${n} available)`;const input=document.createElement('input');input.type='number';input.min=0;input.max=n;input.value=0;input.oninput=update;label.append(input);fields[name]=input;$('actions').append(label);}
     discardButton=document.createElement('button');discardButton.onclick=()=>send('Discard',{cards:Object.fromEntries(Object.entries(fields).map(([r,input])=>[r,Number(input.value)]))});$('actions').append(discardButton);update();
   }
-  if(mine&&g.phase==='steal')for(const id of g.victims)button('Steal from '+state.players.find(p=>p.id===id).name,()=>send('Steal',{player:id}));
   const buy=button('Buy development card',()=>{closePanels();send('BuyDevelopmentCard');},!mine||g.phase!=='build'||!g.development?.canBuy);buy.style.order='1';buy.replaceChildren(sprite('card_devcardback'));buy.title='Buy development card · sheep + wheat + ore';buy.setAttribute('aria-label',buy.title);
   actionPanel('Trade','trade',state,referenceTrade,g.phase==='build'&&(mine&&Object.values(g.resources).some(n=>n>0)||g.tradeOffer?.to===joined.playerId));
   for(const panel of $('actions').querySelectorAll('.action-panel'))panel.style.order=panel.dataset.panel==='trade'?'0':'1';

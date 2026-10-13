@@ -202,3 +202,5 @@ Browser verification covered all nine renderer harbor labels, setup on generic a
 Renderer dock: hover build and development purchase actions for costs; click to purchase or select placement. Private development cards appear in the hand and unavailable cards are dimmed. Knights and road building play directly; monopoly and year of plenty use inline resource choices. Trade is the only dock popup.
 
 The renderer bottom bar aligns the parchment hand and six equal action buttons on one row, with a compact turn status and elapsed timer above the dock. Small screens stack the hand above the dock.
+
+Robber turns show an action box above the hand: select an eligible player, inspect their public resource-card count, then confirm the random theft. The robber sits inside the selected tile to the left of its number.

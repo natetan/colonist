@@ -30,3 +30,7 @@
 @media(max-width:700px){.bottom-bar{--dock-size:clamp(42px,14vw,65px);grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto auto}.bottom-bar #dice{grid-column:1;grid-row:1}.bottom-bar .turn-banner{grid-column:1;grid-row:2}.bottom-bar #hand{grid-column:1;grid-row:3}.bottom-bar .control-area{grid-column:1;grid-row:4}.bottom-bar #actions{justify-content:space-between}}
 
 @media(min-width:701px){.bottom-bar .turn-banner{width:calc(var(--dock-size)*4 + 15px);justify-self:end}.bottom-bar .dice-button{font-size:92px}}
+
+#action-box{grid-column:1;grid-row:1/3;align-self:end;padding:0;min-width:0}.robber-header{display:flex;gap:10px;padding:10px;align-items:center;background:#fff9ef}.robber-header p{font-size:12px;margin:3px 0}.robber-victims{display:flex;align-items:center;gap:8px;padding:8px;flex-wrap:wrap}.robber-victim{display:flex;flex-direction:column;align-items:center;gap:3px;background:transparent;border:2px solid transparent;margin:0;padding:4px;font-size:11px}.robber-victim[aria-pressed=true]{border-color:#21a7bf;background:#fff5de}.victim-avatar{width:40px;height:40px;border:3px solid;border-radius:50%;display:flex;align-items:center;justify-content:center}.victim-avatar .sprite{transform:scale(.65)}.robber-confirm{margin-left:auto;background:linear-gradient(#36b2bd,#9ed9ef);color:white;border:2px solid white;font-size:24px;padding:3px 10px}@media(max-width:700px){#action-box{grid-column:1;grid-row:1;justify-self:start;max-width:65%}}
+
+.victim-avatar>span[class^='sprite-']{transform:scale(.65);flex:none}
