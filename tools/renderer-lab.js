@@ -135,7 +135,35 @@ function publicEvents(state){const prev=latestState;if(!prev||prev.code!==state.
   if(g.scoring?.winner&&!old?.scoring?.winner)appendLog($('events'),`${name(g.scoring.winner)} won with ${g.scoring.winningPoints} points.`);
 }
 const panelOpen={};
-function actionPanel(label,key,state,render){const panel=document.createElement('details');panel.className='action-panel';panel.open=!!panelOpen[key];panel.ontoggle=()=>panelOpen[key]=panel.open;const summary=document.createElement('summary');summary.setAttribute('aria-label',label);summary.title=label;summary.append(sprite(key==='trade'?'icon_trade':'card_devcardback'));panel.append(summary);render(panel,state,joined.playerId,send);if(panel.children.length>1)$('actions').append(panel);}
+function closePanels(except){for(const p of $('actions').querySelectorAll('.action-panel'))if(p!==except){p.open=false;panelOpen[p.dataset.panel]=false;}}
+document.addEventListener('pointerdown',event=>{if(!event.target.closest('.action-panel'))closePanels();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape')closePanels();});
+function actionPanel(label,key,state,render,enabled=true){const panel=document.createElement('details');panel.className='action-panel';panel.dataset.panel=key;panel.open=enabled&&!!panelOpen[key];if(!enabled)panelOpen[key]=false;panel.ontoggle=()=>panelOpen[key]=panel.open;const summary=document.createElement('summary');summary.setAttribute('aria-label',label);summary.setAttribute('aria-disabled',String(!enabled));summary.title=enabled?label:label+' · Roll first, or wait for your turn';summary.onclick=event=>{if(!enabled){event.preventDefault();return;}closePanels(panel);panelOpen[key]=!panel.open;};summary.append(sprite(key==='trade'?'icon_trade':'card_devcardback'));panel.append(summary);if(enabled)render(panel,state,joined.playerId,send);$('actions').append(panel);}
+let tradeDraft={give:{},receive:{},to:''},tradeRoom;
+function referenceTrade(parent,state,viewerId,send){
+  const g=state.game;if(tradeRoom!==state.code){tradeRoom=state.code;tradeDraft={give:{},receive:{},to:''};}
+  const ui=document.createElement('section');ui.className='reference-trade trade-controls';parent.append(ui);
+  const chooser=document.createElement('div'),offer=document.createElement('div'),hand=document.createElement('div'),rail=document.createElement('div');chooser.className='trade-selector parchment';offer.className='trade-proposal parchment';hand.className='trade-hand parchment';rail.className='trade-rail';ui.append(chooser,offer,hand,rail);
+  const repaint=()=>{const open=parent.open;referenceTradeReplace();parent.open=open;};
+  const referenceTradeReplace=()=>{ui.remove();referenceTrade(parent,state,viewerId,send);};
+  const card=(container,r,n,label,click,disabled=false)=>{const b=document.createElement('button');b.type='button';b.className='trade-stack';b.setAttribute('aria-label',label);b.title=label;b.disabled=disabled;b.append(cardBadge(r,n));b.onclick=()=>{click();repaint();};container.append(b);};
+  const mine=g.currentPlayer===viewerId;
+  for(const r of Object.keys(cardSprites))card(chooser,r,'',`Request ${r}`,()=>{tradeDraft.receive[r]=(tradeDraft.receive[r]||0)+1;},!mine||!!tradeDraft.give[r]);
+  const wanted=document.createElement('div'),given=document.createElement('div');wanted.className='offer-row';given.className='offer-row';const incoming=document.createElement('span'),outgoing=document.createElement('span');incoming.textContent='♧ ↓';outgoing.textContent='You ↑';wanted.append(incoming);given.append(outgoing);offer.append(wanted,given);
+  for(const [r,n]of Object.entries(tradeDraft.receive))if(n)card(wanted,r,n,`Remove requested ${r}`,()=>tradeDraft.receive[r]--);
+  for(const [r,n]of Object.entries(tradeDraft.give))if(n)card(given,r,n,`Remove offered ${r}`,()=>tradeDraft.give[r]--);
+  for(const [r,n]of Object.entries(g.resources))card(hand,r,n,`Offer ${r}`,()=>{tradeDraft.give[r]=(tradeDraft.give[r]||0)+1;},!mine||!!tradeDraft.receive[r]||(tradeDraft.give[r]||0)>=n);
+  const give=Object.fromEntries(Object.entries(tradeDraft.give).filter(([,n])=>n>0)),receive=Object.fromEntries(Object.entries(tradeDraft.receive).filter(([,n])=>n>0)),a=Object.keys(give),b=Object.keys(receive),valid=mine&&a.length>0&&b.length>0&&a.every(r=>give[r]<=g.resources[r]&&!receive[r]);
+  const bankValid=valid&&a.length===1&&b.length===1&&receive[b[0]]===1&&give[a[0]]===(g.bankRates?.[a[0]]||4)&&g.bank[b[0]]>0;
+  const opponents=state.players.filter(p=>p.playing&&!p.bot&&p.online&&p.id!==viewerId);
+  if(opponents.length){const select=document.createElement('select');select.setAttribute('aria-label','Trade recipient');for(const p of opponents){const o=document.createElement('option');o.value=p.id;o.textContent=p.name;select.append(o);}if(opponents.some(p=>p.id===tradeDraft.to))select.value=tradeDraft.to;tradeDraft.to=select.value;select.onchange=()=>tradeDraft.to=select.value;offer.append(select);}
+  const action=(label,icon,disabled,fn)=>{const button=document.createElement('button');button.setAttribute('aria-label',label);button.title=label;button.disabled=disabled;button.append(sprite(icon));button.onclick=fn;rail.append(button);};
+  action('Trade with bank','icon_tradehouse',!bankValid,()=>{send('BankTrade',{give:a[0],receive:b[0]});tradeDraft.give={};tradeDraft.receive={};closePanels();});
+  action('Send player offer','icon_players',!valid||!opponents.length,()=>send('OfferTrade',{player:tradeDraft.to,give,receive}));
+  const cancel=document.createElement('button');cancel.textContent='✕';cancel.setAttribute('aria-label','Close trade');cancel.onclick=()=>closePanels();rail.append(cancel);
+  const help=document.createElement('p');help.className='trade-requirements';help.textContent=bankValid?'Bank exchange ready':a.length===1?`Bank rate: ${g.bankRates?.[a[0]]||4} ${a[0]} for one card. Select cards to offer below, then request above.`:'Select cards to offer below, then request above.';offer.append(help);
+  if(g.tradeOffer){const existing=g.tradeOffer;const status=document.createElement('p');status.textContent='Pending offer · '+state.players.find(p=>p.id===existing.from)?.name+' → '+state.players.find(p=>p.id===existing.to)?.name;offer.append(status);for(const [label,type,allowed]of [['Cancel offer','CancelTrade',existing.from===viewerId],['Accept offer','AcceptTrade',existing.to===viewerId&&g.canAcceptTrade],['Decline offer','DeclineTrade',existing.to===viewerId]])if(allowed){const button=document.createElement('button');button.textContent=label;button.onclick=()=>send(type,{offerId:existing.id});offer.append(button);}}
+}
 let audioContext,soundEnabled=localStorage.getItem('settlers-sound')!=='off',turnStarted=Date.now(),turnKey;
 document.addEventListener('pointerdown',()=>{if(soundEnabled){audioContext??=new AudioContext();audioContext.resume().catch(()=>{});}});
 function cue(dice=false){if(!soundEnabled||!audioContext||audioContext.state!=='running')return;for(let i=0;i<(dice?5:2);i++){const oscillator=audioContext.createOscillator(),gain=audioContext.createGain(),start=audioContext.currentTime+i*.075;oscillator.type=dice?'triangle':'sine';oscillator.frequency.value=dice?180+i*67:660+i*220;gain.gain.setValueAtTime(.035,start);gain.gain.exponentialRampToValueAtTime(.001,start+.065);oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(start);oscillator.stop(start+.07);}}
@@ -173,9 +201,9 @@ function controls(state){
     discardButton=document.createElement('button');discardButton.onclick=()=>send('Discard',{cards:Object.fromEntries(Object.entries(fields).map(([r,input])=>[r,Number(input.value)]))});$('actions').append(discardButton);update();
   }
   if(mine&&g.phase==='steal')for(const id of g.victims)button('Steal from '+state.players.find(p=>p.id===id).name,()=>send('Steal',{player:id}));
-  actionPanel('Development cards','development',state,DevelopmentControls.render);
+  actionPanel('Development cards','development',state,DevelopmentControls.render,mine&&g.phase==='build'&&(g.development?.canBuy||g.development?.cards.some(c=>c.playable)));
   for(const panel of $('actions').querySelectorAll('.action-panel'))panel.style.order=panel.querySelector('summary').title==='Trade'?'0':'1';
-  actionPanel('Trade','trade',state,TradeControls.render);
+  actionPanel('Trade','trade',state,referenceTrade,g.phase==='build'&&(mine&&Object.values(g.resources).some(n=>n>0)||g.tradeOffer?.to===joined.playerId));
   for(const panel of $('actions').querySelectorAll('.action-panel'))panel.style.order=panel.querySelector('summary').title==='Trade'?'0':'1';
 }
 function connect(){
