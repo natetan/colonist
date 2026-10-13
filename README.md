@@ -35,6 +35,8 @@ Run `npm run test:protocol` for isolated action sequencing, MessagePack byte fix
 
 ## Initial findings
 
+`npm run inspect:renderer` uses the parser installed with local REA to audit literal dependency candidates for the game controller and web map renderer, without executing bundles. It writes ignored `.rea-tools/renderer-dependencies.json`. Conditional imports, duplicate bundle variants, shadowed identifiers, and numeric-property factory lookalikes can overestimate dependencies; this is a navigation report, not proof that every listed module is required.
+
 `npm run fixture:preview` generates `.rea-tools/board-preview-fixture.json` using the observed special board-preview configuration. `npm run test:preview` checks configuration construction and MessagePack round trips. This fixture uses synthetic land and local identifiers, has no full gameplay mechanics, and has not been tested in the original renderer. The general BuildGame checker can report identity mismatches for this special preview's synthetic player record.
 
 `npm run test:protocol-map` verifies the independently implemented axial geometry in `protocol-map.cjs`: shared corners/edges, edge endpoints, and 19-hex island counts. This supplies experimental geometry only; it is not integrated into gameplay or a complete original-client map payload.
