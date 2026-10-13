@@ -172,7 +172,10 @@ document.addEventListener('pointerdown',()=>{if(soundEnabled){audioContext??=new
 function cue(dice=false){if(!soundEnabled||!audioContext||audioContext.state!=='running')return;for(let i=0;i<(dice?5:2);i++){const oscillator=audioContext.createOscillator(),gain=audioContext.createGain(),start=audioContext.currentTime+i*.075;oscillator.type=dice?'triangle':'sine';oscillator.frequency.value=dice?180+i*67:660+i*220;gain.gain.setValueAtTime(.035,start);gain.gain.exponentialRampToValueAtTime(.001,start+.065);oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(start);oscillator.stop(start+.07);}}
 function turnFeedback(state){const g=state.game,key=state.code+':'+g?.currentPlayer+':'+g?.phase;if(key!==turnKey){turnStarted=Date.now();turnKey=key;if(g?.currentPlayer===joined.playerId&&['roll','settlement'].includes(g.phase))cue();}if(g?.dice&&latestState?.game?.phase==='roll'&&g.phase!=='roll')cue(true);}
 setInterval(()=>{const elapsed=Math.floor((Date.now()-turnStarted)/1000);$('phase-clock').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;},1000);
-let developmentChoice,selectedVictim;
+let developmentChoice,selectedVictim,developmentCatalog={};
+const cardTip=document.createElement('div');cardTip.className='card-tooltip';cardTip.hidden=true;cardTip.id='development-tooltip';cardTip.setAttribute('role','tooltip');document.body.append(cardTip);
+function showCardTip(element,info,status){cardTip.replaceChildren();const title=document.createElement('strong');title.textContent=info.name;const effect=document.createElement('p');effect.textContent=info.effect;const availability=document.createElement('p');availability.textContent=status;cardTip.append(title,effect,availability);const rect=element.getBoundingClientRect();cardTip.style.left=Math.max(8,Math.min(rect.left,innerWidth-308))+'px';cardTip.hidden=false;cardTip.style.top=Math.max(8,rect.top-cardTip.offsetHeight-10)+'px';}
+
 function robberAction(state,mine){
   const g=state.game,box=$('action-box');box.replaceChildren();box.hidden=!mine||!['robber','steal'].includes(g?.phase);if(box.hidden){selectedVictim=null;return;}
   const header=document.createElement('div');header.className='robber-header';header.append(sprite('icon_robber'));const text=document.createElement('div');const title=document.createElement('strong');title.textContent='The Robber';const help=document.createElement('p');help.textContent=g.phase==='robber'?'Choose a tile to move the robber':'Choose a player to steal 1 random card';text.append(title,help);header.append(text);box.append(header);if(g.phase!=='steal')return;
@@ -182,10 +185,19 @@ function robberAction(state,mine){
 }
 function developmentHand(state,mine){
   const g=state.game,d=g.development;if(!d)return;
-  const art={Knight:'card_knight',RoadBuilding:'card_roadbuilding',YearOfPlenty:'card_yearofplenty',Monopoly:'card_monopoly',VictoryPoint:'card_victorypoint'};
-  const effects={Knight:'Move the robber and steal a resource',RoadBuilding:'Place two free roads',YearOfPlenty:'Take two bank resources',Monopoly:'Collect one resource from opponents',VictoryPoint:'Private point counted automatically'};
+  cardTip.hidden=true;
   if(d.cards.length){const divider=document.createElement('span');divider.className='hand-divider';$('hand').append(divider);}
-  for(const card of d.cards){const b=document.createElement('button');b.className='hand-development';b.append(sprite(art[card.type]));b.disabled=!mine||g.phase!=='build'||!card.playable;b.title=effects[card.type]+(card.newThisTurn?' · Available next turn':b.disabled?' · Unavailable now':' · Click to play');b.setAttribute('aria-label',card.type);b.onclick=()=>{closePanels();if(['YearOfPlenty','Monopoly'].includes(card.type)){developmentChoice=card.id;controls(state);}else send('PlayDevelopmentCard',{cardId:card.id});};$('hand').append(b);}
+  for(const [type,info]of Object.entries(developmentCatalog)){
+    const cards=d.cards.filter(c=>c.type===type);if(!cards.length)continue;
+    const chosen=cards.find(c=>c.playable)||cards[0],enabled=mine&&g.phase==='build'&&chosen.playable;
+    const stack=document.createElement('div');stack.className='development-stack';stack.tabIndex=0;stack.setAttribute('aria-label',info.name+' · '+cards.length+' cards');stack.setAttribute('aria-describedby',cardTip.id);
+    const b=document.createElement('button');b.className='hand-development';b.disabled=!enabled;b.setAttribute('aria-label','Play '+info.name);b.setAttribute('aria-describedby',cardTip.id);
+    for(let i=0;i<Math.min(cards.length,5);i++){const image=sprite(info.picture);image.style.left=(i*8)+'px';b.append(image);}stack.style.width=(42+Math.min(cards.length-1,4)*8)+'px';
+    if(cards.length>1){const count=document.createElement('strong');count.className='development-count';count.textContent=cards.length;b.append(count);}
+    const status=type==='VictoryPoint'?'Already included in your private score':enabled?'Click to play one card':cards.every(c=>c.newThisTurn)?'Available next turn':!mine?'Wait for your turn':g.phase!=='build'?'Resolve the dice first':'Unavailable: only one older development card may be played per turn';
+    stack.title=info.name+': '+info.effect+' · '+status;stack.onmouseenter=()=>showCardTip(stack,info,status);stack.onmouseleave=()=>cardTip.hidden=true;stack.onfocusin=()=>showCardTip(stack,info,status);stack.onfocusout=()=>cardTip.hidden=true;
+    b.onclick=()=>{cardTip.hidden=true;closePanels();if(['YearOfPlenty','Monopoly'].includes(type)){developmentChoice=chosen.id;controls(state);}else send('PlayDevelopmentCard',{cardId:chosen.id});};stack.append(b);$('hand').append(stack);
+  }
   const card=d.cards.find(c=>c.id===developmentChoice&&c.playable);if(!card||!mine||g.phase!=='build'){developmentChoice=null;return;}
   const row=document.createElement('div');row.className='development-choices';const label=document.createElement('span');label.textContent=card.type==='Monopoly'?'Collect:':'Take two resources:';row.append(label);const picks=[];
   for(const r of Object.keys(cardSprites)){const b=document.createElement('button');b.append(sprite(cardSprites[r]));b.dataset.resource=r;b.title=r;b.setAttribute('aria-label','Choose '+r);b.disabled=card.type==='YearOfPlenty'&&!g.bank[r];b.onclick=()=>{if(card.type==='Monopoly'){developmentChoice=null;send('PlayDevelopmentCard',{cardId:card.id,resource:r});return;}picks.push(r);if(picks.length===Math.min(2,Object.values(g.bank).reduce((a,b)=>a+b,0))){developmentChoice=null;send('PlayDevelopmentCard',{cardId:card.id,resources:picks});}else{label.textContent='First: '+r+' · Choose second';for(const choice of row.querySelectorAll('[data-resource]'))choice.disabled=g.bank[choice.dataset.resource]<=picks.filter(x=>x===choice.dataset.resource).length;}};row.append(b);}
@@ -248,4 +260,5 @@ $('sound').checked=soundEnabled;$('sound').onchange=()=>{soundEnabled=$('sound')
 $('chat-form').onsubmit=event=>{event.preventDefault();const text=$('chat-input').value.trim();if(text){send('Chat',{text});$('chat-input').value='';}};
 $('share').onclick=async()=>{const url=new URL(location.href);url.searchParams.set('room',joined.code);try{await navigator.clipboard.writeText(url.href);$('share').textContent='Copied room link';setTimeout(()=>$('share').textContent='Copy room link',2000);}catch{$('error').textContent=`Room code: ${joined.code}. Copy the address and add ?room=${joined.code}`;}};
 $('probe').onclick=async()=>{try{const fixture=await(await fetch('/fixture.json')).json();scheduleRender(fixture,{robber:Object.values(fixture.gameState.mapState.tileHexStates).findIndex(t=>t.type===0)});}catch(error){log(error.message);}};
+fetch('/development-cards.json').then(r=>{if(!r.ok)throw Error('Restart renderer server to load development-card catalog');return r.json();}).then(catalog=>{developmentCatalog=catalog;if(latestState)controls(latestState);}).catch(error=>{$('error').textContent=error.message;});
 connect();

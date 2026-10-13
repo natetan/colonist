@@ -7,6 +7,7 @@ const routes={
   '/lab.js':path.join(__dirname,'renderer-lab.js'),
   '/game.css':path.join(__dirname,'renderer-lab.css'),
   '/scoring.js':path.resolve(__dirname,'../public/scoring.js'),
+  '/development-cards.json':path.resolve(__dirname,'../public/development-cards.json'),
   '/development.js':path.resolve(__dirname,'../public/development.js'),
   '/trading.js':path.resolve(__dirname,'../public/trading.js'),
   '/trading.css':path.resolve(__dirname,'../public/trading.css'),

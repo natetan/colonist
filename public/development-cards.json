@@ -1,0 +1,27 @@
+{
+  "Knight": {
+    "name": "Knight",
+    "picture": "card_knight",
+    "effect": "Move the robber to another tile, then steal one random resource card from an eligible player."
+  },
+  "VictoryPoint": {
+    "name": "Victory point",
+    "picture": "card_victorypoint",
+    "effect": "Adds one private victory point automatically. You do not play this card."
+  },
+  "Monopoly": {
+    "name": "Monopoly",
+    "picture": "card_monopoly",
+    "effect": "Choose one resource. Collect all cards of that resource from every other player."
+  },
+  "RoadBuilding": {
+    "name": "Road building",
+    "picture": "card_roadbuilding",
+    "effect": "Place up to two roads for free, following normal placement rules and piece limits."
+  },
+  "YearOfPlenty": {
+    "name": "Year of plenty",
+    "picture": "card_yearofplenty",
+    "effect": "Choose two available resource cards from the bank. You may choose the same resource twice if available."
+  }
+}

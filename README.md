@@ -210,3 +210,5 @@ The sidebar displays public points on each avatar ribbon; your ribbon adds your 
 Piece-button atlas styles are included in the renderer stylesheet, so existing server sessions display all player colors after refresh.
 
 Action buttons use the reference SVG frame and proportional SVG icons, including the pass-turn arrows. Disabled actions dim the foreground only; piece counters use the player color. These downloaded SVG assets remain local and ignored.
+
+Development-card metadata lives in public/development-cards.json (names, effects, sprite artwork). The renderer groups identical owned cards into overlapping stacks with counts and effect/availability tooltips on hover or keyboard focus. A playable older card is selected before a newly bought card of the same type. Restart the renderer after upgrading to register the catalog route.
