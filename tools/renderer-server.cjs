@@ -1,4 +1,6 @@
-const http=require('http'),fs=require('fs'),path=require('path');
+const fs=require('fs'),path=require('path');
+const {createApp}=require('../server.cjs');
+const {presentBoard}=require('./renderer-state.cjs');
 const root=path.resolve(__dirname,'../.rea-tools/renderer');
 const routes={
   '/':path.join(__dirname,'renderer-lab.html'),
@@ -6,8 +8,8 @@ const routes={
   '/factories.js':path.join(root,'factories.js'),
   '/fixture.json':path.resolve(__dirname,'../.rea-tools/board-preview-fixture.json'),
 };
-function startRendererLab(port=3002){
-const server=http.createServer((req,res)=>{
+function startRendererLab(port=3002,options={}){
+const app=createApp({random:options.random,boardPresentation:presentBoard,httpHandler:(req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
   let file=routes[pathname];
   if(/^\/assets\/[a-zA-Z0-9_.-]+$/.test(pathname))file=path.join(root,pathname.slice(1));
@@ -19,8 +21,10 @@ const server=http.createServer((req,res)=>{
   const mime={'.js':'text/javascript','.json':'application/json','.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml','.html':'text/html'};
   res.setHeader('Content-Type',mime[path.extname(file)]||'application/octet-stream');
   fs.createReadStream(file).pipe(res);
-});
+}});
+const server=app.server;
+server.closeLab=app.close;
 return new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',()=>resolve(server));});
 }
-if(require.main===module)startRendererLab().then(()=>console.log('Isolated renderer lab: http://127.0.0.1:3002')).catch(error=>{console.error(error.message);process.exitCode=1;});
+if(require.main===module)startRendererLab(Number(process.env.RENDERER_LAB_PORT||3002)).then(server=>console.log(`Local rendered game: http://127.0.0.1:${server.address().port}`)).catch(error=>{console.error(error.message);process.exitCode=1;});
 module.exports={startRendererLab};

@@ -29,7 +29,12 @@ if(require.main===module) {
   for(let q=-2;q<=2;q++) for(let r=-2;r<=2;r++) if(Math.abs(q+r)<=2) tiles.push({q,r,resource:q===0&&r===0?'desert':resources[tiles.length%resources.length],number:numbers[tiles.length%numbers.length]});
   const output=path.resolve(__dirname,'../.rea-tools/board-preview-fixture.json');
   fs.mkdirSync(path.dirname(output),{recursive:true});
-  fs.writeFileSync(output,JSON.stringify(createPreviewFixture(tiles,previewSettings()),null,2)+'\n');
+  const fixture=createPreviewFixture(tiles,previewSettings());
+  // Deliberately synthetic piece gallery, not a legal starting position.
+  Object.assign(fixture.gameState.mapState.tileCornerStates[0],{owner:1,buildingType:1});
+  Object.assign(fixture.gameState.mapState.tileCornerStates[3],{owner:2,buildingType:2});
+  Object.assign(fixture.gameState.mapState.tileEdgeStates[0],{owner:1,type:1});
+  fs.writeFileSync(output,JSON.stringify(fixture,null,2)+'\n');
   console.log(`Saved diagnostic preview: ${output}`);
 }
 module.exports={createPreviewFixture,previewSettings};

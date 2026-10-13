@@ -11,6 +11,7 @@ function createApp(options = {}) {
   const rooms = new Map();
   const clients = new Set();
   const server = http.createServer((req, res) => {
+    if (options.httpHandler) return options.httpHandler(req, res);
     const files = { '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/javascript'], '/style.css': ['style.css', 'text/css'] };
     const file = files[new URL(req.url, 'http://localhost').pathname];
     if (!file) { res.writeHead(404); return res.end('Not found'); }
@@ -29,7 +30,10 @@ function createApp(options = {}) {
     const g = room.game;
     const game = g ? { phase: g.phase, currentPlayer: g.order[g.step] || null, solo: g.solo, colors: g.colors, vertices: g.vertices, edges: g.edges, legalVertices: g.phase === 'settlement' ? rules.legalVertices(g) : [], legalEdges: g.phase === 'road' ? rules.legalEdges(g) : [], resources: g.resources[viewer.id] || null } : null;
     if(g && g.turn!==undefined){Object.assign(game,{currentPlayer:turns.current(g),dice:g.dice,robber:g.robber,discardCount:g.discards[viewer.id]||0,victims:g.phase==='steal'&&turns.current(g)===viewer.id?g.victims:[],builds:g.phase==='build'&&turns.current(g)===viewer.id?Object.fromEntries(Object.keys(turns.costs).map(type=>[type,turns.buildLocations(g,viewer.id,type)])):{},bank:g.bank});}
-    return { type: 'RoomState', code: room.code, host: room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?g.vertices.filter(v=>v.owner===p.id).reduce((n,v)=>n+(v.city?2:1),0):0 })), board: room.board, game };
+    const state = { type: 'RoomState', code: room.code, host: room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?g.vertices.filter(v=>v.owner===p.id).reduce((n,v)=>n+(v.city?2:1),0):0 })), board: room.board, game };
+    // Optional presentation adapter receives only the already-redacted snapshot.
+    if (options.boardPresentation) state.renderer = options.boardPresentation(state);
+    return state;
   }
   function broadcast(room) { for (const player of room.players) if (player.ws) send(player.ws, snapshot(room, player)); }
   function playBotTurns(room) {

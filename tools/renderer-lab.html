@@ -1,6 +1,9 @@
 <!doctype html>
 <html lang="en"><meta charset="utf-8"><title>Local renderer experiment</title>
-<style>body{background:#142d3b;color:#eef5fa;font:16px system-ui;margin:24px}pre{white-space:pre-wrap}canvas{border:1px solid #7c99a5}button{padding:12px}</style>
-<h1>Local renderer experiment</h1><p>Original module probes with synthetic state. External connections are blocked.</p>
+<style>body{background:#142d3b;color:#eef5fa;font:16px system-ui;margin:24px}pre{white-space:pre-wrap}canvas{border:1px solid #7c99a5;max-width:100%;height:auto;display:block}button{padding:12px;margin:4px;cursor:pointer}input{padding:10px;margin:4px;max-width:130px}#error{color:#ffb8a6}#board{touch-action:none;position:relative;width:fit-content;max-width:100%}.placement{position:absolute;width:20px;height:20px;border:2px solid #132e3b;border-radius:50%;background:white;padding:0;margin:0;transform:translate(-50%,-50%)}.placement:hover,.placement:focus-visible{background:#efc96b;outline:2px solid white}label{display:inline-block}</style>
+<h1>Private Settlers · original board renderer</h1><p>Create a local room, start with bots, then click white markers to place your pieces.</p>
+<p id="connection">Connecting…</p>
+<div id="lobby"><label>Name <input id="name" value="Nate" maxlength="24"></label><button id="create" disabled>Create room</button><label>Room code <input id="code" maxlength="6"></label><button id="join" disabled>Join room</button></div>
+<p id="room-info"></p><p id="turn"></p><p id="hand"></p><div id="actions"></div><p id="error" role="alert"></p>
 <button id="probe">Run renderer probe</button><pre id="status">Ready</pre><div id="board"></div>
 <script src="/factories.js"></script><script src="/lab.js"></script></html>
