@@ -1,0 +1,13 @@
+const assert=require('assert/strict');
+const {encode,decode}=require('@msgpack/msgpack');
+const {createPreviewFixture}=require('../tools/preview-fixture.cjs');
+const settings={id:'fixture',modeSetting:0,hideBankCards:false};
+const fixture=createPreviewFixture([{q:0,r:0,resource:'desert',number:0}],settings);
+assert.equal(fixture.gameSettings.gameType,8);
+assert.equal(fixture.gameSettings.extensionSetting,2);
+assert.deepEqual(settings,{id:'fixture',modeSetting:0,hideBankCards:false});
+assert.equal(fixture.gameState.playerStates[0].color,5);
+assert.equal(fixture.playerUserStates.length,0);
+assert.deepEqual(decode(encode(fixture)),fixture);
+assert.throws(()=>createPreviewFixture([],null));
+console.log('PASS: observed preview configuration and MessagePack round trip; rendering unverified');

@@ -35,6 +35,8 @@ Run `npm run test:protocol` for isolated action sequencing, MessagePack byte fix
 
 ## Initial findings
 
+`npm run fixture:preview` generates `.rea-tools/board-preview-fixture.json` using the observed special board-preview configuration. `npm run test:preview` checks configuration construction and MessagePack round trips. This fixture uses synthetic land and local identifiers, has no full gameplay mechanics, and has not been tested in the original renderer. The general BuildGame checker can report identity mismatches for this special preview's synthetic player record.
+
 `npm run test:protocol-map` verifies the independently implemented axial geometry in `protocol-map.cjs`: shared corners/edges, edge endpoints, and 19-hex island counts. This supplies experimental geometry only; it is not integrated into gameplay or a complete original-client map payload.
 
 `npm run fixture:map` writes an original synthetic land-map fixture to ignored `.rea-tools/land-map-fixture.json`. The serializer emits observed map collection and entry fields and is tested through MessagePack. The fixture has no harbors or sea, uses diagnostic resource/number assignments, and cannot launch the original UI by itself.
