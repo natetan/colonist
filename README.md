@@ -240,3 +240,5 @@ Trade-creator columns share the inventory and dock edges; bank and player button
 Trade bank/player actions form an evenly spaced column immediately above the dock close button, independent of the height of the resource-selection rows.
 
 Game completion opens a full-screen results overlay over the final board, with winner, ranked public overview, piece/development summaries, board-view controls, and host-only rematch. It contains no advertising. Dice distributions, timed duration, and resource/activity statistics are not tracked and are not fabricated; losing players retain private card identities.
+
+Closing the trade creator with the X, Escape, or an outside click clears its draft offer and requested cards; reopening starts empty.
