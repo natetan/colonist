@@ -31,6 +31,8 @@ Run `npm run inspect:client` to regenerate the bundle inventory. No dependencies
 
 Run `npm run inspect:module -- <module-id-or-text>` to locate relevant webpack modules without executing the bundles. See `research/architecture.md` for the startup and socket findings.
 
+Run `npm run test:protocol` for isolated action sequencing and binary-envelope fixture checks. `protocol.cjs` implements the observed command wrapper; it has no socket connection and is not integrated into gameplay. It accepts already encoded payload bytes and does not yet implement or verify the production payload codec. See `research/game-action-protocol.md` for evidence and unresolved compatibility requirements.
+
 ## Initial findings
 
 The shared bundle contains game-state models, move validators, development-card restrictions, and handlers for applying state diffs. The shared web bundle initializes a game socket. These findings support further client analysis but do not establish that the complete game engine or server is present.

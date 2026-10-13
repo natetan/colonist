@@ -44,3 +44,13 @@ Building uses separate request and confirmation commands. This suggests an inter
 4. Use an isolated local protocol fixture to verify encoding and sequencing before attempting an original-client handshake.
 
 These findings identify a client command contract. They do not establish that the downloaded client contains authoritative rules or an offline bot engine.
+
+## Follow-up: placement and transport
+
+Static UI inspection in `ui-game.ef351c1079ae7886fa5e.js` at character offsets approximately 85,500–95,000 shows edge highlights indexing `mapState.tileState.tileEdges[t]`, and corner highlights indexing `tileState.tileCorners[t]`. Their confirmation callbacks forward the highlight index into `confirmBuildRoad` or `confirmBuildSettlement`. These are numeric array indexes, not hex-coordinate objects. Our prototype's board numbering has not been matched to that ordering.
+
+Module 36872 exports `lo` as the command subtype enum: `GameAction=1`. Its `Vd` export refers to constant `a=130`, resolving the top-level game-state message ID used by module 67908. The sender's direct route is 3. The envelope builder encodes the recipient as UTF-8 and writes its byte length in a one-byte field.
+
+Module 11148's `gameStateUpdated` reads `diff` and `timeLeftInState`, applies the diff through the game controller, then selectively refreshes UI for changed sections including `currentState`, `playerStates`, `diceState`, `bankState`, `tradeState`, `mapState`, and mechanic-specific state. Module 68736 delegates actual merging to module 54801's `p_` export. Merge semantics, complete initial state, and per-player visibility are still unresolved; a generic recursive merge would be an unverified design choice.
+
+The independently written `protocol.cjs` now implements a bounded subset of action construction, sender sequencing, and direct envelope framing. It rejects oversized recipients rather than reproducing the original builder's one-byte overflow. `tests/protocol.cjs` verifies framing against a manually specified MessagePack fixture, UTF-8 byte length, malformed input, action IDs, and sequencing. This proves the local implementation matches those specified bytes; it does not establish production codec compatibility or a successful original-client handshake. No downloaded code is executed, served, or copied into the implementation.
