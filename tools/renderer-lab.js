@@ -112,7 +112,14 @@ function scheduleRender(fixture,presentation,state){
 function send(type,extra={}){if(socket?.readyState!==WebSocket.OPEN)return;$('error').textContent='';socket.send(JSON.stringify({type,...extra}));}
 function controls(state){
   const g=state.game, mine=g?.currentPlayer===joined?.playerId;
-  $('room-info').textContent=`Room ${state.code} · `+state.players.map(p=>`${p.name}${p.bot?' (bot)':''}${p.online?'':' (offline)'}${p.playing?' · '+p.points+' points · '+p.resourceCount+' resources · '+p.developmentCount+' cards · '+p.knightsPlayed+' knights':''}`).join(' / ');
+  $('hand').hidden=!g;
+  $('hand').textContent='';
+  const hints={settlement:'Choose a white corner marker for your settlement.',road:'Choose a white edge marker for your starting road.',roll:'Roll the dice to collect resources.',build:'Build, trade, or play a development card, then end your turn.',discard:'Players with more than seven cards must discard half their hand.',robber:'Choose a white tile marker to move the robber.',steal:'Choose a player to steal one random resource.', 'free-road':'Choose a white edge marker for a free road.',finished:'The host can return everyone to the lobby for a rematch.'};
+  $('hint').textContent=g?(g.discardCount?`Select exactly ${g.discardCount} cards to discard.`:mine?hints[g.phase]||'':`Waiting for ${state.players.find(p=>p.id===g.currentPlayer)?.name||'the other players'}. ${g.phase==='discard'?hints.discard:''}`):'Start with bots to play alone, or invite friends with the room link.';
+  $('room-info').replaceChildren();
+  const roomTitle=document.createElement('strong');roomTitle.textContent=`Room ${state.code}`;$('room-info').append(roomTitle);
+  const seats=document.createElement('div');seats.className='player-seats';$('room-info').append(seats);
+  for(const p of state.players){const seat=document.createElement('div');seat.className='player-seat';if(p.id===g?.currentPlayer)seat.classList.add('active-seat');const name=document.createElement('strong');name.textContent=p.name+(p.id===joined.playerId?' · You':'')+(p.bot?' · Bot':'')+(p.online?'':' · Offline');seat.append(name);if(p.playing){const stats=document.createElement('span');stats.textContent=`${p.points} points · ${p.resourceCount} resources · ${p.developmentCount} development cards · ${p.knightsPlayed} knights`;seat.append(stats);}seats.append(seat);}
   $('actions').replaceChildren();
   const button=(label,action,disabled=false)=>{const b=document.createElement('button');b.textContent=label;b.disabled=disabled;b.onclick=action;$('actions').append(b);};
   if(!g){$('turn').textContent='Waiting to start';if(state.host===joined.playerId){button('Start with bots',()=>send('StartGame',{bots:true}));button('Start game',()=>send('StartGame'),state.players.filter(p=>p.online&&!p.bot).length<2);}return;}
@@ -122,12 +129,15 @@ function controls(state){
   ScoreControls.render($('actions'),state,joined.playerId,send);if(g.phase==='finished'){$('turn').textContent=`${player.name} wins with ${g.scoring.winningPoints} points!`;return;}
   if(mine&&g.phase==='roll')button('Roll dice',()=>send('RollDice'));
   if(mine&&g.phase==='build'){
-    for(const [type,label]of Object.entries({BuildRoad:'Build road',BuildSettlement:'Build settlement',BuildCity:'Upgrade city'}))button(label,()=>{buildMode=type;scheduleRender(state.renderer.fixture,state.renderer,state);},!(g.builds[type]||[]).length);
+    for(const [type,label]of Object.entries({BuildRoad:'Build road · wood + brick',BuildSettlement:'Build settlement · wood + brick + sheep + wheat',BuildCity:'Upgrade city · 2 wheat + 3 ore'}))button(label,()=>{buildMode=type;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);},!(g.builds[type]||[]).length);
+    if(buildMode){$('hint').textContent='Choose a white marker to build, or cancel placement.';button('Cancel placement',()=>{buildMode=null;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);});}
     button('End turn',()=>{buildMode=null;send('EndTurn');});
   }
   if(g.discardCount){
-    const fields={};for(const [name,n]of Object.entries(g.resources)){const label=document.createElement('label');label.textContent=name;const input=document.createElement('input');input.type='number';input.min=0;input.max=n;input.value=0;label.append(input);fields[name]=input;$('actions').append(label);}
-    button(`Discard ${g.discardCount} cards`,()=>send('Discard',{cards:Object.fromEntries(Object.entries(fields).map(([r,input])=>[r,Number(input.value)]))}));
+    const fields={};let discardButton;
+    const update=()=>{const entries=Object.entries(fields),total=entries.reduce((sum,[,input])=>sum+Number(input.value),0);discardButton.textContent=`Discard ${total} / ${g.discardCount} cards`;discardButton.disabled=total!==g.discardCount||entries.some(([r,input])=>!Number.isInteger(Number(input.value))||Number(input.value)<0||Number(input.value)>g.resources[r]);};
+    for(const [name,n]of Object.entries(g.resources)){const label=document.createElement('label');label.textContent=`${name} (${n} available)`;const input=document.createElement('input');input.type='number';input.min=0;input.max=n;input.value=0;input.oninput=update;label.append(input);fields[name]=input;$('actions').append(label);}
+    discardButton=document.createElement('button');discardButton.onclick=()=>send('Discard',{cards:Object.fromEntries(Object.entries(fields).map(([r,input])=>[r,Number(input.value)]))});$('actions').append(discardButton);update();
   }
   if(mine&&g.phase==='steal')for(const id of g.victims)button('Steal from '+state.players.find(p=>p.id===id).name,()=>send('Steal',{player:id}));
   DevelopmentControls.render($('actions'),state,joined.playerId,send);
@@ -138,7 +148,7 @@ function connect(){
   socket.onmessage=event=>{
     const state=JSON.parse(event.data);
     if(state.type==='SessionEstablished'){$('connection').textContent='Connected to local game server';$('create').disabled=$('join').disabled=false;let saved;try{saved=JSON.parse(sessionStorage.getItem(sessionKey));}catch{}if(saved)send('Resume',saved);}
-    if(state.type==='Joined'){joined=state;sessionStorage.setItem(sessionKey,JSON.stringify({code:state.code,token:state.token}));$('lobby').hidden=true;$('probe').hidden=true;}
+    if(state.type==='Joined'){joined=state;sessionStorage.setItem(sessionKey,JSON.stringify({code:state.code,token:state.token}));$('lobby').hidden=true;$('probe').hidden=true;$('share').hidden=false;}
     if(state.type==='RoomState'){$('connection').textContent=state.persistence?'Connected · games saved locally':'Connected · temporary games';latestState=state;if(state.game?.phase!=='build')buildMode=null;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);}
     if(state.type==='Error'){$('error').textContent=state.message;if(state.message.startsWith('Saved session')){sessionStorage.removeItem(sessionKey);joined=null;$('lobby').hidden=false;$('probe').hidden=false;}}
   };
@@ -147,5 +157,7 @@ function connect(){
 }
 $('create').onclick=()=>send('CreateRoom',{name:$('name').value});
 $('join').onclick=()=>send('JoinRoom',{name:$('name').value,code:$('code').value.trim().toUpperCase()});
+$('code').value=new URLSearchParams(location.search).get('room')||'';
+$('share').onclick=async()=>{const url=new URL(location.href);url.searchParams.set('room',joined.code);try{await navigator.clipboard.writeText(url.href);$('share').textContent='Copied room link';setTimeout(()=>$('share').textContent='Copy room link',2000);}catch{$('error').textContent=`Room code: ${joined.code}. Copy the address and add ?room=${joined.code}`;}};
 $('probe').onclick=async()=>{try{const fixture=await(await fetch('/fixture.json')).json();scheduleRender(fixture,{robber:Object.values(fixture.gameState.mapState.tileHexStates).findIndex(t=>t.type===0)});}catch(error){log(error.message);}};
 connect();
