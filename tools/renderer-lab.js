@@ -130,7 +130,7 @@ function connect(){
     const state=JSON.parse(event.data);
     if(state.type==='SessionEstablished'){$('connection').textContent='Connected to local game server';$('create').disabled=$('join').disabled=false;let saved;try{saved=JSON.parse(sessionStorage.getItem(sessionKey));}catch{}if(saved)send('Resume',saved);}
     if(state.type==='Joined'){joined=state;sessionStorage.setItem(sessionKey,JSON.stringify({code:state.code,token:state.token}));$('lobby').hidden=true;$('probe').hidden=true;}
-    if(state.type==='RoomState'){latestState=state;if(state.game?.phase!=='build')buildMode=null;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);}
+    if(state.type==='RoomState'){$('connection').textContent=state.persistence?'Connected · games saved locally':'Connected · temporary games';latestState=state;if(state.game?.phase!=='build')buildMode=null;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);}
     if(state.type==='Error'){$('error').textContent=state.message;if(state.message.startsWith('Saved session')){sessionStorage.removeItem(sessionKey);joined=null;$('lobby').hidden=false;$('probe').hidden=false;}}
   };
   socket.onclose=()=>{$('connection').textContent='Disconnected. Reconnecting…';$('create').disabled=$('join').disabled=true;clearTimeout(retry);retry=setTimeout(connect,1500);};

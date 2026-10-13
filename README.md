@@ -4,7 +4,7 @@ Private multiplayer board-game project for local testing, with eventual Azure ho
 
 ## Current status
 
-Local multiplayer gameplay with initial placement, dice, resource production, building, robber handling, bank/player trading, development cards, scoring, winner detection, and basic bots. The original UI prototype runs on port 3000; an experimental original Colonist board renderer now presents the same local rules on port 3002. Matches can now finish at ten points; harbor trading, saved games, and the full UI remain unfinished.
+Local multiplayer gameplay with initial placement, dice, resource production, building, robber handling, bank/player trading, development cards, scoring, winner detection, and basic bots. The original UI prototype runs on port 3000; an experimental original Colonist board renderer now presents the same local rules on port 3002. Matches can now finish at ten points; harbor trading and the full UI remain unfinished. Local saves now survive server restarts.
 
 ## Run locally
 
@@ -19,7 +19,7 @@ Open `http://localhost:3000`. Enter your name and create a room. Open a separate
 
 Run `npm test` for server integration checks. Stop the server with Ctrl+C. Set `$env:PORT = '3001'` before launching to change the port.
 
-The server binds only to loopback for local testing. Rooms support six seats and are kept in memory; restarting the server loses rooms and boards. Fully disconnected rooms expire after ten minutes. No accounts, saved games, harbors, or balanced-number placement are implemented yet. Azure access is not configured.
+The server binds only to loopback for local testing. Rooms support six seats and are saved locally by default. Saved rooms remain available after disconnects and server restarts. Temporary rooms expire after ten minutes fully disconnected. No accounts, harbors, or balanced-number placement are implemented yet. Azure access is not configured.
 
 The prototype uses an original browser UI and JSON WebSocket protocol. Its two initial handshake message names mirror observed client behavior, but this is not a Colonist-compatible replacement server. `npm start` does not serve downloaded bundles; the separate renderer lab serves locally extracted factories and assets.
 
@@ -40,7 +40,7 @@ npm run fixture:preview
 npm run renderer:lab
 ```
 
-Open `http://127.0.0.1:3002`, create a room, and choose **Start with bots**, or join friends in another fresh tab on that same port. Place both settlement/road pairs using white markers, then roll dice. When affordable, select a build button to reveal legal locations. The renderer server has its own in-memory rooms; room codes from port 3000 do not carry over. Stop with Ctrl+C; set `$env:RENDERER_LAB_PORT = '3003'` to change its port. Once setup is complete, only `npm run renderer:lab` is needed to launch.
+Open `http://127.0.0.1:3002`, create a room, and choose **Start with bots**, or join friends in another fresh tab on that same port. Place both settlement/road pairs using white markers, then roll dice. When affordable, select a build button to reveal legal locations. The renderer server has its own save file and rooms; room codes from port 3000 do not carry over. Stop with Ctrl+C; set `$env:RENDERER_LAB_PORT = '3003'` to change its port. Once setup is complete, only `npm run renderer:lab` is needed to launch.
 
 **Run renderer probe** still displays a deliberately synthetic piece gallery including a city; it is not a legal starting position. Preparation extracts module factories without running the web entry point; generated code, source-range/hash manifests, fixtures, and downloaded assets stay ignored in `.rea-tools/`. The asset downloader uses exact public sheet paths referenced by this bundle snapshot. It needs internet access during setup; rendering uses local files.
 
@@ -82,7 +82,7 @@ Target the standard four-player game first. Five/six-player and larger matches r
 
 ## Initial placement
 
-The host sees Start game, enabled with at least two online players. Offline seats are excluded from the placement order. When alone, use Solo placement test to place both settlement/road pairs yourself (no bots). Players take turns placing a settlement on a white corner, then a road on an adjacent white edge. The second round runs in reverse order and grants starting resources from the second settlement. Other players cannot place during your turn; reconnect restores match state. New players cannot join after start. Regular turns begin automatically after placement. Refresh both tabs after updating the app; restarting the server requires creating a new room.
+The host sees Start game, enabled with at least two online players. Offline seats are excluded from the placement order. When alone, use Solo placement test to place both settlement/road pairs yourself (no bots). Players take turns placing a settlement on a white corner, then a road on an adjacent white edge. The second round runs in reverse order and grants starting resources from the second settlement. Other players cannot place during your turn; reconnect restores match state. New players cannot join after start. Regular turns begin automatically after placement. Refresh both tabs after updating the app; restart on the same port and hostname to resume saved seats automatically.
 
 ## Playing alone with bots
 
@@ -126,7 +126,7 @@ Following the [official CATAN FAQ](https://www.catan.com/faq/basegame), you may 
 
 Bots can buy and play cards using their own hand and public board/bank information. They remain basic opponents. Knight and Road Building suspend trading while their required moves are pending.
 
-Restart the running server and refresh both tabs after this update, then create a new room. For the original board view use `npm run renderer:lab`; for the prototype use `npm start`. Restarting loses existing rooms because persistence is not implemented yet.
+Restart the running server and refresh both tabs after this update, then create a new room. For the original board view use `npm run renderer:lab`; for the prototype use `npm start`. Rooms created after enabling local saves survive subsequent restarts; earlier in-memory rooms cannot be recovered from a stopped server.
 
 `npm run test:development` checks deck counts, costs, private views, atomic rejection, turn restrictions, pre/post-roll knights, free-road connections and limits, bank shortages, Monopoly conservation, and bots. It also runs under `npm test`. `npm run test:development-network` uses real WebSocket clients to verify purchase costs, private snapshots, card ownership and age, public knight play, return to the roll phase, and replay rejection. Renderer integration and geometry checks pass; the new card controls have not yet been exercised in a browser.
 
@@ -138,6 +138,33 @@ The current award holder keeps a tie. A longer road or larger army transfers the
 
 Settlements count one point and cities two. The **Your score** panel includes your hidden victory-point cards; the player list shows public scores. Following the [official CATAN rules](https://www.catan.com/faq/basegame), victory is checked on the current player's turn. A player reaching ten points outside their turn must wait until their turn begins. Newly bought victory-point cards can complete a win immediately. A winning knight can end the game before its robber effect is resolved.
 
-The winner panel displays their total and revealed victory-point-card count. Further gameplay commands are rejected, bots stop, and reconnect restores the finished board while the server stays running. Other players' private hands remain private. To play again, open a fresh tab and create a new room. There is no rematch button or durable save yet.
+The winner panel displays their total and revealed victory-point-card count. Further gameplay commands are rejected, bots stop, and reconnect restores the finished board, including after a server restart with local saves enabled. Other players' private hands remain private. To play again, open a fresh tab and create a new room. There is no rematch button yet.
 
 `npm run test:scoring` verifies branches, loops, blocked and disconnected roads, award thresholds, ties and transfers, private totals, own-turn victory, newly purchased victory points, knight victory, and the finished-game lock. These checks also run under `npm test`. `npm run test:scoring-network` plays a deterministic diagnostic match with two actual WebSocket clients from placement through production, bank trading, building, card purchases and knights to victory; it checks private/public scores, winner reveal, rejection of further moves, and reconnect. It uses a diagnostic board with all number tokens set to six and controlled random draws. Renderer route/geometry and existing card/trade regression checks pass. The new score/winner panels have not yet been visually tested in a browser.
+
+## Saved games and restart recovery
+
+Normal launches save automatically before acknowledging gameplay changes. `npm start` uses `data/prototype.json`; `npm run renderer:lab` uses `data/renderer.json`. Lobby seats, board, setup progress, private hands/deck, pending trades, robber/discard/free-road phases, turn order, awards, and finished matches are preserved. Live sockets are never serialized. When the server starts again, humans are offline until their existing browser tabs reconnect; interrupted bot turns resume when a human reconnects.
+
+Stop with Ctrl+C, launch the same command on the same port, and keep the same hostname (`localhost` and `127.0.0.1` have separate browser storage). The tab's existing session token restores its seat. Clearing browser session storage or closing the tab may lose that token; the room code alone cannot reclaim a seat. No account-based recovery or save-management UI exists yet. Rooms from an older server that had no saving enabled are not migrated.
+
+Save files and backups contain private hands and seat tokens. The entire `data/` folder is ignored by Git and is never served over HTTP. A temporary file is flushed and renamed into place; `.bak` holds the preceding save. A single-process lock prevents two servers from writing the same file. A lock left by a dead process is reclaimed on startup. Use local disk; this is not a database or a multi-server/cloud storage design.
+
+Optional configuration (also documented in `.env.example`; the app does not load `.env` automatically):
+
+```powershell
+# Override the path for one server. Use different files for separate servers.
+$env:SETTLERS_SAVE_FILE = 'data/my-games.json'
+npm run renderer:lab
+
+# Restore the default path for subsequent launches.
+Remove-Item Env:SETTLERS_SAVE_FILE
+
+# Opt into temporary, in-memory games instead.
+$env:SETTLERS_SAVE_FILE = 'off'
+npm start
+```
+
+Invalid or incompatible saves stop startup without resetting the file. To restore a backup, stop the server, preserve the invalid file separately, and copy its `.bak` over the main save. The backup may be one move behind. If saving fails during play, further commands are paused; fix storage and restart to recover the last successfully saved state. Moves whose save failed are not acknowledged. Saved rooms currently have no automatic expiry or deletion, so the file grows as rooms are created. Backups are local and do not protect against losing the disk.
+
+`npm run test:persistence` checks round trips through setup, discard/robber and free-road phases, socket exclusion, token preservation, file locking, stale-lock recovery, backup writing, failed replacement, and refusal of incompatible/corrupt state. It also runs under `npm test`. `npm run test:persistence-network` restarts real servers during setup, roll/build, a pending trade, a new card, and knight resolution; it verifies identical private/public snapshots, failed-save command blocking and recovery, and resuming an interrupted bot turn. `npm run test:scoring-network` now also restarts and restores a completed match from disk. These are automated loopback checks; browser restart behavior has not yet been manually exercised.

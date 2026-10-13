@@ -11,3 +11,6 @@ coverage/
 research/*.js
 research/*.html
 research/*.png
+
+# Local saves contain private hands and reconnect tokens.
+data/

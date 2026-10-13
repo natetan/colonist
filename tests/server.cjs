@@ -7,6 +7,7 @@ require('./turns.cjs');
 require('./trading.cjs');
 require('./development.cjs');
 require('./scoring.cjs');
+require('./persistence.cjs');
 async function run() {
   const app = createApp({random:()=>3});
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));

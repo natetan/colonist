@@ -5,6 +5,8 @@
   "scripts": {
     "start": "node server.cjs",
     "test": "node tests/server.cjs",
+    "test:persistence": "node tests/persistence.cjs",
+    "test:persistence-network": "node tests/persistence-network.cjs",
     "test:scoring": "node tests/scoring.cjs",
     "test:scoring-network": "node tests/scoring-network.cjs",
     "test:development": "node tests/development.cjs",

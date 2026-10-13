@@ -1,8 +1,10 @@
 const assert=require('assert/strict'),{WebSocket}=require('ws');
 const {createApp}=require('../server.cjs');
+const fs=require('fs'),os=require('os'),path=require('path');
 const tiles=[];for(let r=-2;r<=2;r++)for(let q=Math.max(-2,-r-2);q<=Math.min(2,-r+2);q++)tiles.push({q,r,resource:tiles.length===18?'desert':['wood','brick','sheep','wheat','ore'][tiles.length%5],number:6});
 async function run(){
-  const app=createApp({random:()=>3,developmentRandom:n=>n>20?14:0,boardFactory:()=>tiles});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));const port=app.server.address().port;
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'settlers-finished-save-')),saveFile=path.join(dir,'rooms.json');
+  let app=createApp({saveFile,random:()=>3,developmentRandom:n=>n>20?14:0,boardFactory:()=>tiles});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));let port=app.server.address().port;
   function client(){const ws=new WebSocket(`ws://127.0.0.1:${port}/socket`,{origin:`http://localhost:${port}`}),queue=[],waiters=[];ws.on('message',bytes=>{const m=JSON.parse(bytes),i=waiters.findIndex(w=>w.type===m.type);if(i<0)queue.push(m);else waiters.splice(i,1)[0].resolve(m);});return{ws,send:m=>ws.send(JSON.stringify(m)),next:type=>new Promise((resolve,reject)=>{const i=queue.findIndex(m=>m.type===type);if(i>=0)return resolve(queue.splice(i,1)[0]);const timer=setTimeout(()=>reject(new Error('Timed out '+type)),3000);waiters.push({type,resolve:m=>{clearTimeout(timer);resolve(m);}});})};}
   try{
     const a=client(),b=client();await a.next('SessionEstablished');await b.next('SessionEstablished');a.send({type:'CreateRoom',name:'A'});const ja=await a.next('Joined');await a.next('RoomState');b.send({type:'JoinRoom',name:'B',code:ja.code});const jb=await b.next('Joined');await a.next('RoomState');await b.next('RoomState');
@@ -45,7 +47,9 @@ async function run(){
     // Finished state survives a seat reconnect without exposing the other hand.
     const before=sa;const closed=new Promise(resolve=>a.ws.once('close',resolve));a.ws.close();await closed;await b.next('RoomState');
     const resumed=client();await resumed.next('SessionEstablished');resumed.send({type:'Resume',code:ja.code,token:ja.token});await resumed.next('Joined');const restored=await resumed.next('RoomState');assert.equal(restored.game.phase,'finished');assert.equal(restored.game.scoring.winner,before.game.scoring.winner);assert.deepEqual(restored.game.development.cards,before.game.development.cards);assert(!JSON.stringify(restored).includes(jb.token));
-    console.log('PASS: two-human full match from setup to 10-point victory, private/public scores, revealed winner points, finished-command rejection, finished-game reconnect');
-  }finally{await app.close();}
+    await app.close();app=createApp({saveFile});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));port=app.server.address().port;
+    const afterRestart=client();await afterRestart.next('SessionEstablished');afterRestart.send({type:'Resume',code:ja.code,token:ja.token});await afterRestart.next('Joined');const saved=await afterRestart.next('RoomState');assert.deepEqual(saved.game,restored.game);assert.equal(saved.game.phase,'finished');afterRestart.send({type:'RollDice'});assert.match((await afterRestart.next('Error')).message,/finished/);
+    console.log('PASS: two-human full match from setup to 10-point victory, private/public scores, revealed winner points, finished-command rejection, finished-game reconnect and disk restore after server restart');
+  }finally{await app.close();fs.rmSync(dir,{recursive:true,force:true});}
 }
 run().catch(error=>{console.error(error);process.exitCode=1;});

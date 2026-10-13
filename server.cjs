@@ -8,10 +8,16 @@ const turns = require('./turns.cjs');
 const trading = require('./trading.cjs');
 const development = require('./development.cjs');
 const scoring = require('./scoring.cjs');
+const {createStore} = require('./persistence.cjs');
 
 function createApp(options = {}) {
   const random = options.random || crypto.randomInt;
-  const rooms = new Map();
+  const store = createStore(options.saveFile);
+  const rooms = store.load();
+  let storageFailure=false;
+  function persist(){
+    try{store.save(rooms);}catch(error){storageFailure=true;console.error('Saving games failed: '+error.message);throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');}
+  }
   const clients = new Set();
   const server = http.createServer((req, res) => {
     if (options.httpHandler) return options.httpHandler(req, res);
@@ -35,15 +41,15 @@ function createApp(options = {}) {
     if(g && g.turn!==undefined){Object.assign(game,{currentPlayer:turns.current(g),dice:g.dice,robber:g.robber,discardCount:g.discards[viewer.id]||0,victims:g.phase==='steal'&&turns.current(g)===viewer.id?g.victims:[],builds:g.phase==='build'&&turns.current(g)===viewer.id?Object.fromEntries(Object.keys(turns.costs).map(type=>[type,turns.buildLocations(g,viewer.id,type)])):{},bank:g.bank});}
     if(g && g.turn!==undefined){game.tradeOffer=g.tradeOffer;game.canAcceptTrade=!!g.tradeOffer&&g.tradeOffer.to===viewer.id&&trading.hasCards(g.resources[viewer.id]||{},g.tradeOffer.receive);}
     if(g && g.turn!==undefined){game.development=development.view(g,viewer.id,turns.roadLocations);game.scoring=scoring.view(g,viewer.id);}
-    const state = { type: 'RoomState', code: room.code, host: room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, game };
+    const state = { type: 'RoomState', persistence:!!options.saveFile, code: room.code, host: room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, game };
     for(const player of state.players){player.developmentCount=g?.developmentHands?.[player.id]?.length||0;player.knightsPlayed=g?.knightsPlayed?.[player.id]||0;}
     // Optional presentation adapter receives only the already-redacted snapshot.
     if (options.boardPresentation) state.renderer = options.boardPresentation(state);
     return state;
   }
-  function broadcast(room) { for (const player of room.players) if (player.ws) send(player.ws, snapshot(room, player)); }
+  function broadcast(room) { if(storageFailure)return;for (const player of room.players) if (player.ws) send(player.ws, snapshot(room, player)); }
   function playBotTurns(room) {
-    if(room.game.phase==='complete'){turns.begin(room.game,room.board);broadcast(room);}
+    if(room.game.phase==='complete'){turns.begin(room.game,room.board);persist();broadcast(room);}
     for(let actionCount=0;actionCount<200;actionCount++) {
       const regular=room.game.turn!==undefined;
       let current = room.players.find(p => p.id === (regular?turns.current(room.game):room.game.order[room.game.step]));
@@ -51,7 +57,7 @@ function createApp(options = {}) {
       if (!current || !current.bot) break;
       if(regular){const move=turns.botAction(room.game,room.board,current.id);if(!move)break;turns.act(room.game,room.board,current.id,move,random,options.developmentRandom);}
       else {const move = rules.botMove(room.game, room.board);rules.place(room.game, room.board, current.id, move.type, move.id);if(room.game.phase==='complete')turns.begin(room.game,room.board);}
-      broadcast(room);
+      persist();broadcast(room);
     }
   }
   function board() {
@@ -71,6 +77,7 @@ function createApp(options = {}) {
     send(ws, { type: 'SessionEstablished' });
     ws.on('message', bytes => {
       try {
+        if(storageFailure)throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');
         const message = JSON.parse(bytes.toString());
         if (['StartGame','PlaceSettlement','PlaceRoad','RollDice','EndTurn','BuildRoad','BuildSettlement','BuildCity','MoveRobber','Steal','Discard',...trading.commands,...development.commands].includes(message.type)) {
           const room = ws.room;
@@ -97,7 +104,7 @@ function createApp(options = {}) {
             if(room.game.turn!==undefined)turns.act(room.game,room.board,ws.player.id,message,random,options.developmentRandom);
             else rules.place(room.game, room.board, ws.player.id, message.type, message.id);
           }
-          broadcast(room);
+          persist();broadcast(room);
           playBotTurns(room);
           return;
         }
@@ -108,7 +115,7 @@ function createApp(options = {}) {
           if (!player) throw new Error('Saved session is unavailable. Create or join a room.');
           if (player.ws) throw new Error('This player is already connected in another window.');
           player.ws = ws; ws.room = room; ws.player = player;
-          send(ws, { type: 'Joined', code: room.code, playerId: player.id, token: player.token }); return broadcast(room);
+          persist();send(ws, { type: 'Joined', code: room.code, playerId: player.id, token: player.token }); broadcast(room);if(room.game)playBotTurns(room);return;
         }
         if (message.type !== 'CreateRoom' && message.type !== 'JoinRoom') throw new Error('Unknown command.');
         if (ws.room) throw new Error('Already in a room. Reload to reconnect.');
@@ -125,23 +132,25 @@ function createApp(options = {}) {
         }
         const player = { id: sessionId, token: crypto.randomBytes(24).toString('hex'), name: message.name.trim(), ws };
         room.players.push(player); ws.room = room; ws.player = player;
-        send(ws, { type: 'Joined', code: room.code, playerId: player.id, token: player.token }); broadcast(room);
+        persist();send(ws, { type: 'Joined', code: room.code, playerId: player.id, token: player.token }); broadcast(room);
       } catch (error) { send(ws, { type: 'Error', message: error.message }); }
     });
     ws.on('close', () => {
       clients.delete(ws);
       if (ws.player) { ws.player.ws = null; broadcast(ws.room); }
       // Preserve disconnected seats for refresh/reconnect; discard fully empty rooms after ten minutes.
-      if (ws.room && ws.room.players.every(p => !p.ws)) {
+      if (!options.saveFile && ws.room && ws.room.players.every(p => !p.ws)) {
         const room = ws.room;
         const timer = setTimeout(() => { if (room.players.every(p => !p.ws)) rooms.delete(room.code); }, 600000); timer.unref();
       }
     });
   });
-  return { server, close: () => new Promise(resolve => { for (const ws of clients) ws.terminate(); wss.close(() => server.close(resolve)); }) };
+  return { server, close: () => new Promise((resolve,reject) => { for (const ws of clients) ws.terminate(); wss.close(() => server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})); }) };
 }
 if (require.main === module) {
-  const app = createApp();
+  const saveFile=process.env.SETTLERS_SAVE_FILE==='off'?undefined:process.env.SETTLERS_SAVE_FILE||path.join(__dirname,'data','prototype.json');
+  const app = createApp({saveFile});
+  let stopping=false;const stop=()=>{if(stopping)return;stopping=true;app.close().then(()=>process.exit(0));};process.on('SIGINT',stop);process.on('SIGTERM',stop);
   const port = Number(process.env.PORT || 3000);
   app.server.listen(port, '127.0.0.1', () => console.log(`Private Settlers: http://localhost:${app.server.address().port}`));
 }

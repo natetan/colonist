@@ -71,6 +71,7 @@ function connect() {
     if (message.type === 'Joined') { joined = message; sessionStorage.setItem(savedKey, JSON.stringify({ code: message.code, token: message.token })); $('error').textContent = ''; }
     if (message.type === 'RoomState') {
       roomState = message;
+      $('connection').textContent=message.persistence?'Connected · games saved locally':'Connected · temporary games';
       if(!message.game||message.game.phase!=='build')buildMode=null;
       $('lobby').hidden = true; $('room').hidden = false; $('room-code').textContent = message.code;
       $('players').replaceChildren(...message.players.map(player => { const li = document.createElement('li'); li.textContent = `${player.name}${player.bot ? ' · Computer' : ''}${player.id === message.host ? ' · Host' : ''}${player.online ? '' : ' · Offline'}${player.playing?' · '+player.points+' points':''}`; return li; }));
