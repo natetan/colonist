@@ -25,7 +25,8 @@ function createPreviewFixture(tiles, settings) {
 if(require.main===module) {
   const fs=require('fs'),path=require('path');
   const tiles=[];
-  for(let q=-2;q<=2;q++) for(let r=-2;r<=2;r++) if(Math.abs(q+r)<=2) tiles.push({q,r,resource:q===0&&r===0?'desert':'wood',number:6});
+  const resources=['wood','brick','sheep','wheat','ore'],numbers=[2,3,4,5,6,8,9,10,11,12];
+  for(let q=-2;q<=2;q++) for(let r=-2;r<=2;r++) if(Math.abs(q+r)<=2) tiles.push({q,r,resource:q===0&&r===0?'desert':resources[tiles.length%resources.length],number:numbers[tiles.length%numbers.length]});
   const output=path.resolve(__dirname,'../.rea-tools/board-preview-fixture.json');
   fs.mkdirSync(path.dirname(output),{recursive:true});
   fs.writeFileSync(output,JSON.stringify(createPreviewFixture(tiles,previewSettings()),null,2)+'\n');

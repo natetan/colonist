@@ -25,6 +25,21 @@ The prototype uses an original browser UI and JSON WebSocket protocol. Its two i
 
 ## Research
 
+### Isolated original-renderer preview
+
+The local renderer lab now draws a synthetic 19-tile board with the downloaded original map renderer and sprite sheets. It is separate from the playable prototype and has no gameplay, event dispatch, accounts, reconnect, or complete BuildGame flow. Local adapters supply the canvas host, parsed sprite sheets, and a disabled session recorder. A local content policy blocks external connections; Pixi shader helpers require eval within this lab.
+
+With the existing downloaded bundles and local REA parser installed, run:
+
+```powershell
+npm run prepare:renderer
+npm run fetch:renderer-assets
+npm run fixture:preview
+npm run renderer:lab
+```
+
+Open `http://127.0.0.1:3002` and click **Run renderer probe**. Stop the lab with Ctrl+C. Preparation extracts module factories without running the web entry point; generated code, source-range/hash manifests, fixtures, and downloaded assets stay ignored in `.rea-tools/`. The asset downloader uses the exact public sheet paths referenced by this bundle snapshot. It needs internet access during setup; rendering uses local files. `npm run test:renderer` verifies loopback serving, content policy, MIME handling, and path restrictions. Preview and geometry checks remain available through `test:preview` and `test:protocol-map`.
+
 Colonist's publicly delivered homepage and five initial JavaScript bundles are saved in `research/`. These are minified webpack chunks; the initial files may load additional chunks at runtime. No original server source has been recovered.
 
 Run `npm run inspect:client` to regenerate the bundle inventory. No dependencies are required.

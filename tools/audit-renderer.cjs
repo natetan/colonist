@@ -3,22 +3,22 @@ const fs=require('fs'),path=require('path');
 const {parse}=await import('../.rea-tools/node_modules/@babel/parser/lib/index.js');
 const root=path.resolve(__dirname,'../research');
 const modules=new Map();
-function walk(node,visit) {
+function walk(node,visit,parent) {
   if(!node || typeof node!=='object') return;
-  if(Array.isArray(node)) { for(const item of node) walk(item,visit); return; }
-  if(typeof node.type==='string') visit(node);
-  for(const [key,value] of Object.entries(node)) if(!['loc','start','end','extra','comments','tokens'].includes(key)) walk(value,visit);
+  if(Array.isArray(node)) { for(const item of node) walk(item,visit,parent); return; }
+  if(typeof node.type==='string') visit(node,parent);
+  for(const [key,value] of Object.entries(node)) if(!['loc','start','end','extra','comments','tokens'].includes(key)) walk(value,visit,node);
 }
 for(const file of fs.readdirSync(root).filter(name=>name.endsWith('.js'))) {
   const source=fs.readFileSync(path.join(root,file),'utf8');
   const ast=parse(source,{sourceType:'unambiguous'});
-  walk(ast,node=>{
+  walk(ast,(node,parent)=>{
     if(node.type!=='ObjectProperty' || node.key.type!=='NumericLiteral' || !['ArrowFunctionExpression','FunctionExpression'].includes(node.value.type)) return;
+    if(parent?.type!=='ObjectExpression'||!parent.properties.every(p=>p.type==='ObjectProperty'&&p.key.type==='NumericLiteral'&&['ArrowFunctionExpression','FunctionExpression'].includes(p.value.type)))return;
     const id=node.key.value, factory=node.value, loader=factory.params[2]?.name;
-    if(!loader) return;
     const imports=new Set(),chunks=new Set();let dynamic=0;
     walk(factory.body,child=>{
-      if(child.type!=='CallExpression') return;
+      if(!loader||child.type!=='CallExpression') return;
       if(child.callee.type==='Identifier' && child.callee.name===loader) {
         const arg=child.arguments[0];
         if(arg?.type==='NumericLiteral') imports.add(arg.value);else dynamic++;
