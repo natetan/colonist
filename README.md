@@ -216,3 +216,5 @@ Development-card metadata lives in public/development-cards.json (names, effects
 Monopoly and year of plenty now use the shared action box above the hand: select resources, review selected cards, then confirm or cancel. Selection alone never spends the card. Year of plenty prevents selections beyond available bank stock; server validation remains authoritative.
 
 The renderer dice use six locally cached reference SVG faces rather than font glyphs. Click the pair to roll when enabled; inactive dice display the latest server result with a darker tint.
+
+History and chat use player-colored names and icons; game history includes piece art, dice faces, played development cards, and your own resource gains. Up to 500 entries are retained in the current browser session; scrolling upward pauses automatic scrolling. Opponent resource identities are never inferred from private hands. History is not yet persisted across refresh.

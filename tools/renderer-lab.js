@@ -129,14 +129,18 @@ function resourceFeedback(previous,state){
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
   for(const [r,n]of gains){const target=$('hand').querySelector(`[data-resource="${r}"]`),bank=$('bank').querySelector(`[data-resource="${r}"]`),fromBank=(previous.game.bank?.[r]??0)-(state.game.bank?.[r]??0)>=n,origin=fromBank?bank:$('board');if(!target||!origin||reduced)continue;const a=origin.getBoundingClientRect(),b=target.getBoundingClientRect();for(let i=0;i<Math.min(n,5);i++){const flight=sprite(cardSprites[r]);flight.classList.add('flying-card');flight.style.left=`${a.left+a.width/2-21}px`;flight.style.top=`${a.top+a.height/2-30}px`;document.body.append(flight);const animation=flight.animate([{transform:'translate(0,0) scale(.8)',opacity:1},{transform:`translate(${b.left+b.width/2-a.left-a.width/2}px,${b.top+b.height/2-a.top-a.height/2}px) scale(1)`,opacity:1}],{duration:650,delay:i*90,easing:'cubic-bezier(.2,.6,.3,1)'});animation.finished.catch(()=>{}).finally(()=>flight.remove());}}
 }
-function appendLog(parent,text){const p=document.createElement('p');p.textContent=text;parent.append(p);while(parent.children.length>100)parent.firstElementChild.remove();parent.scrollTop=parent.scrollHeight;}
-function publicEvents(state){const prev=latestState;if(!prev||prev.code!==state.code)return;const g=state.game,old=prev.game;if(!g){if(old)appendLog($('events'),'The host returned the table to the lobby.');return;}const name=id=>state.players.find(p=>p.id===id)?.name||'Player';
-  for(const v of g.vertices){const before=old?.vertices[v.id];if(v.owner&&(!before?.owner||before.city!==v.city))appendLog($('events'),`${name(v.owner)} placed a ${v.city?'city':'settlement'}.`);}
-  for(const e of g.edges)if(e.owner&&!old?.edges[e.id]?.owner)appendLog($('events'),`${name(e.owner)} placed a road.`);
-  if(g.dice&&old?.phase==='roll'&&g.phase!=='roll')appendLog($('events'),`${name(g.currentPlayer)} rolled ${g.dice.join(' + ')}.`);
-  if(old?.robber!==undefined&&g.robber!==old.robber)appendLog($('events'),`${name(g.currentPlayer)} moved the robber.`);
-  if(g.development?.lastPlayed&&JSON.stringify(g.development.lastPlayed)!==JSON.stringify(old?.development?.lastPlayed))appendLog($('events'),`${name(g.development.lastPlayed.player)} played ${g.development.lastPlayed.type}.`);
-  if(g.scoring?.winner&&!old?.scoring?.winner)appendLog($('events'),`${name(g.scoring.winner)} won with ${g.scoring.winningPoints} points.`);
+function appendLog(parent,content){const follow=parent.scrollHeight-parent.scrollTop-parent.clientHeight<35,p=document.createElement('p');if(typeof content==='string')p.textContent=content;else p.append(content);parent.append(p);while(parent.children.length>500)parent.firstElementChild.remove();if(follow)parent.scrollTop=parent.scrollHeight;}
+function feedEntry(state,id,verb,icons=[]){const row=document.createElement('span');row.className='feed-entry';const player=state.players.find(p=>p.id===id);if(player){const avatar=sprite(player.bot?'icon_bot':'icon_player');avatar.classList.add('feed-avatar');const name=document.createElement('strong');name.textContent=player.name;const colors=['#d9363e','#205ebd','#ba5d24','#237c1d','#8746ac','#666'];name.style.color=colors[state.players.filter(p=>p.playing).findIndex(p=>p.id===id)]||'#555';row.append(avatar,name);}row.append(document.createTextNode(' '+verb+' '));for(const icon of icons){icon.classList.add('feed-icon');row.append(icon);}return row;}
+function publicEvents(state){const prev=latestState;if(!prev||prev.code!==state.code){if(prev?.code!==state.code){$('events').replaceChildren();$('chat-messages').replaceChildren();appendLog($('events'),'Welcome to your private table.');}return;}const g=state.game,old=prev.game;if(!g){if(old)appendLog($('events'),'The host returned the table to the lobby.');return;}
+  const piece=(id,type)=>actionIcon(type+'_'+(['red','blue','orange','green','purple','white'][state.players.filter(p=>p.playing).findIndex(p=>p.id===id)]||'red'));
+  const event=(id,verb,icons)=>appendLog($('events'),feedEntry(state,id,verb,icons));
+  for(const v of g.vertices){const before=old?.vertices[v.id];if(v.owner&&(!before?.owner||before.city!==v.city))event(v.owner,v.city?'built a City (+1 VP)':'placed a Settlement',[piece(v.owner,v.city?'city':'settlement')]);}
+  for(const e of g.edges)if(e.owner&&!old?.edges[e.id]?.owner)event(e.owner,'placed a Road',[piece(e.owner,'road')]);
+  if(g.dice&&old?.phase==='roll'&&g.phase!=='roll'){const dice=g.dice.map(n=>{const img=document.createElement('img');img.src='/assets/'+diceArtwork[n];img.alt='Die '+n;return img;});event(g.currentPlayer,'rolled',dice);}
+  if(old?.robber!==undefined&&g.robber!==old.robber)event(g.currentPlayer,'moved the Robber',[sprite('icon_robber')]);
+  if(g.development?.lastPlayed&&JSON.stringify(g.development.lastPlayed)!==JSON.stringify(old?.development?.lastPlayed)){const played=g.development.lastPlayed,info=developmentCatalog[played.type];event(played.player,'played '+(info?.name||played.type),info?[sprite(info.picture)]:[]);}
+  for(const [r,n]of Object.entries(g.resources||{})){const gain=n-(old?.resources?.[r]??n);if(gain>0)event(joined.playerId,'received '+gain,[sprite(cardSprites[r])]);}
+  if(g.scoring?.winner&&!old?.scoring?.winner)event(g.scoring.winner,'won with '+g.scoring.winningPoints+' points!');
 }
 const panelOpen={};
 function closePanels(except){for(const p of $('actions').querySelectorAll('.action-panel'))if(p!==except){p.open=false;panelOpen[p.dataset.panel]=false;}}
@@ -260,7 +264,7 @@ function connect(){
     if(state.type==='SessionEstablished'){$('connection').textContent='Connected to local game server';$('create').disabled=$('join').disabled=false;let saved;try{saved=JSON.parse(sessionStorage.getItem(sessionKey));}catch{}if(saved)send('Resume',saved);}
     if(state.type==='Joined'){joined=state;sessionStorage.setItem(sessionKey,JSON.stringify({code:state.code,token:state.token}));$('lobby').hidden=true;$('probe').hidden=true;$('share').hidden=false;}
     if(state.type==='RoomState'){$('connection').textContent=state.persistence?'Connected · games saved locally':'Connected · temporary games';const previous=latestState;turnFeedback(state);publicEvents(state);latestState=state;if(state.game?.phase!=='build')buildMode=null;controls(state);resourceFeedback(previous,state);scheduleRender(state.renderer.fixture,state.renderer,state);}
-    if(state.type==='Chat')appendLog($('chat-messages'),`${state.name}: ${state.text}`);
+    if(state.type==='Chat'){if(latestState)appendLog($('chat-messages'),feedEntry(latestState,state.playerId||state.player||state.id,state.text));else appendLog($('chat-messages'),state.name+': '+state.text);}
     if(state.type==='Error'){$('error').textContent=state.message;if(state.message.startsWith('Saved session')){sessionStorage.removeItem(sessionKey);joined=null;$('lobby').hidden=false;$('probe').hidden=false;}}
   };
   socket.onclose=()=>{$('connection').textContent='Disconnected. Reconnecting…';$('create').disabled=$('join').disabled=true;clearTimeout(retry);retry=setTimeout(connect,1500);};
