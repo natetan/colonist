@@ -1,0 +1,8 @@
+{
+  "name": "private-settlers",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "inspect:client": "node tools/inspect-client.cjs"
+  }
+}

@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+dist/
+coverage/
+
+# Downloaded third-party client files stay local.
+research/*.js
+research/*.html

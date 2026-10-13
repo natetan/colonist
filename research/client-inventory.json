@@ -1,0 +1,130 @@
+[
+  {
+    "file": "shared-web.5e0f9c9aae9f433aa985.js",
+    "bytes": 149352,
+    "signals": {
+      "WebSocket": 0,
+      "gameStateUpdated": 0,
+      "applyStateUpdate": 0,
+      "mapValidator": 0,
+      "canPlayerBuyDevelopmentCard": 0,
+      "initializeSocket": 13,
+      "sourceMappingURL": 0,
+      "PIXI": 0,
+      "Phaser": 0
+    },
+    "urls": [
+      "https://apps.apple.com/us/app/colonist-io/id6444831129",
+      "https://colonist.io/careers",
+      "https://colonist.io/replay?gameId=${e}&playerColor=${t}",
+      "https://colonist.io/open-app",
+      "https://discord.com/api/v10/activities/${s.r.discordSDKClientId}/attachment",
+      "https://colonist.io"
+    ]
+  },
+  {
+    "file": "shared.55f93e21f783c5fe21cb.js",
+    "bytes": 869143,
+    "signals": {
+      "WebSocket": 16,
+      "gameStateUpdated": 4,
+      "applyStateUpdate": 1,
+      "mapValidator": 70,
+      "canPlayerBuyDevelopmentCard": 1,
+      "initializeSocket": 1,
+      "sourceMappingURL": 0,
+      "PIXI": 1,
+      "Phaser": 0
+    },
+    "urls": [
+      "https://colonist.io/replay?gameId=${e.id}&playerColor=${t}",
+      "https://play.google.com/store/apps/details?id=com.colonist.colonist",
+      "https://apps.apple.com/us/app/colonist-io/id6444831129",
+      "http://localhost:8080",
+      "https://colonist.io/profile/${e}#settings",
+      "https://discord.gg/colonist",
+      "https://blog.colonist.io",
+      "https://blog.colonist.io/how-to-enable-webgl/",
+      "https://blog.colonist.io/",
+      "https://accounts.google.com/gsi/client",
+      "https://static.hotjar.com/c/hotjar-",
+      "https://cdn.katan.io/development/locales/${s}/${i}.json",
+      "https://colonist.io/store",
+      "https://cdn.helply.com/helply-agent.js",
+      "https://colonist.io"
+    ]
+  },
+  {
+    "file": "static-vendors.3c7e7cbed34500bbfb00.js",
+    "bytes": 446958,
+    "signals": {
+      "WebSocket": 2,
+      "gameStateUpdated": 0,
+      "applyStateUpdate": 0,
+      "mapValidator": 0,
+      "canPlayerBuyDevelopmentCard": 0,
+      "initializeSocket": 0,
+      "sourceMappingURL": 0,
+      "PIXI": 0,
+      "Phaser": 0
+    },
+    "urls": [
+      "http://www.example.com",
+      "http://localhost",
+      "https://docs.sentry.io/platforms/javascript/best-practices/browser-extensions/",
+      "https://react.dev/errors/",
+      "https://browser.sentry-cdn.com"
+    ]
+  },
+  {
+    "file": "vendors.5b0d06c9ea06c399fd41.js",
+    "bytes": 342129,
+    "signals": {
+      "WebSocket": 0,
+      "gameStateUpdated": 0,
+      "applyStateUpdate": 0,
+      "mapValidator": 0,
+      "canPlayerBuyDevelopmentCard": 0,
+      "initializeSocket": 0,
+      "sourceMappingURL": 0,
+      "PIXI": 0,
+      "Phaser": 0
+    },
+    "urls": [
+      "http://[${n.value}]",
+      "http://[${e}]",
+      "https://json-schema.org/draft/2020-12/schema",
+      "http://json-schema.org/draft-07/schema#",
+      "http://json-schema.org/draft-04/schema#"
+    ]
+  },
+  {
+    "file": "web.5d647c9dee0d66e4c899.js",
+    "bytes": 203928,
+    "signals": {
+      "WebSocket": 0,
+      "gameStateUpdated": 0,
+      "applyStateUpdate": 0,
+      "mapValidator": 0,
+      "canPlayerBuyDevelopmentCard": 0,
+      "initializeSocket": 0,
+      "sourceMappingURL": 0,
+      "PIXI": 0,
+      "Phaser": 0
+    },
+    "urls": [
+      "https://suggestions.colonist.io",
+      "https://www.youtube.com/embed/${n}",
+      "https://www.youtube.com/shorts/${n}",
+      "https://colonist.io/faq",
+      "https://colonist.instantdocsbase.com/doc/how-does-the-ranked-system-work",
+      "https://discord.gg/colonist",
+      "https://www.youtube.com/channel/UCkmPiTR8n0zqT6tIuUK0klA",
+      "https://www.reddit.com/r/Colonist/",
+      "https://www.instagram.com/colonist_io/",
+      "https://www.facebook.com/colonistio/",
+      "https://x.com/colonistio",
+      "https://cdn.jsdelivr.net/npm/twemoji@11.0.1/2/svg/${n}.svg"
+    ]
+  }
+]
