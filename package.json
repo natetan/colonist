@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "inspect:client": "node tools/inspect-client.cjs"
+    "inspect:client": "node tools/inspect-client.cjs",
+    "inspect:module": "node tools/find-client-module.cjs"
   }
 }

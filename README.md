@@ -10,6 +10,8 @@ Colonist's publicly delivered homepage and five initial JavaScript bundles are s
 
 Run `npm run inspect:client` to regenerate the bundle inventory. No dependencies are required.
 
+Run `npm run inspect:module -- <module-id-or-text>` to locate relevant webpack modules without executing the bundles. See `research/architecture.md` for the startup and socket findings. There is no app launch command yet.
+
 ## Initial findings
 
 The shared bundle contains game-state models, move validators, development-card restrictions, and handlers for applying state diffs. The shared web bundle initializes a game socket. These findings support further client analysis but do not establish that the complete game engine or server is present.
