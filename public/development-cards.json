@@ -6,7 +6,7 @@
   },
   "VictoryPoint": {
     "name": "Victory point",
-    "picture": "card_victorypoint",
+    "picture": "card_vp",
     "effect": "Adds one private victory point automatically. You do not play this card."
   },
   "Monopoly": {

@@ -72,3 +72,6 @@
 .feed-entry{display:inline;line-height:1.7;overflow-wrap:anywhere}.feed-entry strong{font-weight:600}.feed-entry .feed-icon{display:inline-block;width:16px!important;height:20px!important;vertical-align:middle;object-fit:contain;margin:0 1px}.feed-entry span.feed-icon{width:42px!important;height:59px!important;zoom:.32}.feed-entry .feed-avatar{display:inline-block;zoom:.25;vertical-align:middle;margin-right:12px}#events p{padding:4px 0;font-size:12px}#chat-messages p{padding:4px 0;margin:0;border-bottom:1px solid #c5bfae}#events,#chat-messages{scrollbar-width:thin;scrollbar-color:#aaa69d #f6f2e9}
 
 .cost-tooltip-cards{display:flex;gap:7px;padding:8px 0}.cost-tooltip-cards>span{position:relative;display:block}.cost-tooltip-cards>span>strong{position:absolute;right:0;top:0;background:#245ca5;color:white;padding:1px 4px;border-radius:2px;font-size:15px}
+
+/* Victory-point card uses the atlas name card_vp. */
+.sprite-card_vp{display:inline-block;width:42px;height:58.775510204081634px;background:url('/assets/game_spritesheet_1.00ac67ed30ba9f71167e.webp') -0.24489795918367346px -177.6734693877551px / 300.85714285714283px 300.85714285714283px no-repeat}

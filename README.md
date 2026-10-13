@@ -224,3 +224,5 @@ The renderer includes fallback card metadata so owned development cards remain v
 Trade selections update inside a stable popup element, preserving its open state and avoiding repeated entrance animations.
 
 Trade-hand counters show resources remaining after the draft offer; removing offered cards restores those counters without changing the actual hand before a trade completes.
+
+Victory-point artwork uses the actual card_vp atlas entry, including a static stylesheet rule for already-running renderer sessions.
