@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { WebSocketServer, WebSocket } = require('ws');
+const rules = require('./game.cjs');
 
 function createApp() {
   const rooms = new Map();
@@ -22,10 +23,12 @@ function createApp() {
     wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws));
   });
   const send = (ws, message) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message)); };
-  function snapshot(room) {
-    return { type: 'RoomState', code: room.code, host: room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, online: !!p.ws })), board: room.board };
+  function snapshot(room, viewer) {
+    const g = room.game;
+    const game = g ? { phase: g.phase, currentPlayer: g.order[g.step] || null, solo: g.solo, colors: g.colors, vertices: g.vertices, edges: g.edges, legalVertices: g.phase === 'settlement' ? rules.legalVertices(g) : [], legalEdges: g.phase === 'road' ? rules.legalEdges(g) : [], resources: g.resources[viewer.id] || null } : null;
+    return { type: 'RoomState', code: room.code, host: room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, online: !!p.ws, playing: !!g && g.players.includes(p.id) })), board: room.board, game };
   }
-  function broadcast(room) { for (const player of room.players) if (player.ws) send(player.ws, snapshot(room)); }
+  function broadcast(room) { for (const player of room.players) if (player.ws) send(player.ws, snapshot(room, player)); }
   function board() {
     const resources = ['wood','wood','wood','wood','sheep','sheep','sheep','sheep','wheat','wheat','wheat','wheat','brick','brick','brick','ore','ore','ore','desert'];
     for (let i = resources.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [resources[i], resources[j]] = [resources[j], resources[i]]; }
@@ -44,6 +47,23 @@ function createApp() {
     ws.on('message', bytes => {
       try {
         const message = JSON.parse(bytes.toString());
+        if (['StartGame','PlaceSettlement','PlaceRoad'].includes(message.type)) {
+          const room = ws.room;
+          if (!room) throw new Error('Join a room first.');
+          if (message.type === 'StartGame') {
+            if (room.players[0] !== ws.player) throw new Error('Only the host can start.');
+            if (room.game) throw new Error('The match has already started.');
+            const ids = room.players.filter(p => p.ws).map(p => p.id);
+            const solo = message.solo === true;
+            if (solo && ids.length !== 1) throw new Error('Solo test requires exactly one online player.');
+            if (!solo && ids.length < 2) throw new Error('Join with another player or use Solo placement test.');
+            room.game = rules.start(room.board, ids, solo);
+          } else {
+            if (!room.game) throw new Error('The host must start the match first.');
+            rules.place(room.game, room.board, ws.player.id, message.type, message.id);
+          }
+          return broadcast(room);
+        }
         if (message.type === 'Resume') {
           if (ws.room) throw new Error('Already in a room.');
           const room = rooms.get(message.code);
@@ -63,6 +83,7 @@ function createApp() {
         } else {
           room = rooms.get(String(message.code).trim().toUpperCase());
           if (!room) throw new Error('Room not found.');
+          if (room.game) throw new Error('Match already started. Only existing players can reconnect.');
           if (room.players.length >= 6) throw new Error('This prototype supports six seats.');
         }
         const player = { id: sessionId, token: crypto.randomBytes(24).toString('hex'), name: message.name.trim(), ws };
