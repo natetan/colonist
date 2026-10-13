@@ -21,7 +21,7 @@ function draw(tiles, game) {
     const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
     for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, value);
     if (command) {
-      const label={PlaceRoad:'Place road on edge',PlaceSettlement:'Place settlement on corner',BuildRoad:'Build road on edge',BuildSettlement:'Build settlement on corner',BuildCity:'Upgrade city on corner',MoveRobber:'Move robber to tile'}[command];
+      const label={PlaceFreeRoad:'Place free road on edge',PlaceRoad:'Place road on edge',PlaceSettlement:'Place settlement on corner',BuildRoad:'Build road on edge',BuildSettlement:'Build settlement on corner',BuildCity:'Upgrade city on corner',MoveRobber:'Move robber to tile'}[command];
       element.setAttribute('tabindex', '0'); element.setAttribute('role', 'button'); element.setAttribute('aria-label', `${label} ${id}`);
       const action = () => { $('error').textContent = ''; socket.send(JSON.stringify({ type: command, id })); };
       element.addEventListener('click', action); element.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); action(); } });
@@ -30,9 +30,9 @@ function draw(tiles, game) {
   }
   for (const edge of game.edges) {
     const a = game.vertices[edge.a], b = game.vertices[edge.b];
-    const legal = canAct && (game.legalEdges.includes(edge.id)||(buildMode==='BuildRoad'&&(game.builds.BuildRoad||[]).includes(edge.id)));
+    const legal = canAct && (game.legalEdges.includes(edge.id)||(game.development?.legalFreeRoads||[]).includes(edge.id)||(buildMode==='BuildRoad'&&(game.builds.BuildRoad||[]).includes(edge.id)));
     if (edge.owner || legal) shape('line', { x1:a.x, y1:a.y, x2:b.x, y2:b.y, stroke:edge.owner ? game.colors[edge.owner] : '#fff', 'stroke-width':edge.owner ? 9 : 8, 'stroke-linecap':'round', class:'piece' }, null, edge.id);
-    if (legal) shape('circle', { cx:(a.x+b.x)/2, cy:(a.y+b.y)/2, r:10, fill:'#fff', class:'placement-target' }, game.phase==='build'?'BuildRoad':'PlaceRoad', edge.id);
+    if (legal) shape('circle', { cx:(a.x+b.x)/2, cy:(a.y+b.y)/2, r:10, fill:'#fff', class:'placement-target' }, game.phase==='free-road'?'PlaceFreeRoad':game.phase==='build'?'BuildRoad':'PlaceRoad', edge.id);
   }
   for (const vertex of game.vertices) {
     const legal = canAct && (game.legalVertices.includes(vertex.id)||((game.builds[buildMode]||[]).includes(vertex.id)&&buildMode!=='BuildRoad'));
@@ -53,6 +53,7 @@ function controls(g) {
   }
   if(g.discardCount){const p=document.createElement('p');p.textContent=`Discard exactly ${g.discardCount} cards.`;$('actions').append(p);const inputs={};for(const[r,n]of Object.entries(g.resources)){const label=document.createElement('label');label.textContent=r;const input=document.createElement('input');input.type='number';input.min=0;input.max=n;input.value=0;label.append(input);inputs[r]=input;$('actions').append(label);}button('Discard selected cards',()=>command('Discard',{cards:Object.fromEntries(Object.entries(inputs).map(([r,input])=>[r,Number(input.value)]))}));}
   if(mine&&g.phase==='steal')for(const id of g.victims){const player=roomState.players.find(p=>p.id===id);button(`Steal from ${player.name}`,()=>command('Steal',{player:id}));}
+  DevelopmentControls.render($('actions'),roomState,joined.playerId,command);
   TradeControls.render($('actions'),roomState,joined.playerId,command);
 }
 function connect() {
@@ -82,7 +83,7 @@ function connect() {
       draw(message.board, message.game);controls(message.game);
       const g = message.game, current = g && message.players.find(p => p.id === g.currentPlayer);
       $('hint').textContent = !g ? (host ? 'Start with bots to fill four seats, or Start game with your online friends.' : 'Waiting for the host to start.') : g.phase === 'complete' ? 'Initial placement complete! Dice and regular turns are the next milestone.' : `${current.name}${current.id === joined.playerId ? ' (you)' : ''}: place a ${g.phase}${current.online ? '' : ' · waiting for reconnect'}. ${current.bot ? 'Computer is placing automatically.' : 'Click a white ' + (g.phase === 'road' ? 'edge' : 'corner') + '.'}`;
-      if(g&&['roll','build','discard','robber','steal'].includes(g.phase))$('hint').textContent=g.phase==='discard'?'Waiting for players to discard.':`${current.name}${current.id===joined.playerId?' (you)':''}: ${ {roll:'roll dice',build:'build or end turn',robber:'move the robber to a white tile marker',steal:'choose a player to steal from'}[g.phase] }${current.online?'':' · waiting for reconnect'}.`;
+      if(g&&['roll','build','discard','robber','steal','free-road'].includes(g.phase))$('hint').textContent=g.phase==='discard'?'Waiting for players to discard.':`${current.name}${current.id===joined.playerId?' (you)':''}: ${ {'free-road':'place a free road on a white edge marker',roll:'roll dice',build:'build or end turn',robber:'move the robber to a white tile marker',steal:'choose a player to steal from'}[g.phase] }${current.online?'':' · waiting for reconnect'}.`;
     }
     if (message.type === 'Error') {
       $('error').textContent = message.message;

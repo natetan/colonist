@@ -5,6 +5,7 @@ const { createApp } = require('../server.cjs');
 const rules = require('../game.cjs');
 require('./turns.cjs');
 require('./trading.cjs');
+require('./development.cjs');
 async function run() {
   const app = createApp({random:()=>3});
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
@@ -78,8 +79,8 @@ async function run() {
     assert.equal(botState.players.filter(p=>p.bot).length,3);
     botHost.send({ type:'StartGame', bots:true }); assert((await botHost.next('Error')).message.includes('already started'));
     const html = await new Promise(resolve => http.get(`http://127.0.0.1:${port}/`, res => { let text=''; res.on('data', data => text += data); res.on('end', () => resolve(text)); })); assert(html.includes('Private Settlers'));
-    assert(html.includes('/trading.js'));assert(html.includes('/trading.css'));
-    for(const [file,mime]of [['trading.js','text/javascript'],['trading.css','text/css']]){
+    assert(html.includes('/development.js'));assert(html.includes('/trading.js'));assert(html.includes('/trading.css'));
+    for(const [file,mime]of [['development.js','text/javascript'],['trading.js','text/javascript'],['trading.css','text/css']]){
       const response=await new Promise((resolve,reject)=>http.get(`http://127.0.0.1:${port}/${file}`,res=>{res.resume();res.on('end',()=>resolve(res));}).on('error',reject));assert.equal(response.statusCode,200);assert.equal(response.headers['content-type'],mime);
     }
     console.log('PASS: lobby/reconnect, host-only start, placement rules, starting resources, solo test, one human plus three automatic bots completing setup, bot impersonation rejection, resource privacy, duplicate-start rejection, HTTP page and trade assets');

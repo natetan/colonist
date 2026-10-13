@@ -4,7 +4,7 @@ Private multiplayer board-game project for local testing, with eventual Azure ho
 
 ## Current status
 
-Local multiplayer gameplay with initial placement, dice, resource production, building, robber handling, bank/player trading, and basic bots. The original UI prototype runs on port 3000; an experimental original Colonist board renderer now presents the same local rules on port 3002. Neither is a complete game yet.
+Local multiplayer gameplay with initial placement, dice, resource production, building, robber handling, bank/player trading, development cards, and basic bots. The original UI prototype runs on port 3000; an experimental original Colonist board renderer now presents the same local rules on port 3002. Neither is a complete game yet.
 
 ## Run locally
 
@@ -19,7 +19,7 @@ Open `http://localhost:3000`. Enter your name and create a room. Open a separate
 
 Run `npm test` for server integration checks. Stop the server with Ctrl+C. Set `$env:PORT = '3001'` before launching to change the port.
 
-The server binds only to loopback for local testing. Rooms support six seats and are kept in memory; restarting the server loses rooms and boards. Fully disconnected rooms expire after ten minutes. No accounts, saved games, development cards, longest road, largest army, victory conditions, harbors, or balanced-number placement are implemented yet. Azure access is not configured.
+The server binds only to loopback for local testing. Rooms support six seats and are kept in memory; restarting the server loses rooms and boards. Fully disconnected rooms expire after ten minutes. No accounts, saved games, longest road, largest army, victory conditions, harbors, or balanced-number placement are implemented yet. Azure access is not configured.
 
 The prototype uses an original browser UI and JSON WebSocket protocol. Its two initial handshake message names mirror observed client behavior, but this is not a Colonist-compatible replacement server. `npm start` does not serve downloaded bundles; the separate renderer lab serves locally extracted factories and assets.
 
@@ -27,7 +27,7 @@ The prototype uses an original browser UI and JSON WebSocket protocol. Its two i
 
 ### Local game with the original board renderer
 
-The renderer lab uses our authoritative local server with the downloaded original map renderer and sprite sheets. It displays live roads, settlements, cities, and a locally positioned robber sprite. A tested geometry adapter translates every prototype corner/edge ID into the original map indexes. White markers support mouse and keyboard placement. The local controls cover setup, dice, building, end turn, discarding, stealing, and trading; these use our JSON commands, not the original game's socket protocol. Refresh resumes your seat.
+The renderer lab uses our authoritative local server with the downloaded original map renderer and sprite sheets. It displays live roads, settlements, cities, and a locally positioned robber sprite. A tested geometry adapter translates every prototype corner/edge ID into the original map indexes. White markers support mouse and keyboard placement. The local controls cover setup, dice, building, end turn, discarding, stealing, trading, and development cards; these use our JSON commands, not the original game's socket protocol. Refresh resumes your seat.
 
 Local adapters supply the canvas host, parsed sprite sheets, animation manager, and disabled session recorder/tooltips. Full original game startup, accounts, original HUD, mechanic dispatch, and complete BuildGame flow remain unimplemented. The viewport is reconstructed for each snapshot while retaining one Pixi canvas, so zoom/pan resets on moves. A local content policy blocks external connections; Pixi shader helpers require eval within this lab.
 
@@ -90,7 +90,7 @@ Create a room and click **Start with bots** on the host's tab. The server fills 
 
 Place your settlement and adjacent road. Computer players automatically take their placement turns using the same server validation as humans, then return control for your second settlement/road pair. Bots favor corners with higher expected resource production and pick a legal adjacent road. They do not control your seat or replace disconnected humans. Their hands remain private.
 
-Bots also roll, discard when required, move the robber, steal, build affordable pieces, and end their regular turns automatically. They prefer cities, then settlements, then roads; this is basic legal behavior rather than strong strategy. Solo placement test remains available as a manual debugging shortcut and now continues into one-player regular turns.
+Bots also buy/play development cards, roll, discard when required, move the robber, steal, build affordable pieces, and end their regular turns automatically. They prefer cities, then settlements, then roads; this is basic legal behavior rather than strong strategy. Solo placement test remains available as a manual debugging shortcut and now continues into one-player regular turns.
 
 ## Regular turns
 
@@ -100,7 +100,7 @@ Choose a build button and click a white location marker. Buttons are disabled wh
 
 On a seven, players with more than seven cards must choose and discard half, rounded down. When all discards are complete, the current player moves the robber to a different tile and chooses an eligible adjacent opponent to steal a random resource from. Bot discards and robber actions happen automatically; required human discards pause the game until submitted.
 
-Click **End turn** to advance. Your cards remain private; displayed points currently count settlements and cities only. There is no winner detection yet. Development cards and complete scoring are the next rule milestones.
+Click **End turn** to advance. Your cards remain private; displayed points currently count settlements and cities only. There is no winner detection yet. Complete scoring, longest road, largest army, and winner detection are the next rule milestones.
 
 ## Trading
 
@@ -111,3 +111,21 @@ With another online human in the match, choose **Offer to**, fill **You give** a
 Offers reserve no cards. Acceptance rechecks both hands and transfers all cards atomically, without touching the bank. An underfunded offer is rejected without changing either hand. The proposer can cancel; ending the turn expires the offer. Bots do not negotiate or make bank trades yet. Trades are supported in both local UIs. Refresh preserves an active offer while the server remains running.
 
 `npm run test:trading` verifies conservation, atomic rejection, turn/phase restrictions, malformed counts, replacement, cancellation, decline, replay/expiry, and changed affordability. It also runs under `npm test`. `npm run test:trading-network` exercises acceptance between two actual WebSocket clients, private snapshots, bank transfers, duplicate rejection, and turn expiry. Browser testing verified offering, accepting, declining, cancelling, reconnect, and disabled bank controls; successful bank transfers are verified by the network test.
+
+## Development cards
+
+Both local UIs now show your private development-card hand and a purchase button costing one sheep, one wheat, and one ore. The server draws uniformly from a finite 25-card deck: 14 knights, 5 victory points, and 2 each of Road Building, Year of Plenty, and Monopoly. Other players see only your card count, played cards, and played-knight count.
+
+Following the [official CATAN FAQ](https://www.catan.com/faq/basegame), you may play one non-victory-point card per turn, before rolling or after resolving the dice, and cannot play a card bought on that turn. Buying multiple cards is allowed. New cards show disabled play buttons until your next turn.
+
+- **Knight:** move the robber and steal when eligible. No discards are triggered. Playing before rolling returns you to the roll phase after resolving the robber.
+- **Road Building:** click white edge markers to place up to two connected roads without paying resources. The normal network and 15-road limit still apply. Placement finishes early if no further road is possible; playing requires at least one legal location.
+- **Year of Plenty:** choose two available bank resources, including two of the same type. If only one card remains in the entire bank, choose that one. An empty bank prevents play; unavailable choices leave the card untouched.
+- **Monopoly:** choose a resource and collect all of that type from other players. The bank is unaffected.
+- **Victory point:** remains private in your hand. Its count is shown to you, but winner detection and full scoring are still pending; public points still count buildings only.
+
+Bots can buy and play cards using their own hand and public board/bank information. They remain basic opponents. Knight and Road Building suspend trading while their required moves are pending.
+
+Restart the running server and refresh both tabs after this update, then create a new room. For the original board view use `npm run renderer:lab`; for the prototype use `npm start`. Restarting loses existing rooms because persistence is not implemented yet.
+
+`npm run test:development` checks deck counts, costs, private views, atomic rejection, turn restrictions, pre/post-roll knights, free-road connections and limits, bank shortages, Monopoly conservation, and bots. It also runs under `npm test`. `npm run test:development-network` uses real WebSocket clients to verify purchase costs, private snapshots, card ownership and age, public knight play, return to the roll phase, and replay rejection. Renderer integration and geometry checks pass; the new card controls have not yet been exercised in a browser.

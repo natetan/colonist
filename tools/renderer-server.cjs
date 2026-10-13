@@ -5,13 +5,14 @@ const root=path.resolve(__dirname,'../.rea-tools/renderer');
 const routes={
   '/':path.join(__dirname,'renderer-lab.html'),
   '/lab.js':path.join(__dirname,'renderer-lab.js'),
+  '/development.js':path.resolve(__dirname,'../public/development.js'),
   '/trading.js':path.resolve(__dirname,'../public/trading.js'),
   '/trading.css':path.resolve(__dirname,'../public/trading.css'),
   '/factories.js':path.join(root,'factories.js'),
   '/fixture.json':path.resolve(__dirname,'../.rea-tools/board-preview-fixture.json'),
 };
 function startRendererLab(port=3002,options={}){
-const app=createApp({random:options.random,boardPresentation:presentBoard,httpHandler:(req,res)=>{
+const app=createApp({random:options.random,developmentRandom:options.developmentRandom,boardFactory:options.boardFactory,boardPresentation:presentBoard,httpHandler:(req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
   let file=routes[pathname];
   if(/^\/assets\/[a-zA-Z0-9_.-]+$/.test(pathname))file=path.join(root,pathname.slice(1));

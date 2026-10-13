@@ -82,6 +82,7 @@ async function render(fixture,presentation,state){
       const dot=document.createElement('button');dot.className='placement';dot.setAttribute('aria-label',`${type} ${id}`);dot.title=`${type} ${id}`;dot.onclick=()=>send(type,{id});$('board').append(dot);markers.push({dot,point});
     });
     if(g.phase==='settlement')targets(g.legalVertices,'corner','PlaceSettlement');
+    if(g.phase==='free-road')targets(g.development.legalFreeRoads,'edge','PlaceFreeRoad');
     if(g.phase==='road')targets(g.legalEdges,'edge','PlaceRoad');
     if(g.phase==='build'&&buildMode)targets(g.builds[buildMode]||[],buildMode==='BuildRoad'?'edge':'corner',buildMode);
     if(g.phase==='robber')targets(state.board.map((_,i)=>i).filter(i=>i!==g.robber),'tile','MoveRobber');
@@ -102,7 +103,7 @@ function scheduleRender(fixture,presentation,state){
 function send(type,extra={}){if(socket?.readyState!==WebSocket.OPEN)return;$('error').textContent='';socket.send(JSON.stringify({type,...extra}));}
 function controls(state){
   const g=state.game, mine=g?.currentPlayer===joined?.playerId;
-  $('room-info').textContent=`Room ${state.code} · `+state.players.map(p=>`${p.name}${p.bot?' (bot)':''}${p.online?'':' (offline)'}${p.playing?' · '+p.points+' points':''}`).join(' / ');
+  $('room-info').textContent=`Room ${state.code} · `+state.players.map(p=>`${p.name}${p.bot?' (bot)':''}${p.online?'':' (offline)'}${p.playing?' · '+p.points+' points · '+p.developmentCount+' cards · '+p.knightsPlayed+' knights':''}`).join(' / ');
   $('actions').replaceChildren();
   const button=(label,action,disabled=false)=>{const b=document.createElement('button');b.textContent=label;b.disabled=disabled;b.onclick=action;$('actions').append(b);};
   if(!g){$('turn').textContent='Waiting to start';if(state.host===joined.playerId){button('Start with bots',()=>send('StartGame',{bots:true}));button('Start game',()=>send('StartGame'),state.players.filter(p=>p.online&&!p.bot).length<2);}return;}
@@ -119,6 +120,7 @@ function controls(state){
     button(`Discard ${g.discardCount} cards`,()=>send('Discard',{cards:Object.fromEntries(Object.entries(fields).map(([r,input])=>[r,Number(input.value)]))}));
   }
   if(mine&&g.phase==='steal')for(const id of g.victims)button('Steal from '+state.players.find(p=>p.id===id).name,()=>send('Steal',{player:id}));
+  DevelopmentControls.render($('actions'),state,joined.playerId,send);
   TradeControls.render($('actions'),state,joined.playerId,send);
 }
 function connect(){

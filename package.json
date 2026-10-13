@@ -5,6 +5,8 @@
   "scripts": {
     "start": "node server.cjs",
     "test": "node tests/server.cjs",
+    "test:development": "node tests/development.cjs",
+    "test:development-network": "node tests/development-network.cjs",
     "test:trading": "node tests/trading.cjs",
     "test:trading-network": "node tests/trading-network.cjs",
     "test:protocol": "node tests/protocol.cjs",

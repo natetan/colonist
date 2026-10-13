@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const placement = require('./game.cjs');
 const trading = require('./trading.cjs');
+const development = require('./development.cjs');
 const costs = { BuildRoad:{wood:1,brick:1}, BuildSettlement:{wood:1,brick:1,wheat:1,sheep:1}, BuildCity:{wheat:2,ore:3} };
 const total = hand => Object.values(hand).reduce((a,b)=>a+b,0);
 const current = g => g.players[g.turn];
@@ -8,18 +9,23 @@ function begin(g, tiles) {
   g.turn = 0; g.phase = 'roll'; g.dice = null; g.robber = tiles.findIndex(t=>t.resource==='desert'); g.discards = {}; g.victims = [];
   g.bank = Object.fromEntries(['wood','brick','sheep','wheat','ore'].map(r=>[r,19-g.players.reduce((n,id)=>n+g.resources[id][r],0)]));
   g.tradeOffer=null;g.tradeSequence=0;
+  development.begin(g);
 }
 function affordable(g,id,type) { return Object.entries(costs[type]).every(([r,n])=>g.resources[id][r]>=n); }
 function buildLocations(g,id,type) {
   if (!affordable(g,id,type)) return [];
   if (type==='BuildCity') return g.vertices.filter(v=>v.owner===id&&!v.city).length && g.vertices.filter(v=>v.owner===id&&v.city).length<4 ? g.vertices.filter(v=>v.owner===id&&!v.city).map(v=>v.id) : [];
   if (type==='BuildSettlement') return g.vertices.filter(v=>v.owner===id&&!v.city).length<5 ? placement.legalVertices(g).filter(v=>g.edges.some(e=>e.owner===id&&(e.a===v||e.b===v))) : [];
+  return roadLocations(g,id);
+}
+function roadLocations(g,id){
   if (g.edges.filter(e=>e.owner===id).length>=15) return [];
   return g.edges.filter(e=>e.owner===null&&[e.a,e.b].some(v=>g.vertices[v].owner===id || (g.vertices[v].owner===null&&g.edges.some(other=>other.owner===id&&(other.a===v||other.b===v))))).map(e=>e.id);
 }
-function act(g, tiles, id, message, random = crypto.randomInt) {
+function act(g, tiles, id, message, random = crypto.randomInt, developmentRandom=crypto.randomInt) {
   if (!g.players.includes(id)) throw new Error('You are not playing in this match.');
   const type = message.type;
+  if(development.act(g,id,message,developmentRandom,roadLocations))return;
   if(trading.act(g,id,message))return;
   if (type==='Discard') {
     if (g.phase!=='discard'||!g.discards[id]) throw new Error('You do not need to discard.');
@@ -41,14 +47,14 @@ function act(g, tiles, id, message, random = crypto.randomInt) {
   }
   if(type==='MoveRobber') {
     if(g.phase!=='robber'||!Number.isInteger(message.id)||!tiles[message.id]||message.id===g.robber)throw new Error('Move the robber to a different tile.');
-    g.robber=message.id;g.victims=[...new Set(g.vertices.filter(v=>v.owner&&v.owner!==id&&v.tiles.includes(g.robber)&&total(g.resources[v.owner])>0).map(v=>v.owner))];g.phase=g.victims.length?'steal':'build';return;
+    g.robber=message.id;g.victims=[...new Set(g.vertices.filter(v=>v.owner&&v.owner!==id&&v.tiles.includes(g.robber)&&total(g.resources[v.owner])>0).map(v=>v.owner))];if(g.victims.length)g.phase='steal';else development.finish(g);return;
   }
   if(type==='Steal') {
     if(g.phase!=='steal'||!g.victims.includes(message.player))throw new Error('Choose a neighboring opponent with cards.');
-    const hand=g.resources[message.player];let pick=random(total(hand));for(const[r,n]of Object.entries(hand)){if(pick<n){hand[r]--;g.resources[id][r]++;break;}pick-=n;}g.victims=[];g.phase='build';return;
+    const hand=g.resources[message.player];let pick=random(total(hand));for(const[r,n]of Object.entries(hand)){if(pick<n){hand[r]--;g.resources[id][r]++;break;}pick-=n;}g.victims=[];development.finish(g);return;
   }
   if(g.phase!=='build')throw new Error('Finish rolling or resolving the robber first.');
-  if(type==='EndTurn'){g.tradeOffer=null;g.turn=(g.turn+1)%g.players.length;g.phase='roll';return;}
+  if(type==='EndTurn'){g.tradeOffer=null;g.turn=(g.turn+1)%g.players.length;g.turnNumber++;g.developmentPlayed=false;g.dice=null;g.phase='roll';return;}
   if(!costs[type]||!buildLocations(g,id,type).includes(message.id))throw new Error('You cannot afford that piece or its location is invalid.');
   for(const[r,n]of Object.entries(costs[type])){g.resources[id][r]-=n;g.bank[r]+=n;}
   if(type==='BuildRoad')g.edges[message.id].owner=id;else if(type==='BuildCity')g.vertices[message.id].city=true;else g.vertices[message.id].owner=id;
@@ -56,10 +62,11 @@ function act(g, tiles, id, message, random = crypto.randomInt) {
 function botAction(g,tiles,id) {
   if(g.discards[id]){let left=g.discards[id];const cards={};for(const[r,n]of Object.entries(g.resources[id])){cards[r]=Math.min(left,n);left-=cards[r];}return{type:'Discard',cards};}
   if(current(g)!==id)return null;
+  const cardMove=development.botAction(g,id,roadLocations);if(cardMove)return cardMove;
   if(g.phase==='roll')return{type:'RollDice'};
   if(g.phase==='robber'){const target=tiles.findIndex((t,i)=>i!==g.robber&&g.vertices.some(v=>v.owner&&v.owner!==id&&v.tiles.includes(i)));return{type:'MoveRobber',id:target<0?(g.robber+1)%tiles.length:target};}
   if(g.phase==='steal')return{type:'Steal',player:g.victims[0]};
-  if(g.phase==='build'){for(const type of ['BuildCity','BuildSettlement','BuildRoad']){const ids=buildLocations(g,id,type);if(ids.length)return{type,id:ids[0]};}return{type:'EndTurn'};}
+  if(g.phase==='build'){for(const type of ['BuildCity','BuildSettlement','BuildRoad']){const ids=buildLocations(g,id,type);if(ids.length)return{type,id:ids[0]};}if(development.canBuy(g,id))return{type:'BuyDevelopmentCard'};return{type:'EndTurn'};}
   return null;
 }
-module.exports={begin,act,buildLocations,botAction,current,costs};
+module.exports={begin,act,buildLocations,roadLocations,botAction,current,costs};
