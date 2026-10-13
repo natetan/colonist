@@ -2,6 +2,7 @@
 // This module has no network access and is not connected to the game server.
 const GAME_ACTION_SUBTYPE = 1;
 const GAME_STATE_MESSAGE_ID = 130;
+const { encode, decode } = require('@msgpack/msgpack');
 const ACTION = Object.freeze({
   roll: 2, endTurn: 6, requestRoad: 10, confirmRoad: 11,
   requestSettlement: 14, confirmSettlement: 15,
@@ -43,4 +44,33 @@ function decodeDirectEnvelope(bytes) {
   return { recipient, encodedPayload: Buffer.from(packet.subarray(end)) };
 }
 
-module.exports = { ACTION, GAME_ACTION_SUBTYPE, GAME_STATE_MESSAGE_ID, createActionSequence, encodeDirectEnvelope, decodeDirectEnvelope };
+function encodeActionPacket(recipient, action) {
+  return encodeDirectEnvelope(recipient, encode(action));
+}
+
+function decodeActionPacket(packet) {
+  const { recipient, encodedPayload } = decodeDirectEnvelope(packet);
+  return { recipient, action: decode(encodedPayload) };
+}
+
+// Observed diff semantics. Inputs are JSON-like objects; null means deletion.
+// Reject prototype keys as a local hardening choice, not original behavior.
+function applyStateDiffs(state, diffs) {
+  function merge(target, patch) {
+    for (const key of Object.keys(patch)) {
+      if (['__proto__', 'constructor', 'prototype'].includes(key)) throw new Error('Unsafe diff key');
+      const value = patch[key];
+      if (value === null) delete target[key];
+      else if (Array.isArray(value)) target[key] = value.slice();
+      else if (typeof value === 'object') {
+        if (!Object.prototype.hasOwnProperty.call(target, key)) target[key] = {};
+        if (!target[key] || typeof target[key] !== 'object' || Array.isArray(target[key])) throw new Error('Incompatible diff structure');
+        merge(target[key], value);
+      } else target[key] = value;
+    }
+  }
+  for (const diff of diffs) merge(state, diff);
+  return state;
+}
+
+module.exports = { ACTION, GAME_ACTION_SUBTYPE, GAME_STATE_MESSAGE_ID, createActionSequence, encodeDirectEnvelope, decodeDirectEnvelope, encodeActionPacket, decodeActionPacket, applyStateDiffs };

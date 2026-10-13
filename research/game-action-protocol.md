@@ -45,6 +45,14 @@ Building uses separate request and confirmation commands. This suggests an inter
 
 These findings identify a client command contract. They do not establish that the downloaded client contains authoritative rules or an offline bot engine.
 
+## State merge and codec implementation
+
+Further direct static inspection resolves module 54801's `p_` to function P, which applies each diff in order through function k (character offset 459245 in the shared bundle). Null deletes a key, arrays replace a value, objects recursively merge, and primitives overwrite. Missing object branches are created. `protocol.cjs` independently implements these rules for JSON-like state, additionally rejecting prototype keys and incompatible structures and copying arrays. These hardening choices are not claims about original behavior.
+
+Vendor module 62777 delegates encoding to module 29337 with default options. The constructor exposes extensionCodec, context, maxDepth=100, initialBufferSize=2048, sortKeys=false, forceFloat32=false, ignoreUndefined=false, and forceIntegerToFloat=false. This supports the MessagePack identification, but does not identify the exact upstream package version. The local implementation uses pinned @msgpack/msgpack 2.8.0 and matches the independently specified roll-action byte fixture. No production capture or original-code execution has verified broader compatibility.
+
+The same shared module contains a state-copy/filter function that masks other players' resource cards and private victory points and filters additional mechanic and chat fields. This is evidence of client-delivered filtering helpers, not proof that authoritative state execution or bots are available. Full initial state, visibility rules, and handshake requirements remain unresolved.
+
 ## Follow-up: placement and transport
 
 Static UI inspection in `ui-game.ef351c1079ae7886fa5e.js` at character offsets approximately 85,500–95,000 shows edge highlights indexing `mapState.tileState.tileEdges[t]`, and corner highlights indexing `tileState.tileCorners[t]`. Their confirmation callbacks forward the highlight index into `confirmBuildRoad` or `confirmBuildSettlement`. These are numeric array indexes, not hex-coordinate objects. Our prototype's board numbering has not been matched to that ordering.

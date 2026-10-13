@@ -11,6 +11,7 @@
     "inspect:module": "node tools/find-client-module.cjs"
   },
   "dependencies": {
+    "@msgpack/msgpack": "2.8.0",
     "ws": "^8.22.0"
   }
 }

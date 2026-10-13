@@ -25,3 +25,18 @@ assert.throws(() => decodeDirectEnvelope(Buffer.from([3, 1, 4, 65])));
 assert.throws(() => decodeDirectEnvelope(Buffer.from([3, 1, 1, 255])));
 assert.throws(() => decodeDirectEnvelope(Buffer.from([2, 1, 1, 65])));
 console.log('Protocol action and byte-fixture checks passed.');
+
+const { encodeActionPacket, decodeActionPacket, applyStateDiffs } = require('../protocol.cjs');
+const roll = createActionSequence()('roll');
+assert.deepEqual(encodeActionPacket('game-1', roll), packet);
+assert.deepEqual(decodeActionPacket(packet), { recipient: 'game-1', action: roll });
+assert.throws(() => decodeActionPacket(Buffer.concat([packet, Buffer.from([0])])));
+const state = { playerStates: { 1: { cards: [1, 2], connected: true }, 2: { connected: true } }, obsolete: 1 };
+const patch = { playerStates: { 1: { cards: [3] }, 2: null }, obsolete: null };
+applyStateDiffs(state, [patch, { playerStates: { 1: { connected: false }, 3: { cards: [] } } }]);
+assert.deepEqual(state, { playerStates: { 1: { cards: [3], connected: false }, 3: { cards: [] } } });
+state.playerStates[1].cards.push(4);
+assert.deepEqual(patch.playerStates[1].cards, [3]);
+assert.throws(() => applyStateDiffs({}, [JSON.parse('{"__proto__":{"polluted":true}}')]));
+assert.equal({}.polluted, undefined);
+console.log('MessagePack fixture and state-diff checks passed.');

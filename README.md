@@ -31,7 +31,7 @@ Run `npm run inspect:client` to regenerate the bundle inventory. No dependencies
 
 Run `npm run inspect:module -- <module-id-or-text>` to locate relevant webpack modules without executing the bundles. See `research/architecture.md` for the startup and socket findings.
 
-Run `npm run test:protocol` for isolated action sequencing and binary-envelope fixture checks. `protocol.cjs` implements the observed command wrapper; it has no socket connection and is not integrated into gameplay. It accepts already encoded payload bytes and does not yet implement or verify the production payload codec. See `research/game-action-protocol.md` for evidence and unresolved compatibility requirements.
+Run `npm run test:protocol` for isolated action sequencing, MessagePack byte fixtures, binary framing, and state-diff checks. `protocol.cjs` has no socket connection and is not integrated into gameplay. Its pinned MessagePack codec matches the local fixture; production compatibility remains unverified. See `research/game-action-protocol.md` for evidence and unresolved compatibility requirements.
 
 ## Initial findings
 
