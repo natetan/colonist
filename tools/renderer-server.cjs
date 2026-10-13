@@ -16,6 +16,11 @@ const routes={
 async function startRendererLab(port=3002,options={}){
 const app=createApp({saveFile:options.saveFile,random:options.random,developmentRandom:options.developmentRandom,boardFactory:options.boardFactory,boardPresentation:presentBoard,httpHandler:(req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
+  if(pathname==='/sprites.css'){
+    const names=new Set(['card_lumber','card_brick','card_wool','card_grain','card_ore','card_devcardback','card_knight','card_monopoly','card_roadbuilding','card_yearofplenty','card_victorypoint','icon_trade','icon_hourglass','road_blue','settlement_blue','city_blue']);
+    let css='';for(const file of fs.readdirSync(path.join(root,'assets')).filter(f=>f.endsWith('.json'))){const sheet=JSON.parse(fs.readFileSync(path.join(root,'assets',file),'utf8'));for(const [name,data]of Object.entries(sheet.frames||{})){if(!names.has(name)||data.rotated)continue;const f=data.frame,s=42/f.w;css+=`.sprite-${name}{display:inline-block;width:42px;height:${f.h*s}px;background:url('/assets/${sheet.meta.image}') ${-f.x*s}px ${-f.y*s}px / ${sheet.meta.size.w*s}px ${sheet.meta.size.h*s}px no-repeat;}\n`;}}
+    res.setHeader('Content-Type','text/css');res.setHeader('X-Content-Type-Options','nosniff');return res.end(css);
+  }
   let file=routes[pathname];
   if(/^\/assets\/[a-zA-Z0-9_.-]+$/.test(pathname))file=path.join(root,pathname.slice(1));
   // No remote connections, images, frames, or scripts are permitted.

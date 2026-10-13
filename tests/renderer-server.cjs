@@ -20,6 +20,7 @@ function get(port,url){return new Promise((resolve,reject)=>http.get({hostname:'
   assert.equal((await get(port,'/trading.js')).headers['content-type'],'text/javascript');
   assert.equal((await get(port,'/trading.css')).headers['content-type'],'text/css');
   const styles=await get(port,'/game.css');assert.equal(styles.status,200);assert.equal(styles.headers['content-type'],'text/css');assert(page.body.includes('/game.css'));
+  const sprites=await get(port,'/sprites.css');assert.equal(sprites.status,200);assert.equal(sprites.headers['content-type'],'text/css');assert(sprites.body.includes('.sprite-card_lumber'));assert(page.body.includes('/sprites.css'));
   assert(page.body.includes('/trading.js'));assert(page.body.includes('/trading.css'));
   assert.equal((await get(port,'/research/colonist-home.html')).status,404);
   function client(){

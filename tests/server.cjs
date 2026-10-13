@@ -36,6 +36,8 @@ async function run() {
     b.send({ type: 'JoinRoom', code: joined.code, name: '<script>guest</script>' }); await b.next('Joined');
     const state = await b.next('RoomState'); assert.deepStrictEqual(state.board, first.board); assert.equal(state.players.length, 2); assert(!JSON.stringify(state).includes(joined.token));
     await a.next('RoomState');
+    a.send({type:'Chat',text:'<b>Hello table</b>',name:'Impersonator'});const chatA=await a.next('Chat'),chatB=await b.next('Chat');assert.deepEqual(chatA,chatB);assert.equal(chatA.name,'Host');assert.equal(chatA.text,'<b>Hello table</b>');assert(!JSON.stringify(chatA).includes(joined.token));
+    a.send({type:'Chat',text:'Too fast'});assert.match((await a.next('Error')).message,/Wait a moment/);b.send({type:'Chat',text:'x'.repeat(301)});assert.match((await b.next('Error')).message,/1–300/);
     const closed = new Promise(resolve => a.ws.once('close', resolve)); a.ws.close(); await closed;
     const offline = await b.next('RoomState'); assert.equal(offline.players[0].online, false);
     const resume = client(); await resume.next('SessionEstablished'); resume.send({ type: 'Resume', code: joined.code, token: joined.token }); assert.equal((await resume.next('Joined')).playerId, joined.playerId); assert.equal((await resume.next('RoomState')).players.length, 2);

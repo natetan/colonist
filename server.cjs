@@ -70,6 +70,12 @@ function createApp(options = {}) {
       try {
         if(storageFailure)throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');
         const message = JSON.parse(bytes.toString());
+        if(message.type==='Chat'){
+          if(!ws.room||!ws.player)throw new Error('Join a room before chatting.');
+          if(typeof message.text!=='string'||!message.text.trim()||message.text.length>300)throw new Error('Chat messages must contain 1–300 characters.');
+          if(ws.lastChat&&Date.now()-ws.lastChat<750)throw new Error('Wait a moment before sending another message.');
+          ws.lastChat=Date.now();const chat={type:'Chat',player:ws.player.id,name:ws.player.name,text:message.text.trim()};for(const p of ws.room.players)if(p.ws)send(p.ws,chat);return;
+        }
         if (['Rematch','StartGame','PlaceSettlement','PlaceRoad','RollDice','EndTurn','BuildRoad','BuildSettlement','BuildCity','MoveRobber','Steal','Discard',...trading.commands,...development.commands].includes(message.type)) {
           const room = ws.room;
           if (!room) throw new Error('Join a room first.');
