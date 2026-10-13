@@ -53,6 +53,7 @@ function controls(g) {
   }
   if(g.discardCount){const p=document.createElement('p');p.textContent=`Discard exactly ${g.discardCount} cards.`;$('actions').append(p);const inputs={};for(const[r,n]of Object.entries(g.resources)){const label=document.createElement('label');label.textContent=r;const input=document.createElement('input');input.type='number';input.min=0;input.max=n;input.value=0;label.append(input);inputs[r]=input;$('actions').append(label);}button('Discard selected cards',()=>command('Discard',{cards:Object.fromEntries(Object.entries(inputs).map(([r,input])=>[r,Number(input.value)]))}));}
   if(mine&&g.phase==='steal')for(const id of g.victims){const player=roomState.players.find(p=>p.id===id);button(`Steal from ${player.name}`,()=>command('Steal',{player:id}));}
+  TradeControls.render($('actions'),roomState,joined.playerId,command);
 }
 function connect() {
   socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/socket`);

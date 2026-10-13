@@ -1,0 +1,7 @@
+.trade-controls{margin-top:20px;padding-top:12px;border-top:1px solid #66818b}
+.trade-controls label{display:inline-block;margin:4px}
+.trade-controls select{padding:8px;background:#eef5fa;color:#142d3b;border-radius:4px;max-width:180px}
+.trade-controls table{margin:12px 0;border-collapse:collapse}
+.trade-controls th,.trade-controls td{padding:4px;text-align:left}
+.trade-controls input{width:65px;padding:6px;margin:0}
+.trade-controls button{margin:4px}

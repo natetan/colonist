@@ -119,6 +119,7 @@ function controls(state){
     button(`Discard ${g.discardCount} cards`,()=>send('Discard',{cards:Object.fromEntries(Object.entries(fields).map(([r,input])=>[r,Number(input.value)]))}));
   }
   if(mine&&g.phase==='steal')for(const id of g.victims)button('Steal from '+state.players.find(p=>p.id===id).name,()=>send('Steal',{player:id}));
+  TradeControls.render($('actions'),state,joined.playerId,send);
 }
 function connect(){
   socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/socket`);

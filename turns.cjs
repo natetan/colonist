@@ -1,11 +1,13 @@
 const crypto = require('crypto');
 const placement = require('./game.cjs');
+const trading = require('./trading.cjs');
 const costs = { BuildRoad:{wood:1,brick:1}, BuildSettlement:{wood:1,brick:1,wheat:1,sheep:1}, BuildCity:{wheat:2,ore:3} };
 const total = hand => Object.values(hand).reduce((a,b)=>a+b,0);
 const current = g => g.players[g.turn];
 function begin(g, tiles) {
   g.turn = 0; g.phase = 'roll'; g.dice = null; g.robber = tiles.findIndex(t=>t.resource==='desert'); g.discards = {}; g.victims = [];
   g.bank = Object.fromEntries(['wood','brick','sheep','wheat','ore'].map(r=>[r,19-g.players.reduce((n,id)=>n+g.resources[id][r],0)]));
+  g.tradeOffer=null;g.tradeSequence=0;
 }
 function affordable(g,id,type) { return Object.entries(costs[type]).every(([r,n])=>g.resources[id][r]>=n); }
 function buildLocations(g,id,type) {
@@ -18,6 +20,7 @@ function buildLocations(g,id,type) {
 function act(g, tiles, id, message, random = crypto.randomInt) {
   if (!g.players.includes(id)) throw new Error('You are not playing in this match.');
   const type = message.type;
+  if(trading.act(g,id,message))return;
   if (type==='Discard') {
     if (g.phase!=='discard'||!g.discards[id]) throw new Error('You do not need to discard.');
     const cards=message.cards;
@@ -45,7 +48,7 @@ function act(g, tiles, id, message, random = crypto.randomInt) {
     const hand=g.resources[message.player];let pick=random(total(hand));for(const[r,n]of Object.entries(hand)){if(pick<n){hand[r]--;g.resources[id][r]++;break;}pick-=n;}g.victims=[];g.phase='build';return;
   }
   if(g.phase!=='build')throw new Error('Finish rolling or resolving the robber first.');
-  if(type==='EndTurn'){g.turn=(g.turn+1)%g.players.length;g.phase='roll';return;}
+  if(type==='EndTurn'){g.tradeOffer=null;g.turn=(g.turn+1)%g.players.length;g.phase='roll';return;}
   if(!costs[type]||!buildLocations(g,id,type).includes(message.id))throw new Error('You cannot afford that piece or its location is invalid.');
   for(const[r,n]of Object.entries(costs[type])){g.resources[id][r]-=n;g.bank[r]+=n;}
   if(type==='BuildRoad')g.edges[message.id].owner=id;else if(type==='BuildCity')g.vertices[message.id].city=true;else g.vertices[message.id].owner=id;

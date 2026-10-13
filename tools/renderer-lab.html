@@ -1,9 +1,11 @@
 <!doctype html>
 <html lang="en"><meta charset="utf-8"><title>Local renderer experiment</title>
+<link rel="stylesheet" href="/trading.css">
 <style>body{background:#142d3b;color:#eef5fa;font:16px system-ui;margin:24px}pre{white-space:pre-wrap}canvas{border:1px solid #7c99a5;max-width:100%;height:auto;display:block}button{padding:12px;margin:4px;cursor:pointer}input{padding:10px;margin:4px;max-width:130px}#error{color:#ffb8a6}#board{touch-action:none;position:relative;width:fit-content;max-width:100%}.placement{position:absolute;width:20px;height:20px;border:2px solid #132e3b;border-radius:50%;background:white;padding:0;margin:0;transform:translate(-50%,-50%)}.placement:hover,.placement:focus-visible{background:#efc96b;outline:2px solid white}label{display:inline-block}</style>
+<style>.game-layout{display:grid;grid-template-columns:minmax(0,900px) minmax(260px,340px);gap:24px;max-width:1264px;align-items:start}.control-area{padding:16px;border:1px solid #526f7c;border-radius:12px;background:#183b4a}.control-area p:first-child{margin-top:0}.trade-controls table{width:100%}.trade-controls input{max-width:65px}.trade-controls h3{margin-top:0}@media(max-width:850px){.game-layout{grid-template-columns:1fr}.control-area{max-width:600px}}</style>
 <h1>Private Settlers · original board renderer</h1><p>Create a local room, start with bots, then click white markers to place your pieces.</p>
 <p id="connection">Connecting…</p>
 <div id="lobby"><label>Name <input id="name" value="Nate" maxlength="24"></label><button id="create" disabled>Create room</button><label>Room code <input id="code" maxlength="6"></label><button id="join" disabled>Join room</button></div>
-<p id="room-info"></p><p id="turn"></p><p id="hand"></p><div id="actions"></div><p id="error" role="alert"></p>
-<button id="probe">Run renderer probe</button><pre id="status">Ready</pre><div id="board"></div>
-<script src="/factories.js"></script><script src="/lab.js"></script></html>
+<p id="room-info"></p>
+<main class="game-layout"><section><div id="board"></div><pre id="status">Ready</pre></section><aside class="control-area"><p id="turn"></p><p id="hand"></p><div id="actions"></div><p id="error" role="alert"></p><button id="probe">Run renderer probe</button></aside></main>
+<script src="/factories.js"></script><script src="/trading.js"></script><script src="/lab.js"></script></html>
