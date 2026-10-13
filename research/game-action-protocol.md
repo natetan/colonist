@@ -47,6 +47,10 @@ These findings identify a client command contract. They do not establish that th
 
 ## Initial connection and build boundary
 
+Serialized map follow-up: module 19590 constructs its map validator from tileHexStates, tileCornerStates, tileEdgeStates, and portEdgeStates directly on mapState. Module 13627 declares tile entries with x, y, type, diceNumber. Tile enums are Desert=0, Lumber=1, Brick=2, Wool=3, Grain=4, Ore=5 (additional expansion/sea types are outside the current serializer). Corner and edge schemas make owner/buildingType/type optional. Empty land fixtures therefore omit these fields rather than assigning the prototype's null ownership marker.
+
+serializeLandMap in protocol-map.cjs emits numeric-keyed collections with contiguous locally assigned indexes; object collection choice is a local representation compatible with the observed for-in loader, not a proven production container type. Desert diceNumber is 0. Tests check collection counts, field names, empty occupancy, invalid resource/number rejection, and a MessagePack round trip. The generated fixture is original diagnostic data, has empty portEdgeStates, and is not a complete renderable BuildGame event. Harbors, sea border, settings, mechanic states, and runtime ordering remain unresolved.
+
 Geometry follow-up: module 25204 enumerates each face's six corners and edges and each edge's two endpoints. Module 15123 assigns North=0 and South=1 to corner orientation; module 29267 assigns NorthWest=0, West=1, SouthWest=2 to edges. The schema declarations in those modules store x/y/z directly, while the map validators expose hexCorner/hexEdge wrappers. Do not assume the wrapper property names are serialized field names.
 
 `protocol-map.cjs` independently reconstructs this geometry and interns shared coordinates into local indexes. The test verifies 19 faces, 54 corners, 72 edges, every face's consecutive-corner edge incidence, and shared borders. These are meaningful topology checks but do not prove original board ordering. Input face order controls local index assignment. No adapter to the playable prototype or full map-state serializer has been added.
