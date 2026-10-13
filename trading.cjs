@@ -12,6 +12,13 @@ function cards(value) {
 }
 const hasCards = (hand,amounts) => Object.entries(amounts).every(([r,n])=>hand[r]>=n);
 const commands = ['BankTrade','OfferTrade','AcceptTrade','DeclineTrade','CancelTrade'];
+function rates(g,id){
+  const result=Object.fromEntries(resources.map(r=>[r,4]));
+  for(const harbor of g.harbors||[]){const edge=g.edges[harbor.edge];if(!edge||![edge.a,edge.b].some(v=>g.vertices[v].owner===id))continue;
+    for(const r of resources)if(harbor.resource===null||harbor.resource===r)result[r]=Math.min(result[r],harbor.resource===null?3:2);
+  }
+  return result;
+}
 function act(g,id,message) {
   if(!commands.includes(message.type))return false;
   if(g.phase!=='build')throw new Error('Trade only after rolling and resolving the robber.');
@@ -30,9 +37,9 @@ function act(g,id,message) {
   if(message.type==='BankTrade'){
     const {give,receive}=message;
     if(!resources.includes(give)||!resources.includes(receive)||give===receive)throw new Error('Choose two different resources for a bank trade.');
-    if(g.resources[id][give]<4)throw new Error('A bank trade costs four matching cards.');
+    const cost=rates(g,id)[give];if(g.resources[id][give]<cost)throw new Error(cost===4?'A bank trade costs four matching cards.':`A harbor trade costs ${cost} matching cards.`);
     if(g.bank[receive]<1)throw new Error('The bank has none of that resource.');
-    g.resources[id][give]-=4;g.bank[give]+=4;g.bank[receive]--;g.resources[id][receive]++;return true;
+    g.resources[id][give]-=cost;g.bank[give]+=cost;g.bank[receive]--;g.resources[id][receive]++;return true;
   }
   if(message.type==='CancelTrade'){
     if(!g.tradeOffer||g.tradeOffer.from!==id||g.tradeOffer.id!==message.offerId)throw new Error('That trade offer is no longer available to cancel.');
@@ -45,4 +52,4 @@ function act(g,id,message) {
   g.tradeSequence=(g.tradeSequence||0)+1;
   g.tradeOffer={id:g.tradeSequence,from:id,to:message.player,give,receive};return true;
 }
-module.exports={resources,commands,act,hasCards};
+module.exports={resources,commands,act,hasCards,rates};

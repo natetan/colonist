@@ -18,8 +18,8 @@ window.TradeControls=(()=>{
     if(g.currentPlayer===viewerId){
       const bank=document.createElement('p');bank.textContent='Bank · '+describe(g.bank);section.append(bank);
       let bankButton;
-      const updateBank=()=>{bankButton.disabled=g.resources[give.value]<4||g.bank[receive.value]<1||give.value===receive.value;};
-      const give=select('Give 4',resources.map(r=>[r,r]),draft.give,value=>{draft.give=value;updateBank();});
+      const updateBank=()=>{const cost=g.bankRates?.[give.value]||4;bankButton.textContent=`Trade ${cost} ${give.value} for 1 ${receive.value}`;bankButton.disabled=g.resources[give.value]<cost||g.bank[receive.value]<1||give.value===receive.value;};
+      const give=select('Give',resources.map(r=>[r,`${r} (${g.bankRates?.[r]||4}:1)`]),draft.give,value=>{draft.give=value;updateBank();});
       const receive=select('Receive 1',resources.map(r=>[r,r]),draft.receive,value=>{draft.receive=value;updateBank();});
       bankButton=button('Trade with bank',()=>send('BankTrade',{give:give.value,receive:receive.value}));updateBank();
       const opponents=state.players.filter(p=>p.playing&&!p.bot&&p.id!==viewerId&&p.online);

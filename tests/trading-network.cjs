@@ -23,7 +23,7 @@ async function run(){
       a.send({type:'EndTurn'});await both();b.send({type:'RollDice'});await both();b.send({type:'EndTurn'});await both();a.send({type:'RollDice'});await both();
     }
     give=Object.keys(sa.game.resources).find(r=>sa.game.resources[r]>=4);assert(give);const wanted=Object.keys(sa.game.bank).find(r=>r!==give&&sa.game.bank[r]>0);assert(wanted);
-    const bankBefore={...sa.game.bank},aBefore={...sa.game.resources};a.send({type:'BankTrade',give,receive:wanted});await both();assert.equal(sa.game.resources[give],aBefore[give]-4);assert.equal(sa.game.resources[wanted],aBefore[wanted]+1);assert.equal(sa.game.bank[give],bankBefore[give]+4);assert.equal(sa.game.bank[wanted],bankBefore[wanted]-1);
+    const cost=sa.game.bankRates[give],bankBefore={...sa.game.bank},aBefore={...sa.game.resources};a.send({type:'BankTrade',give,receive:wanted});await both();assert.equal(sa.game.resources[give],aBefore[give]-cost);assert.equal(sa.game.resources[wanted],aBefore[wanted]+1);assert.equal(sa.game.bank[give],bankBefore[give]+cost);assert.equal(sa.game.bank[wanted],bankBefore[wanted]-1);
     b.send({type:'BankTrade',give,receive:wanted});assert.match((await b.next('Error')).message,/another player/);
     a.send({type:'OfferTrade',player:jb.playerId,give:{[wanted]:1},receive:{[give]:1}});await both();const stale=sa.game.tradeOffer.id;
     a.send({type:'EndTurn'});await both();assert.equal(sb.game.tradeOffer,null);b.send({type:'AcceptTrade',offerId:stale});assert.match((await b.next('Error')).message,/Trade only/);

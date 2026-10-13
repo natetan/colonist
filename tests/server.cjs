@@ -8,6 +8,8 @@ require('./trading.cjs');
 require('./development.cjs');
 require('./scoring.cjs');
 require('./persistence.cjs');
+require('./board.cjs');
+require('./base-game.cjs');
 async function run() {
   const app = createApp({random:()=>3});
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
@@ -80,6 +82,7 @@ async function run() {
     botHost.send({type:'EndTurn'});do{botState=await botHost.next('RoomState');}while(botState.game.currentPlayer!==botJoined.playerId||botState.game.phase!=='roll');
     assert.equal(botState.players.filter(p=>p.bot).length,3);
     botHost.send({ type:'StartGame', bots:true }); assert((await botHost.next('Error')).message.includes('already started'));
+    const large=client();await large.next('SessionEstablished');large.send({type:'CreateRoom',name:'Large host'});const largeJoined=await large.next('Joined');await large.next('RoomState');for(let i=0;i<4;i++){const guest=client();await guest.next('SessionEstablished');guest.send({type:'JoinRoom',code:largeJoined.code,name:'Guest '+i});await guest.next('Joined');await guest.next('RoomState');}large.send({type:'StartGame'});assert.match((await large.next('Error')).message,/at most four players/);
     const html = await new Promise(resolve => http.get(`http://127.0.0.1:${port}/`, res => { let text=''; res.on('data', data => text += data); res.on('end', () => resolve(text)); })); assert(html.includes('Private Settlers'));
     assert(html.includes('/development.js'));assert(html.includes('/trading.js'));assert(html.includes('/trading.css'));
     for(const [file,mime]of [['scoring.js','text/javascript'],['development.js','text/javascript'],['trading.js','text/javascript'],['trading.css','text/css']]){

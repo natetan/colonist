@@ -11,7 +11,13 @@ function validate(data){
     check(!room.players[0].bot&&room.players.filter(p=>!p.bot).length<=6&&room.players.filter(p=>p.bot).length<=3);
     check(Array.isArray(room.board)&&room.board.length===19);
     const locations=new Set();for(const t of room.board){check(t&&integer(t.q,-2,2)&&integer(t.r,-2,2)&&Math.abs(t.q+t.r)<=2&&[...resources,'desert'].includes(t.resource)&&(t.resource==='desert'?t.number===null||integer(t.number,2,12):integer(t.number,2,12)&&t.number!==7));locations.add(`${t.q},${t.r}`);}check(locations.size===19&&room.board.filter(t=>t.resource==='desert').length===1);
+    if(room.harbors!==undefined){
+      const coast=require('./board.cjs').coastline(room.board),ends=new Set();check(Array.isArray(room.harbors)&&room.harbors.length===9);
+      for(const h of room.harbors){check(h&&coast.includes(h.edge)&&(h.resource===null||resources.includes(h.resource)));const e=rules.topology(room.board).edges[h.edge];check(!ends.has(e.a)&&!ends.has(e.b));ends.add(e.a);ends.add(e.b);}
+      check(room.harbors.filter(h=>h.resource===null).length===4&&resources.every(r=>room.harbors.filter(h=>h.resource===r).length===1));
+    }
     const g=room.game;if(!g)continue;
+    if(room.harbors!==undefined)check(JSON.stringify(g.harbors)===JSON.stringify(room.harbors));
     check(Array.isArray(g.players)&&g.players.length>0&&g.players.length<=6&&new Set(g.players).size===g.players.length&&g.players.every(id=>ids.has(id))&&g.colors&&g.players.every(id=>typeof g.colors[id]==='string'));
     const geometry=rules.topology(room.board);check(Array.isArray(g.vertices)&&g.vertices.length===geometry.vertices.length&&Array.isArray(g.edges)&&g.edges.length===geometry.edges.length);
     const owner=id=>id===null||g.players.includes(id);
@@ -37,7 +43,7 @@ function validate(data){
   }
   return data;
 }
-function encode(rooms){return {version:1,rooms:[...rooms.values()].map(room=>({code:room.code,board:room.board,game:room.game||null,players:room.players.map(p=>({id:p.id,name:p.name,bot:!!p.bot,...(!p.bot?{token:p.token}:{})}))}))};}
+function encode(rooms){return {version:1,rooms:[...rooms.values()].map(room=>({code:room.code,board:room.board,...(room.harbors!==undefined?{harbors:room.harbors}:{}),game:room.game||null,players:room.players.map(p=>({id:p.id,name:p.name,bot:!!p.bot,...(!p.bot?{token:p.token}:{})}))}))};}
 function createStore(file){
   if(!file)return {load:()=>new Map(),save:()=>{},close:()=>{}};
   file=path.resolve(file);fs.mkdirSync(path.dirname(file),{recursive:true});const lock=file+'.lock';

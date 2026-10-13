@@ -4,7 +4,7 @@ Private multiplayer board-game project for local testing, with eventual Azure ho
 
 ## Current status
 
-Local multiplayer gameplay with initial placement, dice, resource production, building, robber handling, bank/player trading, development cards, scoring, winner detection, and basic bots. The original UI prototype runs on port 3000; an experimental original Colonist board renderer now presents the same local rules on port 3002. Matches can now finish at ten points; harbor trading and the full UI remain unfinished. Local saves now survive server restarts.
+Local multiplayer gameplay with initial placement, dice, resource production, building, robber handling, bank/player trading, development cards, scoring, winner detection, and basic bots. The original UI prototype runs on port 3000; an experimental original Colonist board renderer now presents the same local rules on port 3002. Matches can now finish at ten points. Harbors and separated red numbers are implemented; full UI polish remains unfinished. Local saves now survive server restarts.
 
 ## Run locally
 
@@ -19,7 +19,7 @@ Open `http://localhost:3000`. Enter your name and create a room. Open a separate
 
 Run `npm test` for server integration checks. Stop the server with Ctrl+C. Set `$env:PORT = '3001'` before launching to change the port.
 
-The server binds only to loopback for local testing. Rooms support six seats and are saved locally by default. Saved rooms remain available after disconnects and server restarts. Temporary rooms expire after ten minutes fully disconnected. No accounts, harbors, or balanced-number placement are implemented yet. Azure access is not configured.
+The server binds only to loopback for local testing. Lobbies retain up to six human seats; new base-game matches allow at most four online players and are saved locally by default. Saved rooms remain available after disconnects and server restarts. Temporary rooms expire after ten minutes fully disconnected. Accounts and expansions are not implemented yet. Azure access is not configured.
 
 The prototype uses an original browser UI and JSON WebSocket protocol. Its two initial handshake message names mirror observed client behavior, but this is not a Colonist-compatible replacement server. `npm start` does not serve downloaded bundles; the separate renderer lab serves locally extracted factories and assets.
 
@@ -78,7 +78,7 @@ The shared bundle contains game-state models, move validators, development-card 
 4. Add hidden-information filtering, persistence, reconnects, and complete-game checks.
 5. Package a one-command Docker launch for local use and Azure.
 
-Target the standard four-player game first. Five/six-player and larger matches remain to be scoped; the expected user group is up to ten people, usually four or five.
+Target the standard four-player game first. Five/six-player extension rules and larger matches remain to be scoped; the expected user group is up to ten people, usually four or five.
 
 ## Initial placement
 
@@ -86,11 +86,11 @@ The host sees Start game, enabled with at least two online players. Offline seat
 
 ## Playing alone with bots
 
-Create a room and click **Start with bots** on the host's tab. The server fills the active match to four players: one human gets three bots, two humans get two, and three humans get one. Offline lobby seats do not count. This option supports at most four online humans; use Start game for larger human groups.
+Create a room and click **Start with bots** on the host's tab. The server fills the active match to four players: one human gets three bots, two humans get two, and three humans get one. Offline lobby seats do not count. This option supports at most four online humans; the five/six-player extension will be added later.
 
 Place your settlement and adjacent road. Computer players automatically take their placement turns using the same server validation as humans, then return control for your second settlement/road pair. Bots favor corners with higher expected resource production and pick a legal adjacent road. They do not control your seat or replace disconnected humans. Their hands remain private.
 
-Bots also buy/play development cards, roll, discard when required, move the robber, steal, build affordable pieces, and end their regular turns automatically. They prefer cities, then settlements, then roads; this is basic legal behavior rather than strong strategy. Solo placement test remains available as a manual debugging shortcut and now continues into one-player regular turns.
+Bots also make bank/harbor trades, buy/play development cards, roll, discard when required, move the robber, steal, build affordable pieces, and end their regular turns automatically. They prefer cities, then settlements, then roads; this is basic legal behavior rather than strong strategy. Solo placement test remains available as a manual debugging shortcut and now continues into one-player regular turns.
 
 ## Regular turns
 
@@ -104,11 +104,11 @@ Click **End turn** to advance. Public points count buildings and awards; your ow
 
 ## Trading
 
-After rolling and resolving the robber, the current player can trade four matching resources for one different resource from the bank. There are no harbor discounts yet. Select **Give 4** and **Receive 1**, then **Trade with bank**; the button is disabled without enough cards or available bank stock.
+After rolling and resolving the robber, the current player can trade matching resources for one different resource from the bank. The default is 4:1. Owning a settlement or city on a generic harbor gives 3:1 for every resource; a specific harbor gives 2:1 for its matching resource. The best applicable rate is used. Select **Give** and **Receive 1**, then the exchange button, which shows the actual cost and is disabled without enough cards or available bank stock.
 
 With another online human in the match, choose **Offer to**, fill **You give** and **You receive**, then **Send trade offer**. Only the current player proposes trades; the named recipient can accept or decline outside their own turn. An offer may include several resource types but cannot put the same resource on both sides. Both sides need positive whole-card amounts. Only one offer is active at a time; a new offer replaces it. The offer is visible to the room, while each full resource hand stays private.
 
-Offers reserve no cards. Acceptance rechecks both hands and transfers all cards atomically, without touching the bank. An underfunded offer is rejected without changing either hand. The proposer can cancel; ending the turn expires the offer. Bots do not negotiate or make bank trades yet. Trades are supported in both local UIs. Refresh preserves an active offer while the server remains running.
+Offers reserve no cards. Acceptance rechecks both hands and transfers all cards atomically, without touching the bank. An underfunded offer is rejected without changing either hand. The proposer can cancel; ending the turn expires the offer. Bots make bank/harbor trades but do not negotiate player trades. Trades are supported in both local UIs. Refresh preserves an active offer while the server remains running.
 
 `npm run test:trading` verifies conservation, atomic rejection, turn/phase restrictions, malformed counts, replacement, cancellation, decline, replay/expiry, and changed affordability. It also runs under `npm test`. `npm run test:trading-network` exercises acceptance between two actual WebSocket clients, private snapshots, bank transfers, duplicate rejection, and turn expiry. Browser testing verified offering, accepting, declining, cancelling, reconnect, and disabled bank controls; successful bank transfers are verified by the network test.
 
@@ -138,7 +138,7 @@ The current award holder keeps a tie. A longer road or larger army transfers the
 
 Settlements count one point and cities two. The **Your score** panel includes your hidden victory-point cards; the player list shows public scores. Following the [official CATAN rules](https://www.catan.com/faq/basegame), victory is checked on the current player's turn. A player reaching ten points outside their turn must wait until their turn begins. Newly bought victory-point cards can complete a win immediately. A winning knight can end the game before its robber effect is resolved.
 
-The winner panel displays their total and revealed victory-point-card count. Further gameplay commands are rejected, bots stop, and reconnect restores the finished board, including after a server restart with local saves enabled. Other players' private hands remain private. To play again, open a fresh tab and create a new room. There is no rematch button yet.
+The winner panel displays their total and revealed victory-point-card count. Further gameplay commands are rejected, bots stop, and reconnect restores the finished board, including after a server restart with local saves enabled. Other players' private hands remain private. After victory, the host can click **Rematch · return to lobby**. This keeps human seats and tokens, removes bots, clears the finished match, and creates a new board and harbors in the same room. Choose Start game or Start with bots again. The server rejects rematches during an active match and requests from other players.
 
 `npm run test:scoring` verifies branches, loops, blocked and disconnected roads, award thresholds, ties and transfers, private totals, own-turn victory, newly purchased victory points, knight victory, and the finished-game lock. These checks also run under `npm test`. `npm run test:scoring-network` plays a deterministic diagnostic match with two actual WebSocket clients from placement through production, bank trading, building, card purchases and knights to victory; it checks private/public scores, winner reveal, rejection of further moves, and reconnect. It uses a diagnostic board with all number tokens set to six and controlled random draws. Renderer route/geometry and existing card/trade regression checks pass. The new score/winner panels have not yet been visually tested in a browser.
 
@@ -168,3 +168,15 @@ npm start
 Invalid or incompatible saves stop startup without resetting the file. To restore a backup, stop the server, preserve the invalid file separately, and copy its `.bak` over the main save. The backup may be one move behind. If saving fails during play, further commands are paused; fix storage and restart to recover the last successfully saved state. Moves whose save failed are not acknowledged. Saved rooms currently have no automatic expiry or deletion, so the file grows as rooms are created. Backups are local and do not protect against losing the disk.
 
 `npm run test:persistence` checks round trips through setup, discard/robber and free-road phases, socket exclusion, token preservation, file locking, stale-lock recovery, backup writing, failed replacement, and refusal of incompatible/corrupt state. It also runs under `npm test`. `npm run test:persistence-network` restarts real servers during setup, roll/build, a pending trade, a new card, and knight resolution; it verifies identical private/public snapshots, failed-save command blocking and recovery, and resuming an interrupted bot turn. `npm run test:scoring-network` now also restarts and restores a completed match from disk. These are automated loopback checks; browser restart behavior has not yet been manually exercised.
+
+## Base-game board milestone
+
+New rooms and rematches use the standard 19 land tiles: four wood, four sheep, four wheat, three brick, three ore, and one desert. The usual 18 number tokens are randomized with no adjacent 6s or 8s. This constraint is what “balanced” means here; resource clusters and equally strong starting positions are not guaranteed. Randomness remains server-side. Old saved boards are retained unchanged, including any older rooms without harbors.
+
+Nine harbors surround the island: four generic 3:1 harbors and one 2:1 harbor for each resource. Each attaches to the two endpoints of a coastal edge. Harbor endpoints do not overlap, and the pattern leaves gaps around the coastline. Both local UIs show harbor labels; hovering a renderer label identifies its two corner IDs. Owning a settlement or city at either endpoint grants access immediately. Roads alone grant none. Ports do not stack their discounts and the robber does not disable them. The server computes trade costs and ignores client-supplied rate fields. See the [official maritime trade rules](https://www.catan.com/sites/default/files/2021-06/catan-family-rules-overview.pdf).
+
+Public player lists now show resource-card counts while resource identities remain private. Banks, cards, piece limits, development cards, awards, and ten-point victory are implemented. New normal matches are limited to four active players until the five/six-player extension exists. Two-player and solo starts remain local testing variants, rather than claims of official variant support. Earlier larger saved matches remain loadable with their existing rules; they are not an implementation of the extension.
+
+Verification now includes 250 generated boards, coastline and harbor-bag checks, specific/generic access and trade conservation, insufficient-bank production, physical settlement/city limits, settlement return after upgrades, and bot trade planning. These run under `npm test`; board checks can also run with `npm run test:board`. `npm run test:harbors-network` verifies real 2:1 and 3:1 trades through two clients. `npm run test:base-game-network` completes a generated standard-board four-player game with one automated human client and three server bots, including sevens, discards, maritime trades, cards, and victory. Its server random sources are seeded for reproducibility; normal games use cryptographic randomness. Existing diagnostic full-match checks now verify host-only rematches, seat preservation, and reset state.
+
+Browser verification covered all nine renderer harbor labels, setup on generic and wood harbors, the displayed 2:1/3:1 options, and a successful 2:1 wood-to-brick exchange with matching hand/bank updates. Score panels were also visible. Rematch controls and complete-game endings are verified by automated tests, not yet by a full manual browser game. The board is playable with the original renderer, but ports use local text labels and the surrounding HUD is still our prototype. Next is a multiplayer playtest and UI polish; expansions follow that base-game pass. Azure/container packaging, account-based seat recovery, save-management tools, and stronger bot strategy remain later work.

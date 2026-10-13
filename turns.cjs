@@ -74,7 +74,14 @@ function botAction(g,tiles,id) {
   if(g.phase==='roll')return{type:'RollDice'};
   if(g.phase==='robber'){const target=tiles.findIndex((t,i)=>i!==g.robber&&g.vertices.some(v=>v.owner&&v.owner!==id&&v.tiles.includes(i)));return{type:'MoveRobber',id:target<0?(g.robber+1)%tiles.length:target};}
   if(g.phase==='steal')return{type:'Steal',player:g.victims[0]};
-  if(g.phase==='build'){for(const type of ['BuildCity','BuildSettlement','BuildRoad']){const ids=buildLocations(g,id,type);if(ids.length)return{type,id:ids[0]};}if(development.canBuy(g,id))return{type:'BuyDevelopmentCard'};return{type:'EndTurn'};}
+  if(g.phase==='build'){for(const type of ['BuildCity','BuildSettlement','BuildRoad']){const ids=buildLocations(g,id,type);if(ids.length)return{type,id:ids[0]};}if(development.canBuy(g,id))return{type:'BuyDevelopmentCard'};
+    // Plan with only this bot's hand and the public bank/network. Preserve cards needed by the goal.
+    const simulated={...g,resources:{[id]:Object.fromEntries(trading.resources.map(r=>[r,19]))}},goals=Object.entries(costs).filter(([type])=>buildLocations(simulated,id,type).length).map(([,cost])=>cost);
+    if(g.developmentDeck.length)goals.push({sheep:1,wheat:1,ore:1});
+    goals.sort((a,b)=>Object.entries(a).reduce((n,[r,k])=>n+Math.max(0,k-g.resources[id][r]),0)-Object.entries(b).reduce((n,[r,k])=>n+Math.max(0,k-g.resources[id][r]),0));
+    const rates=trading.rates(g,id);
+    for(const goal of goals){const receive=trading.resources.find(r=>g.resources[id][r]<(goal[r]||0)&&g.bank[r]>0),give=trading.resources.find(r=>r!==receive&&g.resources[id][r]>=(goal[r]||0)+rates[r]);if(receive&&give)return{type:'BankTrade',give,receive};}
+    return{type:'EndTurn'};}
   return null;
 }
 module.exports={begin,act,buildLocations,roadLocations,botAction,current,costs};

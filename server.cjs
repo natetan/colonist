@@ -8,6 +8,7 @@ const turns = require('./turns.cjs');
 const trading = require('./trading.cjs');
 const development = require('./development.cjs');
 const scoring = require('./scoring.cjs');
+const boards = require('./board.cjs');
 const {createStore} = require('./persistence.cjs');
 
 function createApp(options = {}) {
@@ -39,10 +40,10 @@ function createApp(options = {}) {
     const g = room.game;
     const game = g ? { phase: g.phase, currentPlayer: g.order[g.step] || null, solo: g.solo, colors: g.colors, vertices: g.vertices, edges: g.edges, legalVertices: g.phase === 'settlement' ? rules.legalVertices(g) : [], legalEdges: g.phase === 'road' ? rules.legalEdges(g) : [], resources: g.resources[viewer.id] || null } : null;
     if(g && g.turn!==undefined){Object.assign(game,{currentPlayer:turns.current(g),dice:g.dice,robber:g.robber,discardCount:g.discards[viewer.id]||0,victims:g.phase==='steal'&&turns.current(g)===viewer.id?g.victims:[],builds:g.phase==='build'&&turns.current(g)===viewer.id?Object.fromEntries(Object.keys(turns.costs).map(type=>[type,turns.buildLocations(g,viewer.id,type)])):{},bank:g.bank});}
-    if(g && g.turn!==undefined){game.tradeOffer=g.tradeOffer;game.canAcceptTrade=!!g.tradeOffer&&g.tradeOffer.to===viewer.id&&trading.hasCards(g.resources[viewer.id]||{},g.tradeOffer.receive);}
+    if(g && g.turn!==undefined){game.bankRates=trading.rates(g,viewer.id);game.tradeOffer=g.tradeOffer;game.canAcceptTrade=!!g.tradeOffer&&g.tradeOffer.to===viewer.id&&trading.hasCards(g.resources[viewer.id]||{},g.tradeOffer.receive);}
     if(g && g.turn!==undefined){game.development=development.view(g,viewer.id,turns.roadLocations);game.scoring=scoring.view(g,viewer.id);}
-    const state = { type: 'RoomState', persistence:!!options.saveFile, code: room.code, host: room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, game };
-    for(const player of state.players){player.developmentCount=g?.developmentHands?.[player.id]?.length||0;player.knightsPlayed=g?.knightsPlayed?.[player.id]||0;}
+    const state = { type: 'RoomState', persistence:!!options.saveFile, code: room.code, host: room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
+    for(const player of state.players){player.resourceCount=Object.values(g?.resources?.[player.id]||{}).reduce((a,b)=>a+b,0);player.developmentCount=g?.developmentHands?.[player.id]?.length||0;player.knightsPlayed=g?.knightsPlayed?.[player.id]||0;}
     // Optional presentation adapter receives only the already-redacted snapshot.
     if (options.boardPresentation) state.renderer = options.boardPresentation(state);
     return state;
@@ -60,16 +61,6 @@ function createApp(options = {}) {
       persist();broadcast(room);
     }
   }
-  function board() {
-    const resources = ['wood','wood','wood','wood','sheep','sheep','sheep','sheep','wheat','wheat','wheat','wheat','brick','brick','brick','ore','ore','ore','desert'];
-    for (let i = resources.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [resources[i], resources[j]] = [resources[j], resources[i]]; }
-    const numbers = [5,2,6,3,8,10,9,12,11,4,8,10,9,4,5,6,3,11];
-    const tiles = [];
-    for (let r = -2; r <= 2; r++) for (let q = Math.max(-2, -r - 2); q <= Math.min(2, -r + 2); q++) {
-      const resource = resources.pop(); tiles.push({ q, r, resource, number: resource === 'desert' ? null : numbers.pop() });
-    }
-    return tiles;
-  }
   wss.on('connection', ws => {
     clients.add(ws);
     const sessionId = crypto.randomUUID();
@@ -79,13 +70,20 @@ function createApp(options = {}) {
       try {
         if(storageFailure)throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');
         const message = JSON.parse(bytes.toString());
-        if (['StartGame','PlaceSettlement','PlaceRoad','RollDice','EndTurn','BuildRoad','BuildSettlement','BuildCity','MoveRobber','Steal','Discard',...trading.commands,...development.commands].includes(message.type)) {
+        if (['Rematch','StartGame','PlaceSettlement','PlaceRoad','RollDice','EndTurn','BuildRoad','BuildSettlement','BuildCity','MoveRobber','Steal','Discard',...trading.commands,...development.commands].includes(message.type)) {
           const room = ws.room;
           if (!room) throw new Error('Join a room first.');
+          if(message.type==='Rematch'){
+            if(room.players[0]!==ws.player)throw new Error('Only the host can start a rematch.');
+            if(room.game?.phase!=='finished')throw new Error('Finish the current match before starting a rematch.');
+            room.board=options.boardFactory?options.boardFactory():boards.generate(options.boardRandom);room.harbors=boards.harbors(room.board,options.boardRandom);room.game=null;room.players=room.players.filter(p=>!p.bot);
+            persist();broadcast(room);return;
+          }
           if (message.type === 'StartGame') {
             if (room.players[0] !== ws.player) throw new Error('Only the host can start.');
             if (room.game) throw new Error('The match has already started.');
             const ids = room.players.filter(p => p.ws).map(p => p.id);
+            if(ids.length>4)throw new Error('The base game supports at most four players. The five/six-player extension is not implemented yet.');
             const solo = message.solo === true;
             const bots = message.bots === true;
             if (solo && bots) throw new Error('Choose bots or solo placement test.');
@@ -98,7 +96,7 @@ function createApp(options = {}) {
                 room.players.push(bot); ids.push(bot.id);
               }
             }
-            room.game = rules.start(room.board, ids, solo);
+            room.game = rules.start(room.board, ids, solo);room.game.harbors=room.harbors||[];
           } else {
             if (!room.game) throw new Error('The host must start the match first.');
             if(room.game.turn!==undefined)turns.act(room.game,room.board,ws.player.id,message,random,options.developmentRandom);
@@ -123,7 +121,7 @@ function createApp(options = {}) {
         let room;
         if (message.type === 'CreateRoom') {
           let code; do { code = crypto.randomBytes(3).toString('hex').toUpperCase(); } while (rooms.has(code));
-          room = { code, players: [], board: options.boardFactory ? options.boardFactory() : board() }; rooms.set(code, room);
+          room = { code, players: [], board: options.boardFactory ? options.boardFactory() : boards.generate(options.boardRandom) };room.harbors=boards.harbors(room.board,options.boardRandom);rooms.set(code, room);
         } else {
           room = rooms.get(String(message.code).trim().toUpperCase());
           if (!room) throw new Error('Room not found.');

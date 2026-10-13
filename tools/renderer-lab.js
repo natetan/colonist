@@ -51,7 +51,7 @@ async function render(fixture,presentation,state){
   const app=activeApp;
   cleanupScene?.();
   for(const child of app.stage.removeChildren())child.destroy({children:true});
-  for(const dot of $('board').querySelectorAll('.placement'))dot.remove();
+  for(const dot of $('board').querySelectorAll('.placement,.harbor-label'))dot.remove();
   const ticks=[];cleanupScene=()=>{for(const tick of ticks)app.ticker.remove(tick);};
   const tick=fn=>{ticks.push(fn);app.ticker.add(fn);};
   const animations=new Set();
@@ -70,6 +70,15 @@ async function render(fixture,presentation,state){
     sprite.anchor.set(.5,.8);sprite.height=view.robberRadius;sprite.scale.x=sprite.scale.y;
     sprite.position.set(point.x-1.2*view.robberRadius,point.y-.7*view.robberRadius);sprite.zIndex=view.layers.robber;view.addChild(sprite);
   }
+  const harborMarkers=[];
+  for(const harbor of state?.harbors||[]){
+    const edge=map.tileEdges[presentation.mapping.edges[harbor.edge]],point=edge.hexEdge.centerPointToPixel(view.mapCenter,view.hexagonHeight/2);
+
+    // Shift the badge outwards; endpoint positions make harbor ownership unambiguous.
+    const anchor=presentation.harborLocations.find(h=>h.edge===harbor.edge);const {x,y}=anchor,n=Math.hypot(x,y);point.x+=x/n*26;point.y+=y/n*26;
+    const label=document.createElement('span');label.className='harbor-label';label.textContent=harbor.resource?`${harbor.resource} 2:1`:'Any 3:1';label.title=`Harbor at corners ${anchor.a} and ${anchor.b}`;$('board').append(label);harborMarkers.push({label,point});
+  }
+  const positionHarbors=()=>{const rect=app.view.getBoundingClientRect();for(const {label,point}of harborMarkers){const screen=view.toScreen(point);label.style.left=`${screen.x*rect.width/app.screen.width}px`;label.style.top=`${screen.y*rect.height/app.screen.height}px`;}};positionHarbors();tick(positionHarbors);
   if(state?.game&&joined&&state.game.currentPlayer===joined.playerId){
     const g=state.game;
     const markers=[];
@@ -103,14 +112,14 @@ function scheduleRender(fixture,presentation,state){
 function send(type,extra={}){if(socket?.readyState!==WebSocket.OPEN)return;$('error').textContent='';socket.send(JSON.stringify({type,...extra}));}
 function controls(state){
   const g=state.game, mine=g?.currentPlayer===joined?.playerId;
-  $('room-info').textContent=`Room ${state.code} · `+state.players.map(p=>`${p.name}${p.bot?' (bot)':''}${p.online?'':' (offline)'}${p.playing?' · '+p.points+' points · '+p.developmentCount+' cards · '+p.knightsPlayed+' knights':''}`).join(' / ');
+  $('room-info').textContent=`Room ${state.code} · `+state.players.map(p=>`${p.name}${p.bot?' (bot)':''}${p.online?'':' (offline)'}${p.playing?' · '+p.points+' points · '+p.resourceCount+' resources · '+p.developmentCount+' cards · '+p.knightsPlayed+' knights':''}`).join(' / ');
   $('actions').replaceChildren();
   const button=(label,action,disabled=false)=>{const b=document.createElement('button');b.textContent=label;b.disabled=disabled;b.onclick=action;$('actions').append(b);};
   if(!g){$('turn').textContent='Waiting to start';if(state.host===joined.playerId){button('Start with bots',()=>send('StartGame',{bots:true}));button('Start game',()=>send('StartGame'),state.players.filter(p=>p.online&&!p.bot).length<2);}return;}
   const player=state.players.find(p=>p.id===g.currentPlayer);
   $('turn').textContent=`${player?.name||'Player'}: ${g.phase}${g.dice?' · Dice '+g.dice.join(' + '):''}${mine?' · Your turn':''}`;
   $('hand').textContent='Your resources: '+Object.entries(g.resources||{}).map(([name,n])=>`${name} ${n}`).join(' · ');
-  ScoreControls.render($('actions'),state);if(g.phase==='finished'){$('turn').textContent=`${player.name} wins with ${g.scoring.winningPoints} points!`;return;}
+  ScoreControls.render($('actions'),state,joined.playerId,send);if(g.phase==='finished'){$('turn').textContent=`${player.name} wins with ${g.scoring.winningPoints} points!`;return;}
   if(mine&&g.phase==='roll')button('Roll dice',()=>send('RollDice'));
   if(mine&&g.phase==='build'){
     for(const [type,label]of Object.entries({BuildRoad:'Build road',BuildSettlement:'Build settlement',BuildCity:'Upgrade city'}))button(label,()=>{buildMode=type;scheduleRender(state.renderer.fixture,state.renderer,state);},!(g.builds[type]||[]).length);

@@ -28,6 +28,11 @@ function draw(tiles, game) {
     }
     $('board').append(element);
   }
+  for(const harbor of roomState.harbors||[]){
+    const edge=game.edges[harbor.edge],a=game.vertices[edge.a],b=game.vertices[edge.b],x=(a.x+b.x)/2,y=(a.y+b.y)/2,length=Math.hypot(x,y),px=x+x/length*42,py=y+y/length*42;
+    shape('line',{x1:a.x,y1:a.y,x2:px,y2:py,stroke:'#91b5c8','stroke-width':2},null,0);shape('line',{x1:b.x,y1:b.y,x2:px,y2:py,stroke:'#91b5c8','stroke-width':2},null,0);
+    const label=shape('text',{x:px,y:py,'text-anchor':'middle',fill:'#fff','font-size':12},null,0);label.textContent=harbor.resource?`${harbor.resource} 2:1`:'Any 3:1';
+  }
   for (const edge of game.edges) {
     const a = game.vertices[edge.a], b = game.vertices[edge.b];
     const legal = canAct && (game.legalEdges.includes(edge.id)||(game.development?.legalFreeRoads||[]).includes(edge.id)||(buildMode==='BuildRoad'&&(game.builds.BuildRoad||[]).includes(edge.id)));
@@ -43,7 +48,7 @@ function draw(tiles, game) {
 function command(type, extra={}) { if(socket.readyState!==WebSocket.OPEN)return; $('error').textContent='';socket.send(JSON.stringify({type,...extra})); }
 function controls(g) {
   $('actions').replaceChildren();if(!g)return;
-  ScoreControls.render($('actions'),roomState);if(g.phase==='finished')return;
+  ScoreControls.render($('actions'),roomState,joined.playerId,command);if(g.phase==='finished')return;
   const mine=g.currentPlayer===joined.playerId;
   const button=(text,fn,disabled=false)=>{const b=document.createElement('button');b.textContent=text;b.disabled=disabled;b.onclick=fn;$('actions').append(b);};
   if(g.dice){const p=document.createElement('p');p.textContent=`Dice: ${g.dice.join(' + ')} = ${g.dice[0]+g.dice[1]}`;$('actions').append(p);}
@@ -74,7 +79,7 @@ function connect() {
       $('connection').textContent=message.persistence?'Connected · games saved locally':'Connected · temporary games';
       if(!message.game||message.game.phase!=='build')buildMode=null;
       $('lobby').hidden = true; $('room').hidden = false; $('room-code').textContent = message.code;
-      $('players').replaceChildren(...message.players.map(player => { const li = document.createElement('li'); li.textContent = `${player.name}${player.bot ? ' · Computer' : ''}${player.id === message.host ? ' · Host' : ''}${player.online ? '' : ' · Offline'}${player.playing?' · '+player.points+' points':''}`; return li; }));
+      $('players').replaceChildren(...message.players.map(player => { const li = document.createElement('li'); li.textContent = `${player.name}${player.bot ? ' · Computer' : ''}${player.id === message.host ? ' · Host' : ''}${player.online ? '' : ' · Offline'}${player.playing?' · '+player.points+' points · '+player.resourceCount+' resources':''}`; return li; }));
       const host = message.host === joined.playerId;
       $('start').hidden = !!message.game || !host; $('solo').hidden = !!message.game || !host || message.players.filter(p => p.online).length !== 1;
       $('start').disabled = message.players.filter(p => p.online).length < 2;

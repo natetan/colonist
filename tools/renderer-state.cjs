@@ -35,6 +35,8 @@ function presentBoard(snapshot) {
   }
   fixture.gameState.mapState=map;
   // Presentation contains public board data only; never duplicate player hands.
-  return {fixture,mapping,playerColors,robber:snapshot.game?.robber??snapshot.board.findIndex(t=>t.resource==='desert')};
+  const geometry=topology(snapshot.board);
+  const harborLocations=(snapshot.harbors||[]).map(h=>{const e=geometry.edges[h.edge],a=geometry.vertices[e.a],b=geometry.vertices[e.b];return {edge:h.edge,a:e.a,b:e.b,x:(a.x+b.x)/2,y:(a.y+b.y)/2};});
+  return {fixture,mapping,harborLocations,playerColors,robber:snapshot.game?.robber??snapshot.board.findIndex(t=>t.resource==='desert')};
 }
 module.exports={translateGeometry,presentBoard};
