@@ -232,3 +232,9 @@ Player offers appear above the hand with both resource rows, avatars, and accept
 Incoming player offers overlay the upper-right board area immediately left of the chat sidebar. To test without bots, create a fresh room in one browser tab, join its code in a second tab, and start without bots; either human tab can offer cards to the other after rolling. Automated two-client trades run with npm run test:trading-network. Bots currently use bank trades and do not initiate player offers.
 
 The trade creator is anchored to the inventory area: offer rows sit above the hand, and its hand row replaces the visible inventory while open. Bank, player-offer, and close actions use reference SVG artwork with dimmed foregrounds for unavailable actions.
+
+Trade creation keeps the original inventory visible and selectable. Click resource cards in the hand to offer them; offer rows sit above it, and the dock trade button becomes the close X.
+
+Trade-creator columns share the inventory and dock edges; bank and player buttons align with their corresponding selector and offer rows.
+
+Trade bank/player actions form an evenly spaced column immediately above the dock close button, independent of the height of the resource-selection rows.
