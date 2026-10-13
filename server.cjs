@@ -4,8 +4,10 @@ const path = require('path');
 const crypto = require('crypto');
 const { WebSocketServer, WebSocket } = require('ws');
 const rules = require('./game.cjs');
+const turns = require('./turns.cjs');
 
-function createApp() {
+function createApp(options = {}) {
+  const random = options.random || crypto.randomInt;
   const rooms = new Map();
   const clients = new Set();
   const server = http.createServer((req, res) => {
@@ -26,15 +28,19 @@ function createApp() {
   function snapshot(room, viewer) {
     const g = room.game;
     const game = g ? { phase: g.phase, currentPlayer: g.order[g.step] || null, solo: g.solo, colors: g.colors, vertices: g.vertices, edges: g.edges, legalVertices: g.phase === 'settlement' ? rules.legalVertices(g) : [], legalEdges: g.phase === 'road' ? rules.legalEdges(g) : [], resources: g.resources[viewer.id] || null } : null;
-    return { type: 'RoomState', code: room.code, host: room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id) })), board: room.board, game };
+    if(g && g.turn!==undefined){Object.assign(game,{currentPlayer:turns.current(g),dice:g.dice,robber:g.robber,discardCount:g.discards[viewer.id]||0,victims:g.phase==='steal'&&turns.current(g)===viewer.id?g.victims:[],builds:g.phase==='build'&&turns.current(g)===viewer.id?Object.fromEntries(Object.keys(turns.costs).map(type=>[type,turns.buildLocations(g,viewer.id,type)])):{},bank:g.bank});}
+    return { type: 'RoomState', code: room.code, host: room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?g.vertices.filter(v=>v.owner===p.id).reduce((n,v)=>n+(v.city?2:1),0):0 })), board: room.board, game };
   }
   function broadcast(room) { for (const player of room.players) if (player.ws) send(player.ws, snapshot(room, player)); }
   function playBotTurns(room) {
-    while (room.game.phase !== 'complete') {
-      const current = room.players.find(p => p.id === room.game.order[room.game.step]);
-      if (!current.bot) break;
-      const move = rules.botMove(room.game, room.board);
-      rules.place(room.game, room.board, current.id, move.type, move.id);
+    if(room.game.phase==='complete'){turns.begin(room.game,room.board);broadcast(room);}
+    for(let actionCount=0;actionCount<200;actionCount++) {
+      const regular=room.game.turn!==undefined;
+      let current = room.players.find(p => p.id === (regular?turns.current(room.game):room.game.order[room.game.step]));
+      if(regular&&room.game.phase==='discard')current=room.players.find(p=>p.bot&&room.game.discards[p.id]);
+      if (!current || !current.bot) break;
+      if(regular){const move=turns.botAction(room.game,room.board,current.id);if(!move)break;turns.act(room.game,room.board,current.id,move,random);}
+      else {const move = rules.botMove(room.game, room.board);rules.place(room.game, room.board, current.id, move.type, move.id);if(room.game.phase==='complete')turns.begin(room.game,room.board);}
       broadcast(room);
     }
   }
@@ -56,7 +62,7 @@ function createApp() {
     ws.on('message', bytes => {
       try {
         const message = JSON.parse(bytes.toString());
-        if (['StartGame','PlaceSettlement','PlaceRoad'].includes(message.type)) {
+        if (['StartGame','PlaceSettlement','PlaceRoad','RollDice','EndTurn','BuildRoad','BuildSettlement','BuildCity','MoveRobber','Steal','Discard'].includes(message.type)) {
           const room = ws.room;
           if (!room) throw new Error('Join a room first.');
           if (message.type === 'StartGame') {
@@ -78,7 +84,8 @@ function createApp() {
             room.game = rules.start(room.board, ids, solo);
           } else {
             if (!room.game) throw new Error('The host must start the match first.');
-            rules.place(room.game, room.board, ws.player.id, message.type, message.id);
+            if(room.game.turn!==undefined)turns.act(room.game,room.board,ws.player.id,message,random);
+            else rules.place(room.game, room.board, ws.player.id, message.type, message.id);
           }
           broadcast(room);
           playBotTurns(room);

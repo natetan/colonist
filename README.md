@@ -4,7 +4,7 @@ Private multiplayer board-game project for local testing, with eventual Azure ho
 
 ## Current status
 
-Local lobby, shared board, and initial-placement prototype. Regular gameplay is not implemented yet; this does not run the downloaded Colonist client.
+Local multiplayer gameplay prototype with initial placement, dice, resource production, building, robber handling, and basic bots. This does not run the downloaded Colonist client. It is not a complete game yet.
 
 ## Run locally
 
@@ -19,7 +19,7 @@ Open `http://localhost:3000`. Enter your name and create a room. Open a separate
 
 Run `npm test` for server integration checks. Stop the server with Ctrl+C. Set `$env:PORT = '3001'` before launching to change the port.
 
-The server binds only to loopback for local testing. Rooms support six seats and are kept in memory; restarting the server loses rooms and boards. Fully disconnected rooms expire after ten minutes. No accounts, saved games, dice rolls, regular turns, trades, scoring, harbors, or balanced-number placement are implemented yet. Azure access is not configured.
+The server binds only to loopback for local testing. Rooms support six seats and are kept in memory; restarting the server loses rooms and boards. Fully disconnected rooms expire after ten minutes. No accounts, saved games, trading, development cards, longest road, largest army, victory conditions, harbors, or balanced-number placement are implemented yet. Azure access is not configured.
 
 The prototype uses an original browser UI and JSON WebSocket protocol. Its two initial handshake message names mirror observed client behavior, but this is not a Colonist-compatible replacement server. The downloaded bundles are used for research only and are never served by this app.
 
@@ -47,7 +47,7 @@ Target the standard four-player game first. Five/six-player and larger matches r
 
 ## Initial placement
 
-The host sees Start game, enabled with at least two online players. Offline seats are excluded from the placement order. When alone, use Solo placement test to place both settlement/road pairs yourself (no bots). Players take turns placing a settlement on a white corner, then a road on an adjacent white edge. The second round runs in reverse order and grants starting resources from the second settlement. Other players cannot place during your turn; reconnect restores match state. New players cannot join after start. The prototype stops after placement, with a clear completion message. Refresh both tabs after updating the app; restarting the server requires creating a new room.
+The host sees Start game, enabled with at least two online players. Offline seats are excluded from the placement order. When alone, use Solo placement test to place both settlement/road pairs yourself (no bots). Players take turns placing a settlement on a white corner, then a road on an adjacent white edge. The second round runs in reverse order and grants starting resources from the second settlement. Other players cannot place during your turn; reconnect restores match state. New players cannot join after start. Regular turns begin automatically after placement. Refresh both tabs after updating the app; restarting the server requires creating a new room.
 
 ## Playing alone with bots
 
@@ -55,4 +55,14 @@ Create a room and click **Start with bots** on the host's tab. The server fills 
 
 Place your settlement and adjacent road. Computer players automatically take their placement turns using the same server validation as humans, then return control for your second settlement/road pair. Bots favor corners with higher expected resource production and pick a legal adjacent road. They do not control your seat or replace disconnected humans. Their hands remain private.
 
-This milestone implements automatic **initial placement only**. Dice rolls, resource production during regular turns, bot building/trading, and victory conditions are still pending. Solo placement test remains available as a manual debugging shortcut.
+Bots also roll, discard when required, move the robber, steal, build affordable pieces, and end their regular turns automatically. They prefer cities, then settlements, then roads; this is basic legal behavior rather than strong strategy. Solo placement test remains available as a manual debugging shortcut and now continues into one-player regular turns.
+
+## Regular turns
+
+After setup, click **Roll dice**. The server rolls two dice and distributes resources from matching tiles, except the tile occupied by the robber. Cities produce two resources; settlements produce one. The bank starts with 19 of each resource, and building returns spent cards to it.
+
+Choose a build button and click a white location marker. Buttons are disabled when you cannot afford the piece or have no legal location. Roads must connect to your network without passing through an opponent's settlement. Settlements obey the distance rule and must touch your road. Cities upgrade your own settlements. Piece limits are 15 roads, 5 settlements, and 4 cities. Colored squares are placeholder cities; the black circle is the robber.
+
+On a seven, players with more than seven cards must choose and discard half, rounded down. When all discards are complete, the current player moves the robber to a different tile and chooses an eligible adjacent opponent to steal a random resource from. Bot discards and robber actions happen automatically; required human discards pause the game until submitted.
+
+Click **End turn** to advance. Your cards remain private; displayed points currently count settlements and cities only. There is no winner detection yet. Trading and development cards are the next rule milestones.

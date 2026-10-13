@@ -3,8 +3,9 @@ const http = require('http');
 const { WebSocket } = require('ws');
 const { createApp } = require('../server.cjs');
 const rules = require('../game.cjs');
+require('./turns.cjs');
 async function run() {
-  const app = createApp();
+  const app = createApp({random:()=>3});
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
   const port = app.server.address().port;
   const connections = [];
@@ -70,6 +71,10 @@ async function run() {
     botHost.send({ type:'PlaceSettlement', id:botState.game.legalVertices[0] }); botState = await botHost.next('RoomState');
     botHost.send({ type:'PlaceRoad', id:botState.game.legalEdges[0] }); botState = await botHost.next('RoomState');
     assert.equal(botState.game.phase,'complete'); assert.equal(botState.game.vertices.filter(v=>v.owner).length,8); assert.equal(botState.game.edges.filter(e=>e.owner).length,8);
+    botState=await botHost.next('RoomState');assert.equal(botState.game.phase,'roll');
+    botHost.send({type:'RollDice'});botState=await botHost.next('RoomState');assert.deepStrictEqual(botState.game.dice,[3,3]);assert.equal(botState.game.phase,'build');
+    botHost.send({type:'EndTurn'});do{botState=await botHost.next('RoomState');}while(botState.game.currentPlayer!==botJoined.playerId||botState.game.phase!=='roll');
+    assert.equal(botState.players.filter(p=>p.bot).length,3);
     botHost.send({ type:'StartGame', bots:true }); assert((await botHost.next('Error')).message.includes('already started'));
     const html = await new Promise(resolve => http.get(`http://127.0.0.1:${port}/`, res => { let text=''; res.on('data', data => text += data); res.on('end', () => resolve(text)); })); assert(html.includes('Private Settlers'));
     console.log('PASS: lobby/reconnect, host-only start, placement rules, starting resources, solo test, one human plus three automatic bots completing setup, bot impersonation rejection, resource privacy, duplicate-start rejection, HTTP page');
