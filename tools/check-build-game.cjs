@@ -12,7 +12,6 @@ function inspectBuildGame(payload) {
   for (const path of ['playerColor', 'gameSettings.modeSetting']) if (!Number.isInteger(get(path))) issues.push(`${path}: expected integer`);
   if (!Number.isFinite(get('timeLeftInState'))) issues.push('timeLeftInState: expected finite number');
   for (const path of ['gameDetails.isRanked', 'gameDetails.isDiscord']) if (typeof get(path) !== 'boolean') issues.push(`${path}: expected boolean`);
-  if (get('gameDetails.matchmakingMatchType') === undefined) issues.push('gameDetails.matchmakingMatchType: missing');
   const users = get('playerUserStates');
   const players = get('gameState.playerStates');
   if (Array.isArray(users)) {

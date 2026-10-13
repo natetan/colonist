@@ -8,6 +8,8 @@ const fixture = {
 };
 fixture.gameState.playerStates[1] = {};
 assert.deepEqual(inspectBuildGame(fixture), { observedChecksPassed: true, renderCompatibility: 'unverified', issues: [] });
+delete fixture.gameDetails.matchmakingMatchType;
+assert.equal(inspectBuildGame(fixture).observedChecksPassed, true);
 fixture.gameState.playerStates[2] = {};
 assert(inspectBuildGame(fixture).issues.includes('playerStates.2: no matching user'));
 fixture.playerUserStates.push({ selectedColor: 1 });
