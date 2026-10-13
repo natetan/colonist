@@ -218,3 +218,5 @@ Monopoly and year of plenty now use the shared action box above the hand: select
 The renderer dice use six locally cached reference SVG faces rather than font glyphs. Click the pair to roll when enabled; inactive dice display the latest server result with a darker tint.
 
 History and chat use player-colored names and icons; game history includes piece art, dice faces, played development cards, and your own resource gains. Up to 500 entries are retained in the current browser session; scrolling upward pauses automatic scrolling. Opponent resource identities are never inferred from private hands. History is not yet persisted across refresh.
+
+The renderer includes fallback card metadata so owned development cards remain visible even if an older running server cannot serve the JSON catalog. Action cost tooltips show resource-card art and quantities, including on disabled actions, with keyboard focus support for available buttons.
