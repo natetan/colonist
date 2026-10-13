@@ -76,7 +76,7 @@ async function render(fixture,presentation,state){
 
     // Shift the badge outwards; endpoint positions make harbor ownership unambiguous.
     const anchor=presentation.harborLocations.find(h=>h.edge===harbor.edge);const {x,y}=anchor,n=Math.hypot(x,y),dx=x/n,dy=y/n;
-    const piers=new pixi.Graphics();for(const id of [anchor.a,anchor.b]){const start=map.tileCorners[presentation.mapping.corners[id]].hexCorner.toPixel(view.mapCenter,view.hexagonHeight/2);piers.lineStyle(7,0xd49d35).moveTo(start.x,start.y).lineTo(start.x+dx*24,start.y+dy*24);for(let d=4;d<24;d+=5)piers.lineStyle(1,0x805728).moveTo(start.x+dx*d-dy*3,start.y+dy*d+dx*3).lineTo(start.x+dx*d+dy*3,start.y+dy*d-dx*3);}view.addChild(piers);
+    const piers=new pixi.Graphics();piers.zIndex=view.layers.robber;for(const id of [anchor.a,anchor.b]){const start=map.tileCorners[presentation.mapping.corners[id]].hexCorner.toPixel(view.mapCenter,view.hexagonHeight/2),end={x:point.x+dx*42,y:point.y+dy*42},vx=end.x-start.x,vy=end.y-start.y,length=Math.hypot(vx,vy),ux=vx/length,uy=vy/length;piers.lineStyle(8,0xd49d35).moveTo(start.x,start.y).lineTo(end.x,end.y);for(let d=4;d<length;d+=5)piers.lineStyle(1,0x805728).moveTo(start.x+ux*d-uy*4,start.y+uy*d+ux*4).lineTo(start.x+ux*d+uy*4,start.y+uy*d-ux*4);}view.addChild(piers);
     point.x+=dx*48;point.y+=dy*48;
     const label=document.createElement('span');label.className='harbor-label harbor-boat';label.setAttribute('aria-label',harbor.resource?`${harbor.resource} harbor 2:1`:'Generic harbor 3:1');
     if(harbor.resource)label.append(sprite({wood:'port_lumber',brick:'port_brick',sheep:'port_wool',wheat:'port_grain',ore:'port_ore'}[harbor.resource]));else{const sail=document.createElement('span');sail.className='generic-boat';sail.textContent='?';label.append(sail);}
@@ -116,7 +116,15 @@ function scheduleRender(fixture,presentation,state){
 function send(type,extra={}){if(socket?.readyState!==WebSocket.OPEN)return;$('error').textContent='';socket.send(JSON.stringify({type,...extra}));}
 const cardSprites={wood:'card_lumber',brick:'card_brick',sheep:'card_wool',wheat:'card_grain',ore:'card_ore'};
 function sprite(name){const e=document.createElement('span');e.className='sprite-'+name;e.setAttribute('aria-hidden','true');return e;}
-function cardBadge(resource,count){const card=document.createElement('div');card.className='resource-card';card.append(sprite(cardSprites[resource]||(resource==='resources'?'resourceback':'card_devcardback')));const n=document.createElement('strong');n.textContent=count;card.append(n);card.setAttribute('aria-label',`${resource}: ${count} cards`);card.title=`${resource}: ${count}`;return card;}
+function cardBadge(resource,count){const card=document.createElement('div');card.className='resource-card';card.dataset.resource=resource;card.append(sprite(cardSprites[resource]||(resource==='resources'?'resourceback':'card_devcardback')));const n=document.createElement('strong');n.textContent=count;card.append(n);card.setAttribute('aria-label',`${resource}: ${count} cards`);card.title=`${resource}: ${count}`;return card;}
+function resourceFeedback(previous,state){
+  if(!previous?.game?.resources||previous.code!==state.code||!state.game?.resources)return;
+  const gains=Object.entries(state.game.resources).filter(([r,n])=>n>(previous.game.resources[r]||0)).map(([r,n])=>[r,n-(previous.game.resources[r]||0)]);
+  if(!gains.length)return;
+  const notice=document.createElement('div');notice.className='resource-notice';notice.setAttribute('role','status');notice.textContent='Received '+gains.map(([r,n])=>`+${n} ${r}`).join(' · ');$('hand').append(notice);setTimeout(()=>notice.remove(),4000);
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  for(const [r,n]of gains){const target=$('hand').querySelector(`[data-resource="${r}"]`),bank=$('bank').querySelector(`[data-resource="${r}"]`),fromBank=(previous.game.bank?.[r]??0)-(state.game.bank?.[r]??0)>=n,origin=fromBank?bank:$('board');if(!target||!origin||reduced)continue;const a=origin.getBoundingClientRect(),b=target.getBoundingClientRect();for(let i=0;i<Math.min(n,5);i++){const flight=sprite(cardSprites[r]);flight.classList.add('flying-card');flight.style.left=`${a.left+a.width/2-21}px`;flight.style.top=`${a.top+a.height/2-30}px`;document.body.append(flight);const animation=flight.animate([{transform:'translate(0,0) scale(.8)',opacity:1},{transform:`translate(${b.left+b.width/2-a.left-a.width/2}px,${b.top+b.height/2-a.top-a.height/2}px) scale(1)`,opacity:1}],{duration:650,delay:i*90,easing:'cubic-bezier(.2,.6,.3,1)'});animation.finished.catch(()=>{}).finally(()=>flight.remove());}}
+}
 function appendLog(parent,text){const p=document.createElement('p');p.textContent=text;parent.append(p);while(parent.children.length>100)parent.firstElementChild.remove();parent.scrollTop=parent.scrollHeight;}
 function publicEvents(state){const prev=latestState;if(!prev||prev.code!==state.code)return;const g=state.game,old=prev.game;if(!g){if(old)appendLog($('events'),'The host returned the table to the lobby.');return;}const name=id=>state.players.find(p=>p.id===id)?.name||'Player';
   for(const v of g.vertices){const before=old?.vertices[v.id];if(v.owner&&(!before?.owner||before.city!==v.city))appendLog($('events'),`${name(v.owner)} placed a ${v.city?'city':'settlement'}.`);}
@@ -154,9 +162,9 @@ function controls(state){
   for(const [resource,count]of Object.entries(g.resources||{}))$('hand').append(cardBadge(resource,count));
   $('score-panel').replaceChildren();ScoreControls.render($('score-panel'),state,joined.playerId,send);if(g.phase==='finished'){$('turn').textContent=`${player.name} wins with ${g.scoring.winningPoints} points!`;return;}
   if(mine&&g.phase==='build'){
-    for(const [type,label]of Object.entries({BuildRoad:'Build road · wood + brick',BuildSettlement:'Build settlement · wood + brick + sheep + wheat',BuildCity:'Upgrade city · 2 wheat + 3 ore'})){const available=(g.builds[type]||[]).length>0;const b=button(label,()=>{buildMode=type;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);},!available);b.setAttribute('aria-label',label);b.replaceChildren(sprite({BuildRoad:'road_blue',BuildSettlement:'settlement_blue',BuildCity:'city_blue'}[type]));const counter=document.createElement('span');counter.className='piece-counter';counter.textContent=type==='BuildRoad'?15-g.edges.filter(e=>e.owner===joined.playerId).length:type==='BuildCity'?4-g.vertices.filter(v=>v.owner===joined.playerId&&v.city).length:5-g.vertices.filter(v=>v.owner===joined.playerId&&!v.city).length;b.append(counter);b.setAttribute('aria-pressed',String(buildMode===type));b.title=label+(available?' · Choose a legal location.':' · Requires resources, a piece, and a legal location.');}
+    for(const [type,label]of Object.entries({BuildRoad:'Build road · wood + brick',BuildSettlement:'Build settlement · wood + brick + sheep + wheat',BuildCity:'Upgrade city · 2 wheat + 3 ore'})){const available=(g.builds[type]||[]).length>0;const b=button(label,()=>{buildMode=type;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);},!available);b.style.order=({BuildRoad:'2',BuildSettlement:'3',BuildCity:'4'}[type]);b.setAttribute('aria-label',label);b.replaceChildren(sprite(({BuildRoad:'road_',BuildSettlement:'settlement_',BuildCity:'city_'}[type])+(['red','blue','orange','green','purple','white'][state.players.filter(p=>p.playing).findIndex(p=>p.id===joined.playerId)]||'red')));const counter=document.createElement('span');counter.className='piece-counter';counter.textContent=type==='BuildRoad'?15-g.edges.filter(e=>e.owner===joined.playerId).length:type==='BuildCity'?4-g.vertices.filter(v=>v.owner===joined.playerId&&v.city).length:5-g.vertices.filter(v=>v.owner===joined.playerId&&!v.city).length;b.append(counter);b.setAttribute('aria-pressed',String(buildMode===type));b.title=label+(available?' · Choose a legal location.':' · Requires resources, a piece, and a legal location.');}
     if(buildMode){$('hint').textContent='Choose a white marker to build, or cancel placement.';button('Cancel placement',()=>{buildMode=null;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);});}
-    button('End turn',()=>{buildMode=null;send('EndTurn');});
+    const end=button('End turn',()=>{buildMode=null;send('EndTurn');});end.style.order='5';end.replaceChildren(sprite('icon_hourglass'));end.setAttribute('aria-label','End turn');end.title='End turn';
   }
   if(g.discardCount){
     const fields={};let discardButton;
@@ -166,7 +174,9 @@ function controls(state){
   }
   if(mine&&g.phase==='steal')for(const id of g.victims)button('Steal from '+state.players.find(p=>p.id===id).name,()=>send('Steal',{player:id}));
   actionPanel('Development cards','development',state,DevelopmentControls.render);
+  for(const panel of $('actions').querySelectorAll('.action-panel'))panel.style.order=panel.querySelector('summary').title==='Trade'?'0':'1';
   actionPanel('Trade','trade',state,TradeControls.render);
+  for(const panel of $('actions').querySelectorAll('.action-panel'))panel.style.order=panel.querySelector('summary').title==='Trade'?'0':'1';
 }
 function connect(){
   socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/socket`);
@@ -174,7 +184,7 @@ function connect(){
     const state=JSON.parse(event.data);
     if(state.type==='SessionEstablished'){$('connection').textContent='Connected to local game server';$('create').disabled=$('join').disabled=false;let saved;try{saved=JSON.parse(sessionStorage.getItem(sessionKey));}catch{}if(saved)send('Resume',saved);}
     if(state.type==='Joined'){joined=state;sessionStorage.setItem(sessionKey,JSON.stringify({code:state.code,token:state.token}));$('lobby').hidden=true;$('probe').hidden=true;$('share').hidden=false;}
-    if(state.type==='RoomState'){$('connection').textContent=state.persistence?'Connected · games saved locally':'Connected · temporary games';turnFeedback(state);publicEvents(state);latestState=state;if(state.game?.phase!=='build')buildMode=null;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);}
+    if(state.type==='RoomState'){$('connection').textContent=state.persistence?'Connected · games saved locally':'Connected · temporary games';const previous=latestState;turnFeedback(state);publicEvents(state);latestState=state;if(state.game?.phase!=='build')buildMode=null;controls(state);resourceFeedback(previous,state);scheduleRender(state.renderer.fixture,state.renderer,state);}
     if(state.type==='Chat')appendLog($('chat-messages'),`${state.name}: ${state.text}`);
     if(state.type==='Error'){$('error').textContent=state.message;if(state.message.startsWith('Saved session')){sessionStorage.removeItem(sessionKey);joined=null;$('lobby').hidden=false;$('probe').hidden=false;}}
   };

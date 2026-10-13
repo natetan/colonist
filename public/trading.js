@@ -13,7 +13,9 @@ window.TradeControls=(()=>{
       const wrapper=document.createElement('label');wrapper.textContent=label+' ';
       const input=document.createElement('select');for(const [id,text]of choices){const option=document.createElement('option');option.value=id;option.textContent=text;input.append(option);}
       if(choices.some(([id])=>id===value))input.value=value;
-      input.onchange=()=>onChange(input.value);wrapper.append(input);section.append(wrapper);return input;
+      input.onchange=()=>onChange(input.value);wrapper.append(input);section.append(wrapper);
+      if(label==='Give'||label==='Receive 1'){wrapper.className='bank-resource-picker';const row=document.createElement('div');row.className='trade-card-choices';const buttons=[];for(const [id]of choices){const choice=document.createElement('button');choice.type='button';choice.title=id;choice.setAttribute('aria-label',`${label} ${id}`);const art=document.createElement('span');art.className='sprite-'+({wood:'card_lumber',brick:'card_brick',sheep:'card_wool',wheat:'card_grain',ore:'card_ore'}[id]);choice.append(art);const name=document.createElement('span');name.textContent=id;choice.append(name);choice.onclick=()=>{input.value=id;input.onchange();for(const [key,b]of buttons)b.setAttribute('aria-pressed',String(key===id));};choice.setAttribute('aria-pressed',String(input.value===id));buttons.push([id,choice]);row.append(choice);}section.append(row);}
+      return input;
     };
     if(g.currentPlayer===viewerId){
       const bank=document.createElement('p');bank.textContent='Bank · '+describe(g.bank);section.append(bank);
