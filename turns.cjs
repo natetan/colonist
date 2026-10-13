@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const placement = require('./game.cjs');
 const trading = require('./trading.cjs');
 const development = require('./development.cjs');
+const scoring = require('./scoring.cjs');
 const costs = { BuildRoad:{wood:1,brick:1}, BuildSettlement:{wood:1,brick:1,wheat:1,sheep:1}, BuildCity:{wheat:2,ore:3} };
 const total = hand => Object.values(hand).reduce((a,b)=>a+b,0);
 const current = g => g.players[g.turn];
@@ -10,6 +11,7 @@ function begin(g, tiles) {
   g.bank = Object.fromEntries(['wood','brick','sheep','wheat','ore'].map(r=>[r,19-g.players.reduce((n,id)=>n+g.resources[id][r],0)]));
   g.tradeOffer=null;g.tradeSequence=0;
   development.begin(g);
+  scoring.refresh(g);
 }
 function affordable(g,id,type) { return Object.entries(costs[type]).every(([r,n])=>g.resources[id][r]>=n); }
 function buildLocations(g,id,type) {
@@ -22,7 +24,7 @@ function roadLocations(g,id){
   if (g.edges.filter(e=>e.owner===id).length>=15) return [];
   return g.edges.filter(e=>e.owner===null&&[e.a,e.b].some(v=>g.vertices[v].owner===id || (g.vertices[v].owner===null&&g.edges.some(other=>other.owner===id&&(other.a===v||other.b===v))))).map(e=>e.id);
 }
-function act(g, tiles, id, message, random = crypto.randomInt, developmentRandom=crypto.randomInt) {
+function applyAct(g, tiles, id, message, random = crypto.randomInt, developmentRandom=crypto.randomInt) {
   if (!g.players.includes(id)) throw new Error('You are not playing in this match.');
   const type = message.type;
   if(development.act(g,id,message,developmentRandom,roadLocations))return;
@@ -59,7 +61,13 @@ function act(g, tiles, id, message, random = crypto.randomInt, developmentRandom
   for(const[r,n]of Object.entries(costs[type])){g.resources[id][r]-=n;g.bank[r]+=n;}
   if(type==='BuildRoad')g.edges[message.id].owner=id;else if(type==='BuildCity')g.vertices[message.id].city=true;else g.vertices[message.id].owner=id;
 }
+function act(g,tiles,id,message,random=crypto.randomInt,developmentRandom=crypto.randomInt){
+  if(g.winner||g.phase==='finished')throw new Error('The match has finished. Create a new room to play again.');
+  applyAct(g,tiles,id,message,random,developmentRandom);
+  scoring.refresh(g);
+}
 function botAction(g,tiles,id) {
+  if(g.winner||g.phase==='finished')return null;
   if(g.discards[id]){let left=g.discards[id];const cards={};for(const[r,n]of Object.entries(g.resources[id])){cards[r]=Math.min(left,n);left-=cards[r];}return{type:'Discard',cards};}
   if(current(g)!==id)return null;
   const cardMove=development.botAction(g,id,roadLocations);if(cardMove)return cardMove;

@@ -4,7 +4,7 @@ Private multiplayer board-game project for local testing, with eventual Azure ho
 
 ## Current status
 
-Local multiplayer gameplay with initial placement, dice, resource production, building, robber handling, bank/player trading, development cards, and basic bots. The original UI prototype runs on port 3000; an experimental original Colonist board renderer now presents the same local rules on port 3002. Neither is a complete game yet.
+Local multiplayer gameplay with initial placement, dice, resource production, building, robber handling, bank/player trading, development cards, scoring, winner detection, and basic bots. The original UI prototype runs on port 3000; an experimental original Colonist board renderer now presents the same local rules on port 3002. Matches can now finish at ten points; harbor trading, saved games, and the full UI remain unfinished.
 
 ## Run locally
 
@@ -19,7 +19,7 @@ Open `http://localhost:3000`. Enter your name and create a room. Open a separate
 
 Run `npm test` for server integration checks. Stop the server with Ctrl+C. Set `$env:PORT = '3001'` before launching to change the port.
 
-The server binds only to loopback for local testing. Rooms support six seats and are kept in memory; restarting the server loses rooms and boards. Fully disconnected rooms expire after ten minutes. No accounts, saved games, longest road, largest army, victory conditions, harbors, or balanced-number placement are implemented yet. Azure access is not configured.
+The server binds only to loopback for local testing. Rooms support six seats and are kept in memory; restarting the server loses rooms and boards. Fully disconnected rooms expire after ten minutes. No accounts, saved games, harbors, or balanced-number placement are implemented yet. Azure access is not configured.
 
 The prototype uses an original browser UI and JSON WebSocket protocol. Its two initial handshake message names mirror observed client behavior, but this is not a Colonist-compatible replacement server. `npm start` does not serve downloaded bundles; the separate renderer lab serves locally extracted factories and assets.
 
@@ -100,7 +100,7 @@ Choose a build button and click a white location marker. Buttons are disabled wh
 
 On a seven, players with more than seven cards must choose and discard half, rounded down. When all discards are complete, the current player moves the robber to a different tile and chooses an eligible adjacent opponent to steal a random resource from. Bot discards and robber actions happen automatically; required human discards pause the game until submitted.
 
-Click **End turn** to advance. Your cards remain private; displayed points currently count settlements and cities only. There is no winner detection yet. Complete scoring, longest road, largest army, and winner detection are the next rule milestones.
+Click **End turn** to advance. Public points count buildings and awards; your own total also includes private victory-point cards. Reaching ten points on your turn ends the match automatically.
 
 ## Trading
 
@@ -122,10 +122,22 @@ Following the [official CATAN FAQ](https://www.catan.com/faq/basegame), you may 
 - **Road Building:** click white edge markers to place up to two connected roads without paying resources. The normal network and 15-road limit still apply. Placement finishes early if no further road is possible; playing requires at least one legal location.
 - **Year of Plenty:** choose two available bank resources, including two of the same type. If only one card remains in the entire bank, choose that one. An empty bank prevents play; unavailable choices leave the card untouched.
 - **Monopoly:** choose a resource and collect all of that type from other players. The bank is unaffected.
-- **Victory point:** remains private in your hand. Its count is shown to you, but winner detection and full scoring are still pending; public points still count buildings only.
+- **Victory point:** remains private in your hand. It contributes to your private total immediately, including on the turn you buy it. The winner reveals their victory-point count when the match ends; other hands stay private.
 
 Bots can buy and play cards using their own hand and public board/bank information. They remain basic opponents. Knight and Road Building suspend trading while their required moves are pending.
 
 Restart the running server and refresh both tabs after this update, then create a new room. For the original board view use `npm run renderer:lab`; for the prototype use `npm start`. Restarting loses existing rooms because persistence is not implemented yet.
 
 `npm run test:development` checks deck counts, costs, private views, atomic rejection, turn restrictions, pre/post-roll knights, free-road connections and limits, bank shortages, Monopoly conservation, and bots. It also runs under `npm test`. `npm run test:development-network` uses real WebSocket clients to verify purchase costs, private snapshots, card ownership and age, public knight play, return to the roll phase, and replay rejection. Renderer integration and geometry checks pass; the new card controls have not yet been exercised in a browser.
+
+## Scoring and completed matches
+
+The server awards **Longest Road** for a continuous route of at least five roads, and **Largest Army** after at least three played knights. Each award is worth two points. Longest road counts the best route through branches and loops without reusing a road; an opponent's settlement or city interrupts the route. Your own buildings do not interrupt it.
+
+The current award holder keeps a tie. A longer road or larger army transfers the award. If a road is split and its former holder no longer shares the greatest qualifying length, a sole leader receives it; tied leaders leave it unclaimed. Road lengths and award holders are shown in both local UIs.
+
+Settlements count one point and cities two. The **Your score** panel includes your hidden victory-point cards; the player list shows public scores. Following the [official CATAN rules](https://www.catan.com/faq/basegame), victory is checked on the current player's turn. A player reaching ten points outside their turn must wait until their turn begins. Newly bought victory-point cards can complete a win immediately. A winning knight can end the game before its robber effect is resolved.
+
+The winner panel displays their total and revealed victory-point-card count. Further gameplay commands are rejected, bots stop, and reconnect restores the finished board while the server stays running. Other players' private hands remain private. To play again, open a fresh tab and create a new room. There is no rematch button or durable save yet.
+
+`npm run test:scoring` verifies branches, loops, blocked and disconnected roads, award thresholds, ties and transfers, private totals, own-turn victory, newly purchased victory points, knight victory, and the finished-game lock. These checks also run under `npm test`. `npm run test:scoring-network` plays a deterministic diagnostic match with two actual WebSocket clients from placement through production, bank trading, building, card purchases and knights to victory; it checks private/public scores, winner reveal, rejection of further moves, and reconnect. It uses a diagnostic board with all number tokens set to six and controlled random draws. Renderer route/geometry and existing card/trade regression checks pass. The new score/winner panels have not yet been visually tested in a browser.

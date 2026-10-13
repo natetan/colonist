@@ -43,6 +43,7 @@ function draw(tiles, game) {
 function command(type, extra={}) { if(socket.readyState!==WebSocket.OPEN)return; $('error').textContent='';socket.send(JSON.stringify({type,...extra})); }
 function controls(g) {
   $('actions').replaceChildren();if(!g)return;
+  ScoreControls.render($('actions'),roomState);if(g.phase==='finished')return;
   const mine=g.currentPlayer===joined.playerId;
   const button=(text,fn,disabled=false)=>{const b=document.createElement('button');b.textContent=text;b.disabled=disabled;b.onclick=fn;$('actions').append(b);};
   if(g.dice){const p=document.createElement('p');p.textContent=`Dice: ${g.dice.join(' + ')} = ${g.dice[0]+g.dice[1]}`;$('actions').append(p);}
@@ -83,6 +84,7 @@ function connect() {
       draw(message.board, message.game);controls(message.game);
       const g = message.game, current = g && message.players.find(p => p.id === g.currentPlayer);
       $('hint').textContent = !g ? (host ? 'Start with bots to fill four seats, or Start game with your online friends.' : 'Waiting for the host to start.') : g.phase === 'complete' ? 'Initial placement complete! Dice and regular turns are the next milestone.' : `${current.name}${current.id === joined.playerId ? ' (you)' : ''}: place a ${g.phase}${current.online ? '' : ' · waiting for reconnect'}. ${current.bot ? 'Computer is placing automatically.' : 'Click a white ' + (g.phase === 'road' ? 'edge' : 'corner') + '.'}`;
+      if(g?.phase==='finished')$('hint').textContent=`${current.name} wins with ${g.scoring.winningPoints} points.`;
       if(g&&['roll','build','discard','robber','steal','free-road'].includes(g.phase))$('hint').textContent=g.phase==='discard'?'Waiting for players to discard.':`${current.name}${current.id===joined.playerId?' (you)':''}: ${ {'free-road':'place a free road on a white edge marker',roll:'roll dice',build:'build or end turn',robber:'move the robber to a white tile marker',steal:'choose a player to steal from'}[g.phase] }${current.online?'':' · waiting for reconnect'}.`;
     }
     if (message.type === 'Error') {

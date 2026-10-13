@@ -110,6 +110,7 @@ function controls(state){
   const player=state.players.find(p=>p.id===g.currentPlayer);
   $('turn').textContent=`${player?.name||'Player'}: ${g.phase}${g.dice?' · Dice '+g.dice.join(' + '):''}${mine?' · Your turn':''}`;
   $('hand').textContent='Your resources: '+Object.entries(g.resources||{}).map(([name,n])=>`${name} ${n}`).join(' · ');
+  ScoreControls.render($('actions'),state);if(g.phase==='finished'){$('turn').textContent=`${player.name} wins with ${g.scoring.winningPoints} points!`;return;}
   if(mine&&g.phase==='roll')button('Roll dice',()=>send('RollDice'));
   if(mine&&g.phase==='build'){
     for(const [type,label]of Object.entries({BuildRoad:'Build road',BuildSettlement:'Build settlement',BuildCity:'Upgrade city'}))button(label,()=>{buildMode=type;scheduleRender(state.renderer.fixture,state.renderer,state);},!(g.builds[type]||[]).length);
