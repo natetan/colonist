@@ -45,6 +45,14 @@ Building uses separate request and confirmation commands. This suggests an inter
 
 These findings identify a client command contract. They do not establish that the downloaded client contains authoritative rules or an offline bot engine.
 
+## Initial connection and build boundary
+
+Module 55547 parses initial JSON text messages. Connected supplies userSessionId; SessionEstablished switches to binary decoding. Binary records decode to `{id,data}`; message ID 130 feeds a sequenced receiver. Its receiver's addData implementation (shared-bundle character offset 369616) reads `sequence`; downstream dispatch reads `type` and `payload`. The first observed sequence initializes the receiver's baseline. Later events wait for consecutive numbers; more than ten pending records or an entry waiting at least 500 milliseconds triggers recovery. These facts come from static code, not a packet capture.
+
+The FirstGameState handler (offset 493732) consumes serverId, databaseGameId, gameSettingId, reconnectToken, shouldResetGameClient, and isReconnectingSession. This event is metadata, not the board snapshot. BuildGame is type 4; GameStateUpdated is type 91. The BuildGame UI code consumes gameState, gameSettings, playerUserStates, gameDetails, and playOrder. Its gameDetails reads include matchmakingMatchType, isRanked, and isDiscord. The initial gameState's settlement, city, road, and robber mechanic sections feed their respective UI controllers. These observed fields are not a complete schema or a proof that an arbitrary fixture can launch the UI.
+
+`tools/protocol-lab.cjs` exercises the observed framing on loopback only with synthetic metadata and diagnostic diffs. The integration test exchanges actual WebSocket frames and verifies text/binary separation, event sequence numbers, the incoming event wrapper, an outgoing roll action, and diff application. The harness deliberately does not emit a fabricated BuildGame payload. It is not a compatible game server and does not implement the observed receiver's recovery policy or reconnect semantics.
+
 ## State merge and codec implementation
 
 Further direct static inspection resolves module 54801's `p_` to function P, which applies each diff in order through function k (character offset 459245 in the shared bundle). Null deletes a key, arrays replace a value, objects recursively merge, and primitives overwrite. Missing object branches are created. `protocol.cjs` independently implements these rules for JSON-like state, additionally rejecting prototype keys and incompatible structures and copying arrays. These hardening choices are not claims about original behavior.
