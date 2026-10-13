@@ -204,3 +204,7 @@ Renderer dock: hover build and development purchase actions for costs; click to 
 The renderer bottom bar aligns the parchment hand and six equal action buttons on one row, with a compact turn status and elapsed timer above the dock. Small screens stack the hand above the dock.
 
 Robber turns show an action box above the hand: select an eligible player, inspect their public resource-card count, then confirm the random theft. The robber sits inside the selected tile to the left of its number.
+
+The sidebar displays public points on each avatar ribbon; your ribbon adds your private total in parentheses when different. Longest-road and largest-army holders have yellow achievement icons. The duplicate score summary is removed; game-end results and host rematch remain. Reference sidebar SVGs remain ignored local assets.
+
+Piece-button atlas styles are included in the renderer stylesheet, so existing server sessions display all player colors after refresh.
