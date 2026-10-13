@@ -208,3 +208,5 @@ Robber turns show an action box above the hand: select an eligible player, inspe
 The sidebar displays public points on each avatar ribbon; your ribbon adds your private total in parentheses when different. Longest-road and largest-army holders have yellow achievement icons. The duplicate score summary is removed; game-end results and host rematch remain. Reference sidebar SVGs remain ignored local assets.
 
 Piece-button atlas styles are included in the renderer stylesheet, so existing server sessions display all player colors after refresh.
+
+Action buttons use the reference SVG frame and proportional SVG icons, including the pass-turn arrows. Disabled actions dim the foreground only; piece counters use the player color. These downloaded SVG assets remain local and ignored.
