@@ -4,13 +4,32 @@ Private multiplayer board-game project for local testing, with eventual Azure ho
 
 ## Current status
 
-Initial investigation only. This is not yet a playable app.
+Local lobby and shared-board prototype. This is not yet a playable game and does not run the downloaded Colonist client.
+
+## Run locally
+
+Install Node.js (the prototype was tested with Node 16.14), then run:
+
+```powershell
+npm install
+npm start
+```
+
+Open `http://localhost:3000`. Enter your name and create a room. Open a separate browser window, enter a different name, and join using the room code. Both windows show the same server-generated island and player list. Refreshing resumes your seat using a token kept in that tab's session storage. Use a fresh window rather than duplicating a tab, which can copy its session storage.
+
+Run `npm test` for server integration checks. Stop the server with Ctrl+C. Set `$env:PORT = '3001'` before launching to change the port.
+
+The server binds only to loopback for local testing. Rooms support six seats and are kept in memory; restarting the server loses rooms and boards. Fully disconnected rooms expire after ten minutes. No accounts, saved games, placement, turns, trades, scoring, harbors, or balanced-number placement are implemented yet. Azure access is not configured.
+
+The prototype uses an original browser UI and JSON WebSocket protocol. Its two initial handshake message names mirror observed client behavior, but this is not a Colonist-compatible replacement server. The downloaded bundles are used for research only and are never served by this app.
+
+## Research
 
 Colonist's publicly delivered homepage and five initial JavaScript bundles are saved in `research/`. These are minified webpack chunks; the initial files may load additional chunks at runtime. No original server source has been recovered.
 
 Run `npm run inspect:client` to regenerate the bundle inventory. No dependencies are required.
 
-Run `npm run inspect:module -- <module-id-or-text>` to locate relevant webpack modules without executing the bundles. See `research/architecture.md` for the startup and socket findings. There is no app launch command yet.
+Run `npm run inspect:module -- <module-id-or-text>` to locate relevant webpack modules without executing the bundles. See `research/architecture.md` for the startup and socket findings.
 
 ## Initial findings
 

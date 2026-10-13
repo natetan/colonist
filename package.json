@@ -3,7 +3,12 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "start": "node server.cjs",
+    "test": "node tests/server.cjs",
     "inspect:client": "node tools/inspect-client.cjs",
     "inspect:module": "node tools/find-client-module.cjs"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
   }
 }

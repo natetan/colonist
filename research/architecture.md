@@ -73,4 +73,8 @@ Important module locations:
 
 The screenshot `research/bot-inspection.png` is local evidence and is ignored by Git. Downloaded additional bundles also remain ignored. The inventory JSON can be regenerated with `npm run inspect:client`; the earlier inventory predates these downloads.
 
-The next concrete experiment is to supply minimum session, room, and first-game-state messages from a local server. This requires resolving the schemas and startup calls first. No playable local server has been implemented yet.
+The next client-compatibility experiment is to supply minimum session, room, and first-game-state messages from a local server. This requires resolving the schemas and startup calls first.
+
+## Local implementation
+
+An original local lobby and shared-board prototype is now available through `npm start`. It uses JSON over WebSockets rather than the original binary transport. The initial `Connected` and `SessionEstablished` names are borrowed from the observed handshake, but no compatibility with the original client is claimed. It does not load or serve the downloaded third-party bundles. This gives a locally testable multiplayer foundation while original-client feasibility remains under investigation.
