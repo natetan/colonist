@@ -10,6 +10,7 @@ require('./scoring.cjs');
 require('./persistence.cjs');
 require('./board.cjs');
 require('./base-game.cjs');
+require('./interaction-controls.cjs');
 async function run() {
   const app = createApp({random:()=>3});
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));

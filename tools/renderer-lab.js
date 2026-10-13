@@ -121,7 +121,7 @@ function controls(state){
   const seats=document.createElement('div');seats.className='player-seats';$('room-info').append(seats);
   for(const p of state.players){const seat=document.createElement('div');seat.className='player-seat';if(p.id===g?.currentPlayer)seat.classList.add('active-seat');const name=document.createElement('strong');name.textContent=p.name+(p.id===joined.playerId?' · You':'')+(p.bot?' · Bot':'')+(p.online?'':' · Offline');seat.append(name);if(p.playing){const stats=document.createElement('span');stats.textContent=`${p.points} points · ${p.resourceCount} resources · ${p.developmentCount} development cards · ${p.knightsPlayed} knights`;seat.append(stats);}seats.append(seat);}
   $('actions').replaceChildren();
-  const button=(label,action,disabled=false)=>{const b=document.createElement('button');b.textContent=label;b.disabled=disabled;b.onclick=action;$('actions').append(b);};
+  const button=(label,action,disabled=false)=>{const b=document.createElement('button');b.textContent=label;b.disabled=disabled;b.onclick=action;$('actions').append(b);return b;};
   if(!g){$('turn').textContent='Waiting to start';if(state.host===joined.playerId){button('Start with bots',()=>send('StartGame',{bots:true}));button('Start game',()=>send('StartGame'),state.players.filter(p=>p.online&&!p.bot).length<2);}return;}
   const player=state.players.find(p=>p.id===g.currentPlayer);
   $('turn').textContent=`${player?.name||'Player'}: ${g.phase}${g.dice?' · Dice '+g.dice.join(' + '):''}${mine?' · Your turn':''}`;
@@ -129,7 +129,7 @@ function controls(state){
   ScoreControls.render($('actions'),state,joined.playerId,send);if(g.phase==='finished'){$('turn').textContent=`${player.name} wins with ${g.scoring.winningPoints} points!`;return;}
   if(mine&&g.phase==='roll')button('Roll dice',()=>send('RollDice'));
   if(mine&&g.phase==='build'){
-    for(const [type,label]of Object.entries({BuildRoad:'Build road · wood + brick',BuildSettlement:'Build settlement · wood + brick + sheep + wheat',BuildCity:'Upgrade city · 2 wheat + 3 ore'}))button(label,()=>{buildMode=type;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);},!(g.builds[type]||[]).length);
+    for(const [type,label]of Object.entries({BuildRoad:'Build road · wood + brick',BuildSettlement:'Build settlement · wood + brick + sheep + wheat',BuildCity:'Upgrade city · 2 wheat + 3 ore'})){const available=(g.builds[type]||[]).length>0;const b=button(label,()=>{buildMode=type;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);},!available);b.setAttribute('aria-pressed',String(buildMode===type));b.title=available?'Choose a legal location on the board.':'Requires enough resources, an available piece, and a legal location.';}
     if(buildMode){$('hint').textContent='Choose a white marker to build, or cancel placement.';button('Cancel placement',()=>{buildMode=null;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);});}
     button('End turn',()=>{buildMode=null;send('EndTurn');});
   }

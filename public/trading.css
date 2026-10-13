@@ -5,3 +5,7 @@
 .trade-controls th,.trade-controls td{padding:4px;text-align:left}
 .trade-controls input{width:65px;padding:6px;margin:0}
 .trade-controls button{margin:4px}
+.development-card{padding:12px;margin:10px 0;background:#ffffff08;border:1px solid #66818b;border-radius:8px}
+.development-card h4{margin:0 0 6px}
+.development-card p{margin:6px 0;font-size:13px;line-height:1.5}
+button[aria-pressed="true"]{outline:2px solid #fff;outline-offset:2px}
