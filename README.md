@@ -226,3 +226,7 @@ Trade selections update inside a stable popup element, preserving its open state
 Trade-hand counters show resources remaining after the draft offer; removing offered cards restores those counters without changing the actual hand before a trade completes.
 
 Victory-point artwork uses the actual card_vp atlas entry, including a static stylesheet rule for already-running renderer sessions.
+
+Player offers appear above the hand with both resource rows, avatars, and accept/decline controls. A server-reported decline shows a red X on the recipient until another offer or turn. Offers currently target one named human, rather than broadcasting to all players; multi-recipient negotiation and counteroffers remain unimplemented. Restart the server for decline-state reporting.
+
+Incoming player offers overlay the upper-right board area immediately left of the chat sidebar. To test without bots, create a fresh room in one browser tab, join its code in a second tab, and start without bots; either human tab can offer cards to the other after rolling. Automated two-client trades run with npm run test:trading-network. Bots currently use bank trades and do not initiate player offers.

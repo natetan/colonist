@@ -75,3 +75,8 @@
 
 /* Victory-point card uses the atlas name card_vp. */
 .sprite-card_vp{display:inline-block;width:42px;height:58.775510204081634px;background:url('/assets/game_spritesheet_1.00ac67ed30ba9f71167e.webp') -0.24489795918367346px -177.6734693877551px / 300.85714285714283px 300.85714285714283px no-repeat}
+
+#trade-offers{grid-column:1;grid-row:1/3;padding:0;align-self:end;position:relative}.offer-title{display:flex;gap:10px;align-items:center;padding:8px;border-bottom:1px solid #cec5b6}.offer-avatar{position:relative;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border:3px solid;border-radius:50%;flex:none}.offer-avatar>span{transform:scale(.6)}.incoming-offer-row{display:flex;align-items:center;gap:7px;padding:6px 10px}.offer-down{font-size:28px;color:#1b9a17}.offer-up{font-size:28px;color:#dd3030}.offer-response{display:flex;justify-content:flex-end;align-items:center;gap:6px;padding:6px 10px}.offer-response button{background:linear-gradient(#36b2bd,#9ed9ef);border:2px solid white;color:white;font-size:25px;padding:2px 10px;margin:0}.trade-rejected{position:absolute;right:-7px;bottom:-5px;color:white;background:#e74a43;border:1px solid white;border-radius:50%;font-size:14px;padding:0 3px}@media(max-width:700px){#trade-offers{grid-column:1;grid-row:1;max-width:65%}}
+
+/* Incoming offers overlay the board beside the chat, independent of the hand. */
+.table-area>#trade-offers{position:absolute;top:12px;right:5px;width:min(410px,calc(100% - 60px));z-index:25;max-height:55vh;overflow-y:auto;grid-column:auto;grid-row:auto;max-width:none;box-shadow:0 3px 12px #0002}@media(max-width:700px){.table-area>#trade-offers{top:45px;right:5px;max-width:none;width:min(360px,calc(100% - 50px))}}

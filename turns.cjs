@@ -56,7 +56,7 @@ function applyAct(g, tiles, id, message, random = crypto.randomInt, developmentR
     const hand=g.resources[message.player];let pick=random(total(hand));for(const[r,n]of Object.entries(hand)){if(pick<n){hand[r]--;g.resources[id][r]++;break;}pick-=n;}g.victims=[];development.finish(g);return;
   }
   if(g.phase!=='build')throw new Error('Finish rolling or resolving the robber first.');
-  if(type==='EndTurn'){g.tradeOffer=null;g.turn=(g.turn+1)%g.players.length;g.turnNumber++;g.developmentPlayed=false;g.dice=null;g.phase='roll';return;}
+  if(type==='EndTurn'){g.tradeDecline=null;g.tradeOffer=null;g.turn=(g.turn+1)%g.players.length;g.turnNumber++;g.developmentPlayed=false;g.dice=null;g.phase='roll';return;}
   if(!costs[type]||!buildLocations(g,id,type).includes(message.id))throw new Error('You cannot afford that piece or its location is invalid.');
   for(const[r,n]of Object.entries(costs[type])){g.resources[id][r]-=n;g.bank[r]+=n;}
   if(type==='BuildRoad')g.edges[message.id].owner=id;else if(type==='BuildCity')g.vertices[message.id].city=true;else g.vertices[message.id].owner=id;

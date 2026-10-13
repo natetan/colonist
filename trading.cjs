@@ -26,7 +26,7 @@ function act(g,id,message) {
   if(['AcceptTrade','DeclineTrade'].includes(message.type)){
     const offer=g.tradeOffer;
     if(!offer||offer.id!==message.offerId||offer.from!==current||offer.to!==id)throw new Error('That trade offer is no longer available to you.');
-    if(message.type==='DeclineTrade'){g.tradeOffer=null;return true;}
+    if(message.type==='DeclineTrade'){g.tradeDecline={...offer,declinedBy:id};g.tradeOffer=null;return true;}
     // Recheck both hands at acceptance; the offer reserves no cards.
     if(!hasCards(g.resources[offer.from],offer.give)||!hasCards(g.resources[id],offer.receive))throw new Error('This trade cannot be completed. Cancel or change the offer.');
     for(const [r,n]of Object.entries(offer.give)){g.resources[offer.from][r]-=n;g.resources[id][r]+=n;}
@@ -49,6 +49,7 @@ function act(g,id,message) {
   const give=cards(message.give),receive=cards(message.receive);
   if(Object.keys(give).some(r=>owns(receive,r)))throw new Error('A resource cannot appear on both sides of a trade.');
   if(!hasCards(g.resources[id],give))throw new Error('You do not have the cards you offered.');
+  g.tradeDecline=null;
   g.tradeSequence=(g.tradeSequence||0)+1;
   g.tradeOffer={id:g.tradeSequence,from:id,to:message.player,give,receive};return true;
 }

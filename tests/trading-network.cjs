@@ -16,6 +16,8 @@ async function run(){
     const offerMessage={type:'OfferTrade',player:jb.playerId,give:{[give]:1},receive:{[receive]:1}};
     a.send(offerMessage);await both();const offer=sa.game.tradeOffer,bank={...sa.game.bank},handA={...sa.game.resources},handB={...sb.game.resources};assert(sb.game.canAcceptTrade);assert(!sa.game.canAcceptTrade);
     assert.equal(sa.game.resources[give],handA[give]);assert.deepEqual(Object.keys(sb.game.resources).sort(),['brick','ore','sheep','wheat','wood']);
+    b.send({type:'DeclineTrade',offerId:offer.id});await both();assert.equal(sa.game.tradeDecline.declinedBy,jb.playerId);assert.deepEqual(sa.game.tradeDecline,sb.game.tradeDecline);
+    a.send(offerMessage);await both();assert.equal(sa.game.tradeDecline,null);offer.id=sa.game.tradeOffer.id;
     b.send({type:'AcceptTrade',offerId:offer.id});await both();assert.equal(sa.game.tradeOffer,null);assert.equal(sa.game.resources[give],handA[give]-1);assert.equal(sa.game.resources[receive],handA[receive]+1);assert.equal(sb.game.resources[give],handB[give]+1);assert.equal(sb.game.resources[receive],handB[receive]-1);assert.deepEqual(sa.game.bank,bank);
     b.send({type:'AcceptTrade',offerId:offer.id});assert.match((await b.next('Error')).message,/no longer/);
     // Alternate real turns until a 4:1 bank trade is affordable.
