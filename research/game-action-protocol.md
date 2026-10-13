@@ -47,6 +47,10 @@ These findings identify a client command contract. They do not establish that th
 
 ## Initial connection and build boundary
 
+Geometry follow-up: module 25204 enumerates each face's six corners and edges and each edge's two endpoints. Module 15123 assigns North=0 and South=1 to corner orientation; module 29267 assigns NorthWest=0, West=1, SouthWest=2 to edges. The schema declarations in those modules store x/y/z directly, while the map validators expose hexCorner/hexEdge wrappers. Do not assume the wrapper property names are serialized field names.
+
+`protocol-map.cjs` independently reconstructs this geometry and interns shared coordinates into local indexes. The test verifies 19 faces, 54 corners, 72 edges, every face's consecutive-corner edge incidence, and shared borders. These are meaningful topology checks but do not prove original board ordering. Input face order controls local index assignment. No adapter to the playable prototype or full map-state serializer has been added.
+
 Follow-up inspection of module 68736's constructor establishes additional reads: playerColor, timeLeftInState, gameState.currentState, diceState, mapState, bankState, playerStates, and tradeState. User records are joined to playerStates by numeric selectedColor; playOrder is stored separately. Optional experimental, development-card, and progress-card branches exist. The partial checker in tools/check-build-game.cjs records these structural expectations and checks identity consistency. Its expected primitive types and consistency checks are local validation assumptions; they are not a recovered full schema.
 
 Module 19590's map loaders read hexFace.x/y, hexCorner.x/y/z, and hexEdge.x/y/z from stored map entries and build coordinate-to-index lookup tables. This means pixel coordinates from our prototype cannot be substituted directly. Exact coordinate conventions, collection layout, enum values, settings deserialization, and mechanic-state contents still need resolution before a renderable BuildGame fixture can be produced.

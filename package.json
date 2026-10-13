@@ -10,6 +10,7 @@
     "protocol:lab": "node tools/protocol-lab.cjs",
     "inspect:build-game": "node tools/check-build-game.cjs",
     "test:build-game": "node tests/build-game.cjs",
+    "test:protocol-map": "node tests/protocol-map.cjs",
     "inspect:client": "node tools/inspect-client.cjs",
     "inspect:rea": "node tools/run-rea.cjs",
     "inspect:module": "node tools/find-client-module.cjs"
