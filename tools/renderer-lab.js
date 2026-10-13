@@ -169,6 +169,18 @@ document.addEventListener('pointerdown',()=>{if(soundEnabled){audioContext??=new
 function cue(dice=false){if(!soundEnabled||!audioContext||audioContext.state!=='running')return;for(let i=0;i<(dice?5:2);i++){const oscillator=audioContext.createOscillator(),gain=audioContext.createGain(),start=audioContext.currentTime+i*.075;oscillator.type=dice?'triangle':'sine';oscillator.frequency.value=dice?180+i*67:660+i*220;gain.gain.setValueAtTime(.035,start);gain.gain.exponentialRampToValueAtTime(.001,start+.065);oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(start);oscillator.stop(start+.07);}}
 function turnFeedback(state){const g=state.game,key=state.code+':'+g?.currentPlayer+':'+g?.phase;if(key!==turnKey){turnStarted=Date.now();turnKey=key;if(g?.currentPlayer===joined.playerId&&['roll','settlement'].includes(g.phase))cue();}if(g?.dice&&latestState?.game?.phase==='roll'&&g.phase!=='roll')cue(true);}
 setInterval(()=>{const elapsed=Math.floor((Date.now()-turnStarted)/1000);$('phase-clock').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;},1000);
+let developmentChoice;
+function developmentHand(state,mine){
+  const g=state.game,d=g.development;if(!d)return;
+  const art={Knight:'card_knight',RoadBuilding:'card_roadbuilding',YearOfPlenty:'card_yearofplenty',Monopoly:'card_monopoly',VictoryPoint:'card_victorypoint'};
+  const effects={Knight:'Move the robber and steal a resource',RoadBuilding:'Place two free roads',YearOfPlenty:'Take two bank resources',Monopoly:'Collect one resource from opponents',VictoryPoint:'Private point counted automatically'};
+  if(d.cards.length){const divider=document.createElement('span');divider.className='hand-divider';$('hand').append(divider);}
+  for(const card of d.cards){const b=document.createElement('button');b.className='hand-development';b.append(sprite(art[card.type]));b.disabled=!mine||g.phase!=='build'||!card.playable;b.title=effects[card.type]+(card.newThisTurn?' · Available next turn':b.disabled?' · Unavailable now':' · Click to play');b.setAttribute('aria-label',card.type);b.onclick=()=>{closePanels();if(['YearOfPlenty','Monopoly'].includes(card.type)){developmentChoice=card.id;controls(state);}else send('PlayDevelopmentCard',{cardId:card.id});};$('hand').append(b);}
+  const card=d.cards.find(c=>c.id===developmentChoice&&c.playable);if(!card||!mine||g.phase!=='build'){developmentChoice=null;return;}
+  const row=document.createElement('div');row.className='development-choices';const label=document.createElement('span');label.textContent=card.type==='Monopoly'?'Collect:':'Take two resources:';row.append(label);const picks=[];
+  for(const r of Object.keys(cardSprites)){const b=document.createElement('button');b.append(sprite(cardSprites[r]));b.dataset.resource=r;b.title=r;b.setAttribute('aria-label','Choose '+r);b.disabled=card.type==='YearOfPlenty'&&!g.bank[r];b.onclick=()=>{if(card.type==='Monopoly'){developmentChoice=null;send('PlayDevelopmentCard',{cardId:card.id,resource:r});return;}picks.push(r);if(picks.length===Math.min(2,Object.values(g.bank).reduce((a,b)=>a+b,0))){developmentChoice=null;send('PlayDevelopmentCard',{cardId:card.id,resources:picks});}else{label.textContent='First: '+r+' · Choose second';for(const choice of row.querySelectorAll('[data-resource]'))choice.disabled=g.bank[choice.dataset.resource]<=picks.filter(x=>x===choice.dataset.resource).length;}};row.append(b);}
+  const cancel=document.createElement('button');cancel.textContent='Cancel';cancel.onclick=()=>{developmentChoice=null;controls(state);};row.append(cancel);$('hand').append(row);
+}
 function controls(state){
   const g=state.game, mine=g?.currentPlayer===joined?.playerId;
   $('hand').hidden=!g;
@@ -188,11 +200,12 @@ function controls(state){
   const player=state.players.find(p=>p.id===g.currentPlayer);
   $('turn').textContent=`${player?.name||'Player'}: ${g.phase}${g.dice?' · Dice '+g.dice.join(' + '):''}${mine?' · Your turn':''}`;
   for(const [resource,count]of Object.entries(g.resources||{}))$('hand').append(cardBadge(resource,count));
+  developmentHand(state,mine);
   $('score-panel').replaceChildren();ScoreControls.render($('score-panel'),state,joined.playerId,send);if(g.phase==='finished'){$('turn').textContent=`${player.name} wins with ${g.scoring.winningPoints} points!`;return;}
-  if(mine&&g.phase==='build'){
-    for(const [type,label]of Object.entries({BuildRoad:'Build road · wood + brick',BuildSettlement:'Build settlement · wood + brick + sheep + wheat',BuildCity:'Upgrade city · 2 wheat + 3 ore'})){const available=(g.builds[type]||[]).length>0;const b=button(label,()=>{buildMode=type;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);},!available);b.style.order=({BuildRoad:'2',BuildSettlement:'3',BuildCity:'4'}[type]);b.setAttribute('aria-label',label);b.replaceChildren(sprite(({BuildRoad:'road_',BuildSettlement:'settlement_',BuildCity:'city_'}[type])+(['red','blue','orange','green','purple','white'][state.players.filter(p=>p.playing).findIndex(p=>p.id===joined.playerId)]||'red')));const counter=document.createElement('span');counter.className='piece-counter';counter.textContent=type==='BuildRoad'?15-g.edges.filter(e=>e.owner===joined.playerId).length:type==='BuildCity'?4-g.vertices.filter(v=>v.owner===joined.playerId&&v.city).length:5-g.vertices.filter(v=>v.owner===joined.playerId&&!v.city).length;b.append(counter);b.setAttribute('aria-pressed',String(buildMode===type));b.title=label+(available?' · Choose a legal location.':' · Requires resources, a piece, and a legal location.');}
+  if(g.phase!=='finished'){
+    for(const [type,label]of Object.entries({BuildRoad:'Build road · wood + brick',BuildSettlement:'Build settlement · wood + brick + sheep + wheat',BuildCity:'Upgrade city · 2 wheat + 3 ore'})){const available=mine&&g.phase==='build'&&(g.builds[type]||[]).length>0;const b=button(label,()=>{buildMode=type;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);},!available);b.style.order=({BuildRoad:'2',BuildSettlement:'3',BuildCity:'4'}[type]);b.setAttribute('aria-label',label);b.replaceChildren(sprite(({BuildRoad:'road_',BuildSettlement:'settlement_',BuildCity:'city_'}[type])+(['red','blue','orange','green','purple','white'][state.players.filter(p=>p.playing).findIndex(p=>p.id===joined.playerId)]||'red')));const counter=document.createElement('span');counter.className='piece-counter';counter.textContent=type==='BuildRoad'?15-g.edges.filter(e=>e.owner===joined.playerId).length:type==='BuildCity'?4-g.vertices.filter(v=>v.owner===joined.playerId&&v.city).length:5-g.vertices.filter(v=>v.owner===joined.playerId&&!v.city).length;b.append(counter);b.setAttribute('aria-pressed',String(buildMode===type));b.title=label+(available?' · Choose a legal location.':' · Requires resources, a piece, and a legal location.');}
     if(buildMode){$('hint').textContent='Choose a white marker to build, or cancel placement.';button('Cancel placement',()=>{buildMode=null;controls(state);scheduleRender(state.renderer.fixture,state.renderer,state);});}
-    const end=button('End turn',()=>{buildMode=null;send('EndTurn');});end.style.order='5';end.replaceChildren(sprite('icon_hourglass'));end.setAttribute('aria-label','End turn');end.title='End turn';
+    const end=button('End turn',()=>{buildMode=null;send('EndTurn');},!mine||g.phase!=='build');end.style.order='5';end.replaceChildren(sprite('icon_hourglass'));end.setAttribute('aria-label','End turn');end.title='End turn';
   }
   if(g.discardCount){
     const fields={};let discardButton;
@@ -201,10 +214,9 @@ function controls(state){
     discardButton=document.createElement('button');discardButton.onclick=()=>send('Discard',{cards:Object.fromEntries(Object.entries(fields).map(([r,input])=>[r,Number(input.value)]))});$('actions').append(discardButton);update();
   }
   if(mine&&g.phase==='steal')for(const id of g.victims)button('Steal from '+state.players.find(p=>p.id===id).name,()=>send('Steal',{player:id}));
-  actionPanel('Development cards','development',state,DevelopmentControls.render,mine&&g.phase==='build'&&(g.development?.canBuy||g.development?.cards.some(c=>c.playable)));
-  for(const panel of $('actions').querySelectorAll('.action-panel'))panel.style.order=panel.querySelector('summary').title==='Trade'?'0':'1';
+  const buy=button('Buy development card',()=>{closePanels();send('BuyDevelopmentCard');},!mine||g.phase!=='build'||!g.development?.canBuy);buy.style.order='1';buy.replaceChildren(sprite('card_devcardback'));buy.title='Buy development card · sheep + wheat + ore';buy.setAttribute('aria-label',buy.title);
   actionPanel('Trade','trade',state,referenceTrade,g.phase==='build'&&(mine&&Object.values(g.resources).some(n=>n>0)||g.tradeOffer?.to===joined.playerId));
-  for(const panel of $('actions').querySelectorAll('.action-panel'))panel.style.order=panel.querySelector('summary').title==='Trade'?'0':'1';
+  for(const panel of $('actions').querySelectorAll('.action-panel'))panel.style.order=panel.dataset.panel==='trade'?'0':'1';
 }
 function connect(){
   socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/socket`);
