@@ -40,7 +40,7 @@ return new Promise((resolve,reject)=>{server.once('error',error=>app.close().the
 }
 if(require.main===module){
   const saveFile=process.env.SETTLERS_SAVE_FILE==='off'?undefined:process.env.SETTLERS_SAVE_FILE||path.resolve(__dirname,'../data/renderer.json');
-  startRendererLab(Number(process.env.RENDERER_LAB_PORT||3002),{saveFile,botDelayMs:700}).then(server=>{
+  startRendererLab(Number(process.env.RENDERER_LAB_PORT||3002),{saveFile,botDelayMs:1100}).then(server=>{
     console.log(`Local rendered game: http://127.0.0.1:${server.address().port}`);
     let stopping=false;const stop=()=>{if(stopping)return;stopping=true;server.closeLab().then(()=>process.exit(0));};process.on('SIGINT',stop);process.on('SIGTERM',stop);
   }).catch(error=>{console.error(error.message);process.exitCode=1;});

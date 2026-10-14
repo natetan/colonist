@@ -132,9 +132,17 @@ Object.assign(actionArtwork,{icon_trade_bank_check:'icon_trade_bank_check.cca85e
 function actionIcon(name){const img=document.createElement('img');img.className='action-icon';img.src='/assets/'+actionArtwork[name];img.alt='';img.draggable=false;return img;}
 function sidebarIcon(name){const img=document.createElement('img');img.src='/assets/'+({army:'icon_largest_army.206b49b3c9d2b206f699.svg',road:'icon_longest_road.5cfdeb3352b20463e64b.svg',roadAward:'icon_longest_road_highlight.50dc66b851ecee9a8662.svg',back:'card_rescardback.03c18312a76028b0d9c9.svg',bank:'bank.825b2690b4b1b694d646.svg'}[name]);img.alt='';img.draggable=false;return img;}
 function cardBadge(resource,count){const card=document.createElement('div');card.className='resource-card';card.dataset.resource=resource;card.append(resource==='resources'?sidebarIcon('back'):sprite(cardSprites[resource]||'card_devcardback'));const n=document.createElement('strong');n.textContent=count;card.append(n);card.setAttribute('aria-label',`${resource}: ${count} cards`);card.title=`${resource}: ${count}`;return card;}
+function flyCard(art,origin,target,delay=0){
+  if(!origin||!target||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const a=origin.getBoundingClientRect(),b=target.getBoundingClientRect(),flight=sprite(art);flight.classList.add('flying-card');flight.style.left=(a.left+a.width/2-21)+'px';flight.style.top=(a.top+a.height/2-30)+'px';document.body.append(flight);
+  const animation=flight.animate([{transform:'translate(0,0) scale(.9)',opacity:1},{transform:'translate('+(b.left+b.width/2-a.left-a.width/2)+'px,'+(b.top+b.height/2-a.top-a.height/2)+'px) scale(1)',opacity:1}],{duration:650,delay,easing:'cubic-bezier(.2,.6,.3,1)',fill:'backwards'});animation.finished.catch(()=>{}).finally(()=>flight.remove());
+}
 function resourceFeedback(previous,state){
   if(!previous?.game?.resources||previous.code!==state.code||!state.game?.resources)return;
   const gains=Object.entries(state.game.resources).filter(([r,n])=>n>(previous.game.resources[r]||0)).map(([r,n])=>[r,n-(previous.game.resources[r]||0)]);
+  for(const [r,n]of Object.entries(state.game.resources)){const spent=(previous.game.resources[r]||0)-n,returned=(state.game.bank?.[r]||0)-(previous.game.bank?.[r]||0);if(spent>0&&returned>=spent)for(let i=0;i<Math.min(spent,5);i++)flyCard(cardSprites[r],$('hand').querySelector('[data-resource="'+r+'"]'),$('bank').querySelector('[data-resource="'+r+'"]'),i*75);}
+  const oldCards=new Set((previous.game.development?.cards||[]).map(c=>c.id));
+  for(const card of state.game.development?.cards||[])if(!oldCards.has(card.id)){const target=$('hand').querySelector('[data-development-type="'+card.type+'"]')||$('hand');flyCard(developmentCatalog[card.type]?.picture||'card_devcardback',$('bank').querySelector('[data-resource="development"]'),target,160);}
   if(!gains.length)return;
   const notice=document.createElement('div');notice.className='resource-notice';notice.setAttribute('role','status');notice.textContent='Received '+gains.map(([r,n])=>`+${n} ${r}`).join(' · ');$('hand').append(notice);setTimeout(()=>notice.remove(),4000);
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -215,7 +223,7 @@ function developmentHand(state,mine){
   for(const [type,info]of Object.entries(developmentCatalog)){
     const cards=d.cards.filter(c=>c.type===type);if(!cards.length)continue;
     const chosen=cards.find(c=>c.playable)||cards[0],enabled=mine&&g.phase==='build'&&chosen.playable;
-    const stack=document.createElement('div');stack.className='development-stack';stack.tabIndex=0;stack.setAttribute('aria-label',info.name+' · '+cards.length+' cards');stack.setAttribute('aria-describedby',cardTip.id);
+    const stack=document.createElement('div');stack.className='development-stack';stack.dataset.developmentType=type;stack.tabIndex=0;stack.setAttribute('aria-label',info.name+' · '+cards.length+' cards');stack.setAttribute('aria-describedby',cardTip.id);
     const b=document.createElement('button');b.className='hand-development';b.disabled=!enabled;b.setAttribute('aria-label','Play '+info.name);b.setAttribute('aria-describedby',cardTip.id);
     for(let i=0;i<Math.min(cards.length,5);i++){const image=sprite(info.picture);image.style.left=(i*8)+'px';b.append(image);}stack.style.width=(42+Math.min(cards.length-1,4)*8)+'px';
     if(cards.length>1){const count=document.createElement('strong');count.className='development-count';count.textContent=cards.length;b.append(count);}

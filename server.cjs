@@ -50,7 +50,7 @@ function createApp(options = {}) {
   }
   function broadcast(room) { if(storageFailure)return;for (const player of room.players) if (player.ws) send(player.ws, snapshot(room, player)); }
   const botTimers=new Map();
-  function playBotTurns(room) {
+  function playBotTurns(room,ready=false) {
     if(botTimers.has(room)||storageFailure)return;
     if(room.game.phase==='complete'){turns.begin(room.game,room.board);persist();broadcast(room);}
     for(let actionCount=0;actionCount<200;actionCount++) {
@@ -58,10 +58,11 @@ function createApp(options = {}) {
       let current = room.players.find(p => p.id === (regular?turns.current(room.game):room.game.order[room.game.step]));
       if(regular&&room.game.phase==='discard')current=room.players.find(p=>p.bot&&room.game.discards[p.id]);
       if (!current || !current.bot) break;
+      if(options.botDelayMs>0&&!ready){const timer=setTimeout(()=>{botTimers.delete(room);if(room.players.some(p=>p.ws)){try{playBotTurns(room,true);}catch(error){console.error("Bot turn paused:",error.message);}}},options.botDelayMs);timer.unref();botTimers.set(room,timer);break;}
       if(regular){const move=turns.botAction(room.game,room.board,current.id);if(!move)break;turns.act(room.game,room.board,current.id,move,random,options.developmentRandom);}
       else {const move = rules.botMove(room.game, room.board);rules.place(room.game, room.board, current.id, move.type, move.id);if(room.game.phase==='complete')turns.begin(room.game,room.board);}
       persist();broadcast(room);
-      if(options.botDelayMs>0){const timer=setTimeout(()=>{botTimers.delete(room);if(room.players.some(p=>p.ws)){try{playBotTurns(room);}catch(error){console.error("Bot turn paused:",error.message);}}},options.botDelayMs);timer.unref();botTimers.set(room,timer);break;}
+      if(options.botDelayMs>0){playBotTurns(room);break;}
     }
   }
   wss.on('connection', ws => {
