@@ -254,3 +254,9 @@ Renderer bot actions wait 1100ms before acting, including the first action after
 Dice production broadcasts a public payout record (tile, recipient, resource, amount). Cards animate from each producing tile to every recipient’s player-info card counter, respecting robber blocking, city production, bank shortages, and reduced-motion preferences. Private hands remain redacted; a reconnect does not replay old production. Restart the server for payout records.
 
 Sidebar avatars use the reference logged-in player/bot SVGs on player-colored medallions, with the small/large score-ribbon artwork. Private score totals remain visible only in your own ribbon.
+
+On a seven, only players with more than seven resource cards discard floor(hand/2); development cards do not count. A mandatory action box lets you select resource cards, undo selections, and confirm the exact discard amount. Its draft survives bot updates. The status strip states your required discard explicitly.
+
+On desktop, the board column fills the same viewport height as the sidebar, keeping the hand and action dock aligned with the bottom player row.
+
+Build placement ends after the server confirms your new road, settlement, or city. The extra cancel-placement button is removed; clicking the selected build icon again exits an uncommitted placement.

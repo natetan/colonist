@@ -30,3 +30,6 @@ turns.act(production,tiles,'A',{type:'RollDice'},()=>3);assert.equal(production.
 // A road cannot continue through an opponent's occupied corner.
 const network=fixture();network.resources.A.wood=10;network.resources.A.brick=10;const owned=network.edges.find(e=>e.owner==='A');network.vertices.forEach(v=>{v.owner=null;});network.vertices[owned.a].owner='B';network.vertices[owned.b].owner='B';network.edges.filter(e=>e!==owned).forEach(e=>{e.owner=null;});assert.equal(turns.buildLocations(network,'A','BuildRoad').length,0);
 console.log('PASS: turn enforcement, dice/production, costs, cities, robber blocking, seven/discard validation, stealing, blocked road connections');
+
+// Exactly seven is exempt; eight resource cards require four discards.
+{const boundary=fixture();boundary.resources.A={wood:7,brick:0,sheep:0,wheat:0,ore:0};boundary.resources.B={wood:8,brick:0,sheep:0,wheat:0,ore:0};let face=0;turns.act(boundary,tiles,'A',{type:'RollDice'},()=>++face===1?3:4);assert.equal(boundary.discards.A,undefined);assert.equal(boundary.discards.B,4);const move=turns.botAction(boundary,tiles,'B');assert.equal(move.type,'Discard');turns.act(boundary,tiles,'B',move);assert.equal(boundary.phase,'robber');assert.equal(boundary.resources.B.wood,4);}

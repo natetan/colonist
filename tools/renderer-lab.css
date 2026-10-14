@@ -99,3 +99,8 @@
 
 /* Player-colored avatar medallions and actual victory-point ribbons. */
 .seat-avatar{width:46px;height:46px;border:2px solid white;background:radial-gradient(circle at 35% 25%,#ffffff55,transparent 65%),var(--avatar-color,#777);box-shadow:0 0 0 2px var(--avatar-color,#777),inset 0 0 0 1px #0003;margin-bottom:5px}.seat-avatar>img{display:block;width:82%;height:82%;object-fit:contain}.your-seat .seat-avatar{width:74px;height:74px;border-width:3px}.avatar-score{display:flex!important;align-items:center;justify-content:center;position:absolute;left:50%;bottom:-12px;transform:translateX(-50%);width:48px;height:24px;min-width:0;padding:0 5px;margin:0!important;border:0;border-radius:0;background:transparent url("/assets/ribbon_small.f1f6f5885b2535205fe3.svg") center/100% 100% no-repeat;font:15px Arial,sans-serif!important;line-height:1;color:#333!important}.your-seat .avatar-score{width:86px;height:29px;min-width:0;bottom:-13px;background-image:url("/assets/ribbon_short.b4f83327f0b50cae62bb.svg");font-size:16px!important}.player-seat .seat-stats{padding-top:3px}.your-seat strong{margin-bottom:11px}
+
+.discard-header{padding:12px;background:#fff9ef}.discard-header>strong{font-size:16px}.discard-header p{font-size:12px;margin:5px 0 0}.action-choice-footer>.discard-confirm{font-size:14px;line-height:1.3;padding:8px;white-space:nowrap}#action-box .action-resource-options .resource-card{pointer-events:none}
+
+/* Both desktop columns fill the viewport so the dock shares the sidebar baseline. */
+@media(min-width:701px){.game-layout{align-items:stretch}.table-area{height:100%;min-height:0}.bottom-bar{margin-top:auto;margin-bottom:0;padding-bottom:0}}
