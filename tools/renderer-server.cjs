@@ -15,7 +15,7 @@ const routes={
   '/fixture.json':path.resolve(__dirname,'../.rea-tools/board-preview-fixture.json'),
 };
 async function startRendererLab(port=3002,options={}){
-const app=createApp({saveFile:options.saveFile,random:options.random,developmentRandom:options.developmentRandom,boardFactory:options.boardFactory,boardPresentation:presentBoard,httpHandler:(req,res)=>{
+const app=createApp({botDelayMs:options.botDelayMs,saveFile:options.saveFile,random:options.random,developmentRandom:options.developmentRandom,boardFactory:options.boardFactory,boardPresentation:presentBoard,httpHandler:(req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
   if(pathname==='/sprites.css'){
     const names=new Set(['card_lumber','card_brick','card_wool','card_grain','card_ore','card_devcardback','card_knight','card_monopoly','card_roadbuilding','card_yearofplenty','card_vp','icon_trade','icon_hourglass','road_blue','settlement_blue','city_blue','port_lumber','port_brick','port_wool','port_grain','port_ore','icon_player','icon_bot','icon_players','icon_tradehouse','icon_robber']);
@@ -40,7 +40,7 @@ return new Promise((resolve,reject)=>{server.once('error',error=>app.close().the
 }
 if(require.main===module){
   const saveFile=process.env.SETTLERS_SAVE_FILE==='off'?undefined:process.env.SETTLERS_SAVE_FILE||path.resolve(__dirname,'../data/renderer.json');
-  startRendererLab(Number(process.env.RENDERER_LAB_PORT||3002),{saveFile}).then(server=>{
+  startRendererLab(Number(process.env.RENDERER_LAB_PORT||3002),{saveFile,botDelayMs:700}).then(server=>{
     console.log(`Local rendered game: http://127.0.0.1:${server.address().port}`);
     let stopping=false;const stop=()=>{if(stopping)return;stopping=true;server.closeLab().then(()=>process.exit(0));};process.on('SIGINT',stop);process.on('SIGTERM',stop);
   }).catch(error=>{console.error(error.message);process.exitCode=1;});

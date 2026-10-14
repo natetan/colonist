@@ -244,3 +244,7 @@ Game completion opens a full-screen results overlay over the final board, with w
 Closing the trade creator with the X, Escape, or an outside click clears its draft offer and requested cards; reopening starts empty.
 
 Robber placement automatically steals one server-random resource when exactly one eligible neighboring opponent has cards. Multiple eligible opponents still require selection; empty opponents are excluded. Knight turns return to their previous phase after automatic theft.
+
+Renderer setup tolerates scoring and build-availability fields being absent before the regular turns begin; starting with bots transitions directly into settlement placement.
+
+The renderer launch command paces bot actions 700ms apart. New settlements, city upgrades, and roads drop into position over 540ms; reconnecting does not replay old placements, and reduced-motion settings skip the drop. Restart the server to enable bot pacing. Automated tests retain immediate bot turns unless a delay is explicitly configured.

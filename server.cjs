@@ -49,7 +49,9 @@ function createApp(options = {}) {
     return state;
   }
   function broadcast(room) { if(storageFailure)return;for (const player of room.players) if (player.ws) send(player.ws, snapshot(room, player)); }
+  const botTimers=new Map();
   function playBotTurns(room) {
+    if(botTimers.has(room)||storageFailure)return;
     if(room.game.phase==='complete'){turns.begin(room.game,room.board);persist();broadcast(room);}
     for(let actionCount=0;actionCount<200;actionCount++) {
       const regular=room.game.turn!==undefined;
@@ -59,6 +61,7 @@ function createApp(options = {}) {
       if(regular){const move=turns.botAction(room.game,room.board,current.id);if(!move)break;turns.act(room.game,room.board,current.id,move,random,options.developmentRandom);}
       else {const move = rules.botMove(room.game, room.board);rules.place(room.game, room.board, current.id, move.type, move.id);if(room.game.phase==='complete')turns.begin(room.game,room.board);}
       persist();broadcast(room);
+      if(options.botDelayMs>0){const timer=setTimeout(()=>{botTimers.delete(room);if(room.players.some(p=>p.ws)){try{playBotTurns(room);}catch(error){console.error("Bot turn paused:",error.message);}}},options.botDelayMs);timer.unref();botTimers.set(room,timer);break;}
     }
   }
   wss.on('connection', ws => {
@@ -149,7 +152,7 @@ function createApp(options = {}) {
       }
     });
   });
-  return { server, close: () => new Promise((resolve,reject) => { for (const ws of clients) ws.terminate(); wss.close(() => server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})); }) };
+  return { server, close: () => new Promise((resolve,reject) => { for(const timer of botTimers.values())clearTimeout(timer);botTimers.clear();for (const ws of clients) ws.terminate(); wss.close(() => server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})); }) };
 }
 if (require.main === module) {
   const saveFile=process.env.SETTLERS_SAVE_FILE==='off'?undefined:process.env.SETTLERS_SAVE_FILE||path.join(__dirname,'data','prototype.json');
