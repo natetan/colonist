@@ -26,7 +26,7 @@ assert.throws(()=>turns.act(g,tiles,'B',{type:'MoveRobber',id:g.robber}),/differ
 const target=city.tiles[0];turns.act(g,tiles,'B',{type:'MoveRobber',id:target},()=>0);assert.equal(g.resources.A.wood,4);assert.equal(g.resources.B.wood,3);assert.equal(g.phase,'build');assert.deepEqual(g.victims,[]);
 // One blocked tile contributes nothing; cities produce two on unblocked matching tiles.
 const production=fixture();production.vertices.forEach(v=>{v.owner=null;});production.vertices[city.id].owner='A';production.vertices[city.id].city=true;production.robber=city.tiles[0];production.resources.A.wood=0;production.bank.wood=19;
-turns.act(production,tiles,'A',{type:'RollDice'},()=>3);assert.equal(production.resources.A.wood,2*(city.tiles.length-1));
+turns.act(production,tiles,'A',{type:'RollDice'},()=>3);assert.equal(production.resources.A.wood,2*(city.tiles.length-1));assert.equal(production.production.transfers.reduce((n,t)=>n+t.amount,0),production.resources.A.wood);assert(production.production.transfers.every(t=>t.tile!==production.robber&&t.player==='A'&&t.resource==='wood'&&t.amount===2));
 // A road cannot continue through an opponent's occupied corner.
 const network=fixture();network.resources.A.wood=10;network.resources.A.brick=10;const owned=network.edges.find(e=>e.owner==='A');network.vertices.forEach(v=>{v.owner=null;});network.vertices[owned.a].owner='B';network.vertices[owned.b].owner='B';network.edges.filter(e=>e!==owned).forEach(e=>{e.owner=null;});assert.equal(turns.buildLocations(network,'A','BuildRoad').length,0);
 console.log('PASS: turn enforcement, dice/production, costs, cities, robber blocking, seven/discard validation, stealing, blocked road connections');

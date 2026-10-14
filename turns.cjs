@@ -40,11 +40,12 @@ function applyAct(g, tiles, id, message, random = crypto.randomInt, developmentR
   if(current(g)!==id)throw new Error('It is another player’s turn.');
   if(type==='RollDice') {
     if(g.phase!=='roll')throw new Error('You can roll only once at the start of your turn.');
-    g.dice=[random(1,7),random(1,7)]; const sum=total(g.dice);
+    g.dice=[random(1,7),random(1,7)]; const sum=total(g.dice);g.production={sequence:(g.production?.sequence||0)+1,transfers:[]};
     if(sum===7){ for(const player of g.players)if(total(g.resources[player])>7)g.discards[player]=Math.floor(total(g.resources[player])/2);g.phase=Object.keys(g.discards).length?'discard':'robber';return; }
-    const due={};
-    tiles.forEach((tile,i)=>{if(tile.number!==sum||i===g.robber||tile.resource==='desert')return;for(const v of g.vertices)if(v.owner&&v.tiles.includes(i)){const key=tile.resource;due[key] ||= {};due[key][v.owner]=(due[key][v.owner]||0)+(v.city?2:1);}});
-    for(const [r,players]of Object.entries(due)){const amount=total(players);if(g.bank[r]>=amount){for(const [player,n]of Object.entries(players)){g.resources[player][r]+=n;g.bank[r]-=n;}}else if(Object.keys(players).length===1){const player=Object.keys(players)[0];g.resources[player][r]+=g.bank[r];g.bank[r]=0;}}
+    const due={},sources=[],paid={};
+    tiles.forEach((tile,i)=>{if(tile.number!==sum||i===g.robber||tile.resource==='desert')return;for(const v of g.vertices)if(v.owner&&v.tiles.includes(i)){const key=tile.resource;due[key] ||= {};due[key][v.owner]=(due[key][v.owner]||0)+(v.city?2:1);sources.push({tile:i,player:v.owner,resource:key,amount:v.city?2:1});}});
+    for(const [r,players]of Object.entries(due)){const amount=total(players);if(g.bank[r]>=amount){for(const [player,n]of Object.entries(players)){g.resources[player][r]+=n;g.bank[r]-=n;paid[r+":"+player]=n;}}else if(Object.keys(players).length===1){const player=Object.keys(players)[0];paid[r+":"+player]=g.bank[r];g.resources[player][r]+=g.bank[r];g.bank[r]=0;}}
+    for(const source of sources){const key=source.resource+':'+source.player,n=Math.min(source.amount,paid[key]||0);if(n){g.production.transfers.push({...source,amount:n});paid[key]-=n;}}
     g.phase='build';return;
   }
   if(type==='MoveRobber') {

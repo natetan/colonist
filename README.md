@@ -250,3 +250,7 @@ Renderer setup tolerates scoring and build-availability fields being absent befo
 The renderer launch command paces bot actions 700ms apart. New settlements, city upgrades, and roads drop into position over 540ms; reconnecting does not replay old placements, and reduced-motion settings skip the drop. Restart the server to enable bot pacing. Automated tests retain immediate bot turns unless a delay is explicitly configured.
 
 Renderer bot actions wait 1100ms before acting, including the first action after a human ends their turn. Resource payments animate from your hand back to the bank; newly acquired development cards animate from the bank into their hand stack. Transfers use your private hand and public bank deltas, and reduced-motion settings suppress flights. Restart the server for updated bot timing.
+
+Dice production broadcasts a public payout record (tile, recipient, resource, amount). Cards animate from each producing tile to every recipient’s player-info card counter, respecting robber blocking, city production, bank shortages, and reduced-motion preferences. Private hands remain redacted; a reconnect does not replay old production. Restart the server for payout records.
+
+Sidebar avatars use the reference logged-in player/bot SVGs on player-colored medallions, with the small/large score-ribbon artwork. Private score totals remain visible only in your own ribbon.

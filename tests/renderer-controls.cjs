@@ -1,5 +1,5 @@
 const assert=require('assert/strict'),fs=require('fs'),vm=require('vm');
-class Element{constructor(){this.children=[];this.style={};this.classList={add(){},toggle(){}};}append(...v){this.children.push(...v)}replaceChildren(...v){this.children=v}setAttribute(){}querySelectorAll(){return []}}
+class Element{constructor(){this.children=[];this.dataset={};this.style={setProperty(){}};this.classList={add(){},toggle(){}};}append(...v){this.children.push(...v)}replaceChildren(...v){this.children=v}setAttribute(){}querySelectorAll(){return []}}
 const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);};
 const context={document:{createElement:()=>new Element()},$:get,joined:{playerId:'A'},robberAction(){},gameEnd(){},developmentHand(){},playerOffer(){},sprite:()=>new Element(),sidebarIcon:()=>new Element(),actionIcon:()=>new Element(),cardBadge:()=>new Element(),referenceTrade(){},actionPanel(){},send(){},diceArtwork:{1:"one.svg"},actionCosts:{},cardTip:new Element(),cardSprites:{wood:'card_lumber'},buildMode:null};vm.createContext(context);
 const source=fs.readFileSync(require('path').resolve(__dirname,'../tools/renderer-lab.js'),'utf8');vm.runInContext(source.slice(source.indexOf('function controls(state)'),source.indexOf('function connect()')),context);
