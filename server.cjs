@@ -42,7 +42,7 @@ function createApp(options = {}) {
     if(g && g.turn!==undefined){Object.assign(game,{currentPlayer:turns.current(g),dice:g.dice,production:g.production||null,robber:g.robber,discardCount:g.discards[viewer.id]||0,victims:g.phase==='steal'&&turns.current(g)===viewer.id?g.victims:[],builds:g.phase==='build'&&turns.current(g)===viewer.id?Object.fromEntries(Object.keys(turns.costs).map(type=>[type,turns.buildLocations(g,viewer.id,type)])):{},bank:g.bank});}
     if(g && g.turn!==undefined){game.bankRates=trading.rates(g,viewer.id);game.tradeOffer=g.tradeOffer;game.tradeDecline=g.tradeDecline||null;game.canAcceptTrade=!!g.tradeOffer&&trading.canRespond(g.tradeOffer,viewer.id)&&trading.hasCards(g.resources[g.tradeOffer.from]||{},g.tradeOffer.give)&&trading.hasCards(g.resources[viewer.id]||{},g.tradeOffer.receive);}
     if(g && g.turn!==undefined){game.development=development.view(g,viewer.id,turns.roadLocations);game.scoring=scoring.view(g,viewer.id);}
-    const state = { type: 'RoomState', persistence:!!options.saveFile, code: room.code, host: room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
+    const state = { type: 'RoomState', persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', maxPlayers:4, host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
     for(const player of state.players){player.resourceCount=Object.values(g?.resources?.[player.id]||{}).reduce((a,b)=>a+b,0);player.developmentCount=g?.developmentHands?.[player.id]?.length||0;player.knightsPlayed=g?.knightsPlayed?.[player.id]||0;}
     // Optional presentation adapter receives only the already-redacted snapshot.
     if (options.boardPresentation) state.renderer = options.boardPresentation(state);
@@ -74,23 +74,44 @@ function createApp(options = {}) {
       try {
         if(storageFailure)throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');
         const message = JSON.parse(bytes.toString());
+        if(message.type==='LeaveRoom'){
+          const room=ws.room,player=ws.player;if(!room||!player)throw new Error('You are not in a room.');
+          const humans=room.players.filter(p=>p!==player&&!p.bot);
+          if(!humans.length){rooms.delete(room.code);const timer=botTimers.get(room);if(timer)clearTimeout(timer);botTimers.delete(room);}
+          else{
+            if(room.game?.players.includes(player.id)){player.bot=true;player.ws=null;delete player.token;}
+            else room.players=room.players.filter(p=>p!==player);
+            // Host authority follows a remaining human, never the replacement bot.
+            if((room.hostId||room.players[0]?.id)===player.id)room.hostId=humans[0].id;
+          }
+          ws.room=null;ws.player=null;persist();send(ws,{type:'LeftRoom'});
+          if(rooms.has(room.code)){broadcast(room);if(room.game&&room.players.some(p=>p.ws))playBotTurns(room);}
+          return;
+        }
         if(message.type==='Chat'){
           if(!ws.room||!ws.player)throw new Error('Join a room before chatting.');
           if(typeof message.text!=='string'||!message.text.trim()||message.text.length>300)throw new Error('Chat messages must contain 1–300 characters.');
           if(ws.lastChat&&Date.now()-ws.lastChat<750)throw new Error('Wait a moment before sending another message.');
           ws.lastChat=Date.now();const chat={type:'Chat',player:ws.player.id,name:ws.player.name,text:message.text.trim()};for(const p of ws.room.players)if(p.ws)send(p.ws,chat);return;
         }
+        if(message.type==='SetMap'){
+          const room=ws.room;if(!room||(room.hostId||room.players[0].id)!==ws.player.id)throw new Error('Only the host can change the map.');
+          if(room.game)throw new Error('The map is locked after starting.');
+          if(!['classic','random'].includes(message.mapType))throw new Error('Choose Classic or Random.');
+          const next=message.mapType==='classic'?boards.classic():(()=>{const board=boards.generate(options.boardRandom);return {board,harbors:boards.harbors(board,options.boardRandom)};})();
+          room.mapType=message.mapType;room.board=next.board;room.harbors=next.harbors;persist();broadcast(room);return;
+        }
         if (['Rematch','StartGame','PlaceSettlement','PlaceRoad','RollDice','EndTurn','BuildRoad','BuildSettlement','BuildCity','MoveRobber','Steal','Discard',...trading.commands,...development.commands].includes(message.type)) {
           const room = ws.room;
           if (!room) throw new Error('Join a room first.');
           if(message.type==='Rematch'){
-            if(room.players[0]!==ws.player)throw new Error('Only the host can start a rematch.');
+            if((room.hostId||room.players[0].id)!==ws.player.id)throw new Error('Only the host can start a rematch.');
             if(room.game?.phase!=='finished')throw new Error('Finish the current match before starting a rematch.');
-            room.board=options.boardFactory?options.boardFactory():boards.generate(options.boardRandom);room.harbors=boards.harbors(room.board,options.boardRandom);room.game=null;room.players=room.players.filter(p=>!p.bot);
+            room.game=null;room.players=room.players.filter(p=>!p.bot);
             persist();broadcast(room);return;
           }
           if (message.type === 'StartGame') {
-            if (room.players[0] !== ws.player) throw new Error('Only the host can start.');
+            if ((room.hostId||room.players[0].id) !== ws.player.id) throw new Error('Only the host can start.');
             if (room.game) throw new Error('The match has already started.');
             const ids = room.players.filter(p => p.ws).map(p => p.id);
             if(ids.length>4)throw new Error('The base game supports at most four players. The five/six-player extension is not implemented yet.');
@@ -131,12 +152,12 @@ function createApp(options = {}) {
         let room;
         if (message.type === 'CreateRoom') {
           let code; do { code = crypto.randomBytes(3).toString('hex').toUpperCase(); } while (rooms.has(code));
-          room = { code, players: [], board: options.boardFactory ? options.boardFactory() : boards.generate(options.boardRandom) };room.harbors=boards.harbors(room.board,options.boardRandom);rooms.set(code, room);
+          const fixed=boards.classic();room = { code, players: [], mapType:options.boardFactory?'random':'classic',board:options.boardFactory?options.boardFactory():fixed.board };room.harbors=options.boardFactory?boards.harbors(room.board,options.boardRandom):fixed.harbors;rooms.set(code, room);
         } else {
           room = rooms.get(String(message.code).trim().toUpperCase());
           if (!room) throw new Error('Room not found.');
           if (room.game) throw new Error('Match already started. Only existing players can reconnect.');
-          if (room.players.length >= 6) throw new Error('This prototype supports six seats.');
+          if (room.players.length >= 4) throw new Error('This table supports four players.');
         }
         const player = { id: sessionId, token: crypto.randomBytes(24).toString('hex'), name: message.name.trim(), ws };
         room.players.push(player); ws.room = room; ws.player = player;

@@ -4,6 +4,8 @@ const {presentBoard}=require('./renderer-state.cjs');
 const root=path.resolve(__dirname,'../.rea-tools/renderer');
 const routes={
   '/':path.join(__dirname,'renderer-lab.html'),
+  '/audio/dice-roll-sound.mp3':path.resolve(__dirname,'../public/audio/dice-roll-sound.mp3'),
+  '/menu.js':path.join(__dirname,'renderer-menu.js'),
   '/lab.js':path.join(__dirname,'renderer-lab.js'),
   '/game.css':path.join(__dirname,'renderer-lab.css'),
   '/scoring.js':path.resolve(__dirname,'../public/scoring.js'),
@@ -27,10 +29,10 @@ const app=createApp({botDelayMs:options.botDelayMs,saveFile:options.saveFile,ran
   if(/^\/assets\/[a-zA-Z0-9_.-]+$/.test(pathname))file=path.join(root,pathname.slice(1));
   // No remote connections, images, frames, or scripts are permitted.
   // Pixi 7 generates shader helpers; eval is allowed only in this local lab.
-  res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self' 'unsafe-eval'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; worker-src 'none'; frame-src 'none'");
+  res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self' 'unsafe-eval'; connect-src 'self'; media-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; worker-src 'none'; frame-src 'none'");
   res.setHeader('X-Content-Type-Options','nosniff');
   if(!file||!fs.existsSync(file)){res.writeHead(404);return res.end('Local resource unavailable');}
-  const mime={'.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml','.html':'text/html'};
+  const mime={'.mp3':'audio/mpeg','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml','.html':'text/html'};
   res.setHeader('Content-Type',mime[path.extname(file)]||'application/octet-stream');
   fs.createReadStream(file).pipe(res);
 }});

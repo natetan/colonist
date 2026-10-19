@@ -201,7 +201,7 @@ function referenceTrade(parent,state,viewerId,send){
   const help=document.createElement('p');help.className='trade-requirements';help.textContent=bankValid?'Bank exchange ready':a.length===1?`Bank rate: ${g.bankRates?.[a[0]]||4} ${a[0]} for one card. Select cards to offer below, then request above.`:'Select cards to offer below, then request above.';offer.append(help);
   if(g.tradeOffer){const existing=g.tradeOffer;const status=document.createElement('p');status.textContent='Pending offer · '+state.players.find(p=>p.id===existing.from)?.name+' → '+(existing.to===null?'All players':state.players.find(p=>p.id===existing.to)?.name);offer.append(status);for(const [label,type,allowed]of [['Cancel offer','CancelTrade',existing.from===viewerId],['Accept offer','AcceptTrade',mayRespond(existing,viewerId)&&g.canAcceptTrade],['Decline offer','DeclineTrade',mayRespond(existing,viewerId)]])if(allowed){const button=document.createElement('button');button.textContent=label;button.onclick=()=>send(type,{offerId:existing.id});offer.append(button);}}
 }
-let audioContext,soundEnabled=localStorage.getItem('settlers-sound')!=='off',turnStarted=Date.now(),turnKey;
+let audioContext,diceRollAudio,soundEnabled=localStorage.getItem('settlers-sound')!=='off',turnStarted=Date.now(),turnKey;
 function unlockSound(){if(!soundEnabled)return;try{audioContext??=new AudioContext();audioContext.resume().catch(()=>{});}catch{/* Audio is optional on browsers without Web Audio. */}}
 for(const event of ['pointerdown','keydown'])document.addEventListener(event,unlockSound);
 function cue(kind='turn'){
@@ -213,7 +213,10 @@ function cue(kind='turn'){
     gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(volume,start+.006);gain.gain.exponentialRampToValueAtTime(.0001,start+decay);
     oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(start);oscillator.stop(start+decay+.02);oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
   };
-  if(kind==='dice'){for(let i=0;i<8;i++)tone([410,230,540,300,470,210,380,260][i],.055,.065,i*.045,'triangle',100);return;}
+  if(kind==='dice'){
+    diceRollAudio??=new Audio('/audio/dice-roll-sound.mp3');diceRollAudio.preload='auto';diceRollAudio.volume=.85;
+    diceRollAudio.currentTime=0;diceRollAudio.play().catch(()=>{});return;
+  }
   if(['road','settlement','city','robber'].includes(kind)){
     // A brief broadband contact click over hollow plastic resonances.
     const buffer=audioContext.createBuffer(1,Math.ceil(audioContext.sampleRate*.045),audioContext.sampleRate),samples=buffer.getChannelData(0);
@@ -237,7 +240,7 @@ function turnFeedback(state){
   const g=state.game,old=latestState?.code===state.code?latestState.game:null,key=state.code+':'+g?.currentPlayer+':'+g?.phase;
   if(key!==turnKey){turnStarted=Date.now();turnKey=key;if(g?.currentPlayer===joined.playerId&&['roll','settlement'].includes(g.phase))cue();}
   if(!g||!old)return;
-  if(g.dice&&old.phase==='roll'&&g.phase!=='roll')cue('dice');
+  if(g.production?.sequence!=null&&g.production.sequence!==old.production?.sequence)cue('dice');
   const addedRoad=g.edges?.some(e=>e.owner&&!old.edges?.some(previous=>previous.id===e.id&&previous.owner===e.owner));
   const placed=g.vertices?.find(v=>v.owner&&(!old.vertices?.some(previous=>previous.id===v.id&&previous.owner===v.owner)||v.city&&!old.vertices?.find(previous=>previous.id===v.id)?.city));
   if(placed)cue(placed.city?'city':'settlement');else if(addedRoad)cue('road');else if(g.robber!==old.robber)cue('robber');
@@ -368,20 +371,22 @@ function controls(state){
 function connect(){
   socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/socket`);
   socket.onmessage=event=>{
-    const state=JSON.parse(event.data);
+    const state=JSON.parse(event.data);if(state.type==='RoomState')$('menu-error').textContent='';
     if(state.type==='SessionEstablished'){$('connection').textContent='Connected to local game server';$('create').disabled=$('join').disabled=false;let saved;try{saved=JSON.parse(sessionStorage.getItem(sessionKey));}catch{}if(saved)send('Resume',saved);}
-    if(state.type==='Joined'){joined=state;sessionStorage.setItem(sessionKey,JSON.stringify({code:state.code,token:state.token}));$('lobby').hidden=true;$('probe').hidden=true;$('share').hidden=false;}
-    if(state.type==='RoomState'){$('connection').textContent=state.persistence?'Connected · games saved locally':'Connected · temporary games';const previous=latestState;reconcileTradeDraft(previous,state);turnFeedback(state);publicEvents(state);latestState=state;if(state.game?.phase!=='build'||state.game?.edges.some(e=>e.owner===joined.playerId&&previous?.game?.edges[e.id]?.owner!==e.owner)||state.game?.vertices.some(v=>v.owner===joined.playerId&&(previous?.game?.vertices[v.id]?.owner!==v.owner||previous?.game?.vertices[v.id]?.city!==v.city)))buildMode=null;controls(state);resourceFeedback(previous,state);scheduleRender(state.renderer.fixture,state.renderer,state);}
+    if(state.type==='LeftRoom'){sessionStorage.removeItem(sessionKey);location.assign('/');return;}
+    if(state.type==='Joined'){$('quit-game').hidden=$('quit-hint').hidden=false;joined=state;sessionStorage.setItem(sessionKey,JSON.stringify({code:state.code,token:state.token}));$('lobby').hidden=true;$('probe').hidden=true;$('share').hidden=false;}
+    if(state.type==='RoomState'){$('connection').textContent=state.persistence?'Connected · games saved locally':'Connected · temporary games';const previous=latestState;reconcileTradeDraft(previous,state);turnFeedback(state);publicEvents(state);latestState=state;if(state.game?.phase!=='build'||state.game?.edges.some(e=>e.owner===joined.playerId&&previous?.game?.edges[e.id]?.owner!==e.owner)||state.game?.vertices.some(v=>v.owner===joined.playerId&&(previous?.game?.vertices[v.id]?.owner!==v.owner||previous?.game?.vertices[v.id]?.city!==v.city)))buildMode=null;MainMenu.render(state,joined.playerId,send);controls(state);resourceFeedback(previous,state);scheduleRender(state.renderer.fixture,state.renderer,state);}
     if(state.type==='Chat'){if(latestState)appendLog($('chat-messages'),feedEntry(latestState,state.playerId||state.player||state.id,state.text));else appendLog($('chat-messages'),state.name+': '+state.text);}
-    if(state.type==='Error'){$('error').textContent=state.message;if(state.message.startsWith('Saved session')){sessionStorage.removeItem(sessionKey);joined=null;$('lobby').hidden=false;$('probe').hidden=false;}}
+    if(state.type==='Error'){$('menu-error').textContent=state.message;$('error').textContent=state.message;if(state.message.startsWith('Saved session')){sessionStorage.removeItem(sessionKey);joined=null;$('lobby').hidden=false;$('probe').hidden=false;}}
   };
   socket.onclose=()=>{$('connection').textContent='Disconnected. Reconnecting…';$('create').disabled=$('join').disabled=true;clearTimeout(retry);retry=setTimeout(connect,1500);};
   socket.onerror=()=>{$('connection').textContent='Unable to reach local server';};
 }
+$('quit-game').onclick=()=>send('LeaveRoom');
 $('create').onclick=()=>send('CreateRoom',{name:$('name').value});
 $('join').onclick=()=>send('JoinRoom',{name:$('name').value,code:$('code').value.trim().toUpperCase()});
 $('code').value=new URLSearchParams(location.search).get('room')||'';
-$('sound').checked=soundEnabled;$('sound').onchange=()=>{soundEnabled=$('sound').checked;localStorage.setItem('settlers-sound',soundEnabled?'on':'off');if(soundEnabled){unlockSound();audioContext?.resume().then(()=>cue()).catch(()=>{});}};
+$('sound').checked=soundEnabled;$('sound').onchange=()=>{soundEnabled=$('sound').checked;localStorage.setItem('settlers-sound',soundEnabled?'on':'off');if(soundEnabled){unlockSound();audioContext?.resume().then(()=>cue()).catch(()=>{});}else diceRollAudio?.pause();};
 $('chat-form').onsubmit=event=>{event.preventDefault();const text=$('chat-input').value.trim();if(text){send('Chat',{text});$('chat-input').value='';}};
 $('share').onclick=async()=>{const url=new URL(location.href);url.searchParams.set('room',joined.code);try{await navigator.clipboard.writeText(url.href);$('share').textContent='Copied room link';setTimeout(()=>$('share').textContent='Copy room link',2000);}catch{$('error').textContent=`Room code: ${joined.code}. Copy the address and add ?room=${joined.code}`;}};
 $('probe').onclick=async()=>{try{const fixture=await(await fetch('/fixture.json')).json();scheduleRender(fixture,{robber:Object.values(fixture.gameState.mapState.tileHexStates).findIndex(t=>t.type===0)});}catch(error){log(error.message);}};

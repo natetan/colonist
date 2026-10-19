@@ -11,6 +11,7 @@ try{
  room.game=rules.start(tiles,['A','B']);const g=room.game;
  while(g.phase!=='complete'){const move=rules.botMove(g,tiles);rules.place(g,tiles,g.order[g.step],move.type,move.id);store.save(rooms);assert.deepEqual(validate(JSON.parse(fs.readFileSync(file,'utf8'))),encode(rooms));}
  turns.begin(g,tiles);store.save(rooms);turns.act(g,tiles,'A',{type:'RollDice'},()=>3);store.save(rooms);
+ const transferred={...room,hostId:'B',players:room.players.map(p=>({...p,bot:p.id==='A'}))};store.save(new Map([[room.code,transferred]]));assert.equal(store.load().get(room.code).hostId,'B');assert.equal(store.load().get(room.code).players[0].bot,true);store.save(rooms);
  // Save in the middle of both mandatory multi-step effects.
  g.phase='roll';g.turnNumber=2;g.resources.A.wood=9;g.resources.B.wood=2;g.bank.wood=8;let die=0;turns.act(g,tiles,'A',{type:'RollDice'},()=>++die===1?3:4);assert.equal(g.phase,'discard');store.save(rooms);validate(JSON.parse(fs.readFileSync(file,'utf8')));
  turns.act(g,tiles,'A',{type:'Discard',cards:{wood:4}});assert.equal(g.phase,'robber');store.save(rooms);validate(JSON.parse(fs.readFileSync(file,'utf8')));

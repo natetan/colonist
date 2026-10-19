@@ -267,8 +267,16 @@ Run `npm run practice:trading` for a disposable four-human match at port 3011. O
 
 Run `npm run qa:renderer` to record a complete integration-test match and two-human trade snapshots, then open the printed port-3010 replay URL. Use its scenario selector for discard, development hand, incoming/declined offers, results, and recorded animation transitions. Replay controls do not send live game moves. Generated snapshots, HTML, and assets remain ignored.
 
-This pass verified complete four-player matches on two generated boards (including asynchronous bot scheduling), real browser-to-browser offer/decline/accept flows, resource payment and development-card purchase flights, discard controls, and the results overlay. Fixed clipped boards on shorter desktop windows, over-wide inventory, detached discard-box positioning, and sender drafts surviving completed trades. Multiplayer offers still target one human; counteroffers and broadcast negotiations remain later work, as do larger matches.
+This pass verified complete four-player matches on two generated boards (including asynchronous bot scheduling), real browser-to-browser offer/decline/accept flows, resource payment and development-card purchase flights, discard controls, and the results overlay. Fixed clipped boards on shorter desktop windows, over-wide inventory, detached discard-box positioning, and sender drafts surviving completed trades. Broadcast human offers are supported; counteroffers and larger matches remain later work.
 
 The renderer plays a short synthesized bell when your turn starts (including settlement setup). Settings → Sound enables or mutes it and remembers your choice. Browser audio needs an initial click or keypress in the game tab; no audio download is required.
 
-Sound also includes a dice rattle, soft placement impacts for roads/buildings/the robber, and distinct ascending fanfares when Longest Road or Largest Army changes holder. These follow confirmed server updates for every player; repeated snapshots stay silent.
+Sound uses the supplied `public/audio/dice-roll-sound.mp3` for every player’s dice roll, alongside soft placement impacts for roads/buildings/the robber, and distinct ascending fanfares when Longest Road or Largest Army changes holder. These follow confirmed server updates for every player; repeated snapshots stay silent.
+
+### Main menu and map lobby
+
+Run `npm run renderer:lab` and open http://127.0.0.1:3002. Create game opens a host lobby; Join game accepts an invite code. The lobby previews terrain, numbers, and harbors for everyone. Classic is our fixed island layout; Random uses the server generator with exact base-game bags and separated 6s/8s. The host can select a map and use Generate again before starting. Start with bots fills four seats; Start game requires at least two online humans. Rooms accept at most four seats, including disconnected seats reserved for reconnect. Map settings and the selected board survive server restarts. Once started, the map is locked. Rematch returns to the lobby with the same map so the host can keep it or generate another. Existing saved rooms without map metadata are shown as Random.
+
+Verify shared map changes, host permissions, the four-seat cap, and map locking with `npm run test:lobby-maps`. Renderer menu checks are included in `npm run test:renderer`.
+
+Use Settings → Quit game to return to the main menu. Leaving a lobby frees the seat. During a match, a bot takes over your seat and host authority passes to another human. If the last human leaves, the room is removed. Ordinary disconnects still preserve your seat for reconnect; quitting clears the current tab’s saved session.

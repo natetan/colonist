@@ -25,4 +25,5 @@ function harbors(tiles,random=crypto.randomInt){
   if(!Number.isInteger(offset)||offset<0||offset>=30)throw new Error('Invalid server harbor random draw.');
   return [0,3,6,10,13,16,20,23,26].map((position,i)=>({edge:coast[(position+offset)%30],resource:types[i]}));
 }
-module.exports={generate,harbors,coastline,adjacent,resourceBag,numberBag};
+function classic(){let seed=104729;const random=max=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed%max;};const tiles=generate(random);return {board:tiles,harbors:harbors(tiles,random)};}
+module.exports={classic,generate,harbors,coastline,adjacent,resourceBag,numberBag};

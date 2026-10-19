@@ -18,6 +18,8 @@ audio.turnFeedback(yourTurn);assert.equal(tones.length,3,'Repeated snapshots do 
 vm.runInContext('soundEnabled=false',audio);audio.turnFeedback({code:'TWO',game:{currentPlayer:'A',phase:'settlement'}});assert.equal(tones.length,3,'Mute suppresses turn audio');
 console.log('PASS: turn bell, keyboard audio unlock, duplicate suppression, and mute');
 
+let plays=0;audio.Audio=class{constructor(url){assert.equal(url,'/audio/dice-roll-sound.mp3');}play(){plays++;return Promise.resolve();}};
+vm.runInContext("soundEnabled=true;cue('dice');cue('dice');soundEnabled=false;cue('dice');",audio);assert.equal(plays,2,'MP3 plays on each roll and respects mute');
 const sounds=[];audio.cue=kind=>sounds.push(kind||'turn');
 const before={code:'SOUND',game:{phase:'build',currentPlayer:'B',vertices:[{id:0,owner:null,city:false}],edges:[{id:0,owner:null}],robber:1,scoring:{longestRoad:null,largestArmy:null}}};
 audio.latestState=before;const after=JSON.parse(JSON.stringify(before));after.game.edges[0].owner='B';audio.turnFeedback(after);assert.deepEqual(sounds,['road']);sounds.length=0;
@@ -25,5 +27,8 @@ audio.latestState=after;audio.turnFeedback(after);assert.equal(sounds.length,0,'
 const house=JSON.parse(JSON.stringify(after));house.game.vertices[0].owner='B';audio.turnFeedback(house);assert.deepEqual(sounds,['settlement']);sounds.length=0;
 audio.latestState=house;const city=JSON.parse(JSON.stringify(house));city.game.vertices[0].city=true;audio.turnFeedback(city);assert.deepEqual(sounds,['city']);sounds.length=0;
 audio.latestState=city;const awards=JSON.parse(JSON.stringify(city));awards.game.scoring={longestRoad:'B',largestArmy:'A'};audio.turnFeedback(awards);assert.deepEqual(sounds,['longestRoad','largestArmy']);sounds.length=0;audio.latestState=awards;audio.turnFeedback(awards);assert.equal(sounds.length,0);
-audio.latestState={code:'SOUND',game:{...city.game,phase:'roll'}};audio.turnFeedback({...city,game:{...city.game,dice:[3,4]}});assert.deepEqual(sounds,['dice']);
+audio.latestState={code:'SOUND',game:{...city.game,production:{sequence:1},dice:[3,4]}};
+const rolled={...city,game:{...city.game,production:{sequence:2},dice:[3,4]}};audio.turnFeedback(rolled);assert.deepEqual(sounds,['dice'],'Any player roll sounds even with identical dice and no observed roll phase');sounds.length=0;
+audio.latestState=rolled;audio.turnFeedback(rolled);assert.equal(sounds.length,0,'Repeated roll snapshot stays silent');
+audio.latestState=null;audio.turnFeedback(rolled);assert.equal(sounds.length,0,'Initial connection does not replay the last roll');
 console.log('PASS: dice, road, settlement, city and award sound transitions, with no snapshot repeats');

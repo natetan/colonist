@@ -13,6 +13,8 @@ function get(port,url){return new Promise((resolve,reject)=>http.get({hostname:'
   assert.equal(page.headers['x-content-type-options'],'nosniff');
   assert.equal((await get(port,'/assets/../../package.json')).status,404);
   assert.equal((await get(port,'/assets/%2e%2e%2fpackage.json')).status,404);
+  const sound=await get(port,'/audio/dice-roll-sound.mp3');assert.equal(sound.status,200);assert.equal(sound.headers['content-type'],'audio/mpeg');assert(sound.body.length>100);assert(page.headers['content-security-policy'].includes("media-src 'self'"));
+  assert.equal((await get(port,'/menu.js')).headers['content-type'],'text/javascript');assert(page.body.includes('/menu.js'));
   const script=await get(port,'/lab.js');assert.equal(script.headers['content-type'],'text/javascript');
   assert.equal((await get(port,'/development.js')).headers['content-type'],'text/javascript');
   assert(page.body.includes('/development.js'));
