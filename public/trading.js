@@ -25,7 +25,7 @@ window.TradeControls=(()=>{
       const give=select('Give',resources.map(r=>[r,`${r} (${g.bankRates?.[r]||4}:1)`]),draft.give,value=>{draft.give=value;updateBank();});
       const receive=select('Receive 1',resources.map(r=>[r,r]),draft.receive,value=>{draft.receive=value;updateBank();});
       bankButton=button('Trade with bank',()=>send('BankTrade',{give:give.value,receive:receive.value}));section.append(bankHelp);updateBank();
-      const opponents=state.players.filter(p=>p.playing&&!p.bot&&p.id!==viewerId&&p.online);
+      const opponents=state.players.filter(p=>p.playing&&p.id!==viewerId&&p.online);
       if(opponents.length){
         const player=select('Offer to',[['all','All players'],...opponents.map(p=>[p.id,p.name])],draft.player,value=>{draft.player=value;});draft.player=player.value;
         const table=document.createElement('table');const header=document.createElement('tr');for(const text of ['Resource','You give','You receive']){const th=document.createElement('th');th.textContent=text;header.append(th);}table.append(header);
@@ -38,14 +38,14 @@ window.TradeControls=(()=>{
         section.append(table);
         const values=side=>Object.fromEntries(resources.map(r=>[r,Number(fields[side][r].value)]));
         offerButton=button(g.tradeOffer?'Replace trade offer':'Send trade offer',()=>send('OfferTrade',{player:player.value,give:values('give'),receive:values('receive')}));section.append(offerHelp);updateOffer();
-      }else{const p=document.createElement('p');p.textContent='Player trades require another online human. Bots do not negotiate trades.';section.append(p);}
+      }else{const p=document.createElement('p');p.textContent='Player trades require another player or bot.';section.append(p);}
     }
     const offer=g.tradeOffer;if(!offer)return;
     const name=id=>state.players.find(p=>p.id===id)?.name||'Player';
     const p=document.createElement('p');p.textContent=`${name(offer.from)} offers ${describe(offer.give)} to ${(offer.to===null?'all players':name(offer.to))} for ${describe(offer.receive)}.`;section.append(p);
-    for(const id of offer.recipients||[offer.to]){const response=document.createElement('p');response.textContent=name(id)+': '+(offer.responses?.[id]==='declined'?'Declined ✕':'Awaiting response');section.append(response);}
-    if(offer.from===viewerId)button('Cancel trade offer',()=>send('CancelTrade',{offerId:offer.id}));
-    if((offer.recipients||[offer.to]).includes(viewerId)&&offer.responses?.[viewerId]!=='declined'){button('Accept trade',()=>send('AcceptTrade',{offerId:offer.id}),!g.canAcceptTrade);button('Decline trade',()=>send('DeclineTrade',{offerId:offer.id}));if(!g.canAcceptTrade){const help=document.createElement('p');help.textContent='You do not have all the requested cards.';section.append(help);}}
+    for(const id of offer.recipients||[offer.to]){const response=document.createElement('p');response.textContent=name(id)+': '+(offer.responses?.[id]==='declined'?'Declined ✕':offer.responses?.[id]==='accepted'?'Accepted ✓':'Awaiting response');section.append(response);}
+    if(offer.from===viewerId){button('Cancel trade offer',()=>send('CancelTrade',{offerId:offer.id}));for(const id of offer.recipients||[offer.to])if(offer.responses?.[id]==='accepted')button('Confirm trade with '+name(id),()=>send('ConfirmTrade',{offerId:offer.id,player:id}),!(g.confirmableTradePlayers||[]).includes(id));}
+    if((offer.recipients||[offer.to]).includes(viewerId)&&offer.responses?.[viewerId]!=='declined'){button('Accept trade',()=>send('AcceptTrade',{offerId:offer.id}),!g.canAcceptTrade);button('Decline trade',()=>send('DeclineTrade',{offerId:offer.id}));if(!g.canAcceptTrade){const help=document.createElement('p');help.textContent=offer.responses?.[viewerId]==='accepted'?'Accepted; waiting for the trader to choose.':'You do not have all the requested cards.';section.append(help);}}
   }
   return {render};
 })();

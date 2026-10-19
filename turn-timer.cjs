@@ -1,6 +1,6 @@
 const placement=require('./game.cjs'),turns=require('./turns.cjs'),development=require('./development.cjs');
 const choices=Object.freeze([0,30,60,90,120,180,300]);
-const timedActions=new Set(['PlaceSettlement','PlaceRoad','RollDice','BuildRoad','BuildSettlement','BuildCity','MoveRobber','Steal','Discard','BankTrade','AcceptTrade','BuyDevelopmentCard','PlayDevelopmentCard','PlaceFreeRoad']);
+const timedActions=new Set(['PlaceSettlement','PlaceRoad','RollDice','BuildRoad','BuildSettlement','BuildCity','MoveRobber','Steal','Discard','BankTrade','ConfirmTrade','BuyDevelopmentCard','PlayDevelopmentCard','PlaceFreeRoad']);
 function key(g){return g.turn===undefined?'setup:'+g.step:'turn:'+g.turnNumber+':'+g.turn;}
 function sync(room,now){
  const g=room.game,seconds=room.turnSeconds??60;
@@ -16,7 +16,7 @@ function rewardAction(room,type,actor,beforeKey,now){
  const g=room.game;
  if(!g||!timedActions.has(type)||key(g)!==beforeKey)return false;
  const current=g.turn===undefined?g.order[g.step]:turns.current(g);
- if(actor!==current&&type!=='AcceptTrade')return false;
+ if(actor!==current)return false;
  const timer=sync(room,now);
  if(!timer||timer.deadline<=now)return false;
  timer.deadline+=20000;return true;

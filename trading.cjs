@@ -11,7 +11,7 @@ function cards(value,limit=19) {
   return result;
 }
 const hasCards = (hand,amounts) => Object.entries(amounts).every(([r,n])=>hand[r]>=n);
-const commands = ['BankTrade','OfferTrade','AcceptTrade','DeclineTrade','CancelTrade'];
+const commands = ['BankTrade','OfferTrade','AcceptTrade','ConfirmTrade','DeclineTrade','CancelTrade'];
 function rates(g,id){
   const result=Object.fromEntries(resources.map(r=>[r,4]));
   for(const harbor of g.harbors||[]){const edge=g.edges[harbor.edge];if(!edge||![edge.a,edge.b].some(v=>g.vertices[v].owner===id))continue;
@@ -21,6 +21,7 @@ function rates(g,id){
 }
 function recipients(offer){return offer.recipients||[offer.to];}
 function canRespond(offer,id){return !!offer&&recipients(offer).includes(id)&&offer.responses?.[id]!=='declined';}
+function confirmable(g,id){const offer=g.tradeOffer;return !offer||offer.from!==id||!hasCards(g.resources[id],offer.give)?[]:recipients(offer).filter(p=>offer.responses?.[p]==='accepted'&&hasCards(g.resources[p],offer.receive));}
 function act(g,id,message,eligibleRecipients=g.players) {
   if(!commands.includes(message.type))return false;
   if(g.phase!=='build')throw new Error('Trade only after rolling and resolving the robber.');
@@ -28,14 +29,21 @@ function act(g,id,message,eligibleRecipients=g.players) {
   if(['AcceptTrade','DeclineTrade'].includes(message.type)){
     const offer=g.tradeOffer;
     if(!offer||offer.id!==message.offerId||offer.from!==current||!canRespond(offer,id))throw new Error('That trade offer is no longer available to you.');
-    if(message.type==='DeclineTrade'){if(offer.to===null){offer.responses[id]='declined';}else{g.tradeDecline={...offer,declinedBy:id};g.tradeOffer=null;}return true;}
-    // Recheck both hands at acceptance; the offer reserves no cards.
+    if(message.type==='DeclineTrade'){offer.responses||={};offer.responses[id]='declined';if(offer.to!==null){g.tradeDecline={...offer,declinedBy:id};g.tradeOffer=null;}return true;}
+    if(offer.responses?.[id]==='accepted')throw new Error('You already accepted; wait for the trader to confirm.');
     if(!hasCards(g.resources[offer.from],offer.give)||!hasCards(g.resources[id],offer.receive))throw new Error('This trade cannot be completed. Cancel or change the offer.');
-    for(const [r,n]of Object.entries(offer.give)){g.resources[offer.from][r]-=n;g.resources[id][r]+=n;}
-    for(const [r,n]of Object.entries(offer.receive)){g.resources[id][r]-=n;g.resources[offer.from][r]+=n;}
-    g.tradeOffer=null;return true;
+    offer.responses||=Object.fromEntries(recipients(offer).map(p=>[p,'pending']));offer.responses[id]='accepted';return true;
   }
   if(current!==id)throw new Error('It is another player’s turn.');
+  if(message.type==='ConfirmTrade'){
+    const offer=g.tradeOffer,partner=message.player;
+    if(!offer||offer.id!==message.offerId||offer.from!==id||!recipients(offer).includes(partner)||offer.responses?.[partner]!=='accepted')throw new Error('Choose a player who accepted the current offer.');
+    // No cards are reserved. Validate both hands again before either is changed.
+    if(!confirmable(g,id).includes(partner))throw new Error('This trade cannot be completed. Cancel or change the offer.');
+    for(const [r,n]of Object.entries(offer.give)){g.resources[id][r]-=n;g.resources[partner][r]+=n;}
+    for(const [r,n]of Object.entries(offer.receive)){g.resources[partner][r]-=n;g.resources[id][r]+=n;}
+    g.tradeOffer=null;return true;
+  }
   if(message.type==='BankTrade'){
     const {give,receive}=message;
     if(!resources.includes(give)||!resources.includes(receive)||give===receive)throw new Error('Choose two different resources for a bank trade.');
@@ -56,4 +64,14 @@ function act(g,id,message,eligibleRecipients=g.players) {
   g.tradeSequence=(g.tradeSequence||0)+1;
   g.tradeOffer={id:g.tradeSequence,from:id,to:broadcast?null:message.player,recipients:targets,responses:Object.fromEntries(targets.map(p=>[p,'pending'])),give,receive};return true;
 }
-module.exports={resources,commands,act,hasCards,rates,recipients,canRespond};
+function botResponse(g,id){
+ const offer=g.tradeOffer,hand=g.resources[id];
+ if(!offer||!canRespond(offer,id)||offer.responses?.[id]==='accepted')return null;
+ if(!hasCards(hand,offer.receive))return 'DeclineTrade';
+ const after={...hand};for(const [r,n]of Object.entries(offer.receive))after[r]-=n;for(const [r,n]of Object.entries(offer.give))after[r]+=n;
+ const goals=[{wood:1,brick:1},{wood:1,brick:1,sheep:1,wheat:1},{wheat:2,ore:3},{sheep:1,wheat:1,ore:1}];
+ const deficit=h=>Math.min(...goals.map(goal=>Object.entries(goal).reduce((n,[r,k])=>n+Math.max(0,k-h[r]),0)));
+ const count=h=>Object.values(h).reduce((a,b)=>a+b,0),scarcity=Object.entries(offer.give).reduce((n,[r,k])=>n+k/(hand[r]+1),0)-Object.entries(offer.receive).reduce((n,[r,k])=>n+k/(hand[r]+1),0);
+ return count(after)>=count(hand)&&deficit(after)<=deficit(hand)&&(deficit(after)<deficit(hand)||scarcity>=0)?'AcceptTrade':'DeclineTrade';
+}
+module.exports={resources,commands,act,hasCards,rates,recipients,canRespond,confirmable,botResponse};

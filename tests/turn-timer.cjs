@@ -23,11 +23,11 @@ action('A',{type:'BuildCity',id:turns.buildLocations(g,'A','BuildCity')[0]});ass
 action('A',{type:'BuyDevelopmentCard'});assert.equal(g.turnTimer.deadline,141000);
 action('A',{type:'BankTrade',give:'wood',receive:'ore'});assert.equal(g.turnTimer.deadline,161000);
 action('A',{type:'OfferTrade',player:'all',give:{wood:1},receive:{brick:1}});assert.equal(g.turnTimer.deadline,161000);
-const offerId=g.tradeOffer.id;action('B',{type:'AcceptTrade',offerId});assert.equal(g.turnTimer.deadline,181000,'Guest acceptance extends the active player clock exactly once');
+const offerId=g.tradeOffer.id;action('B',{type:'AcceptTrade',offerId});assert.equal(g.turnTimer.deadline,161000,'Consent adds no time');action('A',{type:'ConfirmTrade',offerId,player:'B'});assert.equal(g.turnTimer.deadline,181000,'Final confirmation extends the active player clock exactly once');
 const extendedSave=encode(new Map([[room.code,room]]));validate(extendedSave);assert.equal(timer.sync(extendedSave.rooms[0],100000).deadline,181000,'Extended deadlines survive save/reload');
 assert.throws(()=>action('B',{type:'AcceptTrade',offerId}));assert.equal(g.turnTimer.deadline,181000);
 action('A',{type:'EndTurn'});assert.equal(timer.sync(room,58000).deadline,118000,'EndTurn never credits the next player');
 for(const type of ['OfferTrade','CancelTrade','DeclineTrade','Chat'])assert.equal(timer.rewardAction(room,type,'B',timer.key(g),58000),false);
 room.turnSeconds=0;assert.equal(timer.rewardAction(room,'RollDice','B',timer.key(g),58000),false);assert.equal(g.turnTimer,undefined);
 room.turnSeconds=60;timer.sync(room,1000);assert.equal(timer.rewardAction(room,'BuildRoad','B',timer.key(g),61000),false,'Expired clocks cannot be revived');
-console.log('PASS: additive 20-second roll/build/city/development/bank/player-trade bonuses, guest acceptance, replay rejection, excluded offers, next-turn isolation, Off and exact expiry');
+console.log('PASS: additive 20-second roll/build/city/development/bank/player-trade bonuses, final confirmation, replay rejection, excluded offers, next-turn isolation, Off and exact expiry');

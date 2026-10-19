@@ -34,7 +34,7 @@ async function run(){
     assert(sa.game.development.canBuy);
     const give=Object.keys(sa.game.resources).find(r=>sa.game.resources[r]>0&&Object.keys(sb.game.resources).some(s=>s!==r&&sb.game.resources[s]>0));
     const receive=Object.keys(sb.game.resources).find(r=>r!==give&&sb.game.resources[r]>0);assert(give&&receive);
-    a.send({type:'OfferTrade',player:jb.playerId,give:{[give]:1},receive:{[receive]:1}});await both();await restart();assert(sb.game.canAcceptTrade);a.send({type:'CancelTrade',offerId:sa.game.tradeOffer.id});await both();
+    a.send({type:'OfferTrade',player:jb.playerId,give:{[give]:1},receive:{[receive]:1}});await both();await restart();assert(sb.game.canAcceptTrade);b.send({type:'AcceptTrade',offerId:sa.game.tradeOffer.id});await both();await restart();assert.equal(sa.game.tradeOffer.responses[jb.playerId],'accepted');assert(sa.game.confirmableTradePlayers.includes(jb.playerId));a.send({type:'CancelTrade',offerId:sa.game.tradeOffer.id});await both();
     const resources={...sa.game.resources};a.send({type:'BuyDevelopmentCard'});await both();
     await restart();const card=sa.game.development.cards[0];assert.equal(card.type,'Knight');assert(card.newThisTurn);assert(!card.playable);assert.equal(sa.game.development.remaining,24);
     assert.deepEqual(sb.game.development.cards,[]);assert.equal(sb.players.find(p=>p.id===ja.playerId).developmentCount,1);

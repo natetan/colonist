@@ -15,7 +15,7 @@
     "test:development": "node tests/development.cjs",
     "test:development-network": "node tests/development-network.cjs",
     "test:trading": "node tests/trading.cjs",
-    "test:trading-network": "node tests/trading-network.cjs && node tests/broadcast-trading-network.cjs",
+    "test:trading-network": "node tests/trading-network.cjs && node tests/broadcast-trading-network.cjs && node tests/bot-trading-network.cjs",
     "test:protocol": "node tests/protocol.cjs",
     "test:protocol-lab": "node tests/protocol-lab.cjs",
     "protocol:lab": "node tools/protocol-lab.cjs",

@@ -19,7 +19,7 @@ async function run(){
     assert.equal(sa.game.resources[give],handA[give]);assert.deepEqual(Object.keys(sb.game.resources).sort(),['brick','ore','sheep','wheat','wood']);
     b.send({type:'DeclineTrade',offerId:offer.id});await both();assert.equal(sa.game.tradeDecline.declinedBy,jb.playerId);assert.deepEqual(sa.game.tradeDecline,sb.game.tradeDecline);
     a.send(offerMessage);await both();assert.equal(sa.game.tradeDecline,null);offer.id=sa.game.tradeOffer.id;
-    b.send({type:'AcceptTrade',offerId:offer.id});await both();assert.equal(sa.game.tradeOffer,null);assert.equal(sa.game.resources[give],handA[give]-1);assert.equal(sa.game.resources[receive],handA[receive]+1);assert.equal(sb.game.resources[give],handB[give]+1);assert.equal(sb.game.resources[receive],handB[receive]-1);assert.deepEqual(sa.game.bank,bank);
+    b.send({type:'AcceptTrade',offerId:offer.id});await both();assert.equal(sa.game.tradeOffer.responses[jb.playerId],'accepted');assert.deepEqual(sa.game.resources,handA);assert.deepEqual(sb.game.resources,handB);a.send({type:'ConfirmTrade',offerId:offer.id,player:jb.playerId});await both();assert.equal(sa.game.tradeOffer,null);assert.equal(sa.game.resources[give],handA[give]-1);assert.equal(sa.game.resources[receive],handA[receive]+1);assert.equal(sb.game.resources[give],handB[give]+1);assert.equal(sb.game.resources[receive],handB[receive]-1);assert.deepEqual(sa.game.bank,bank);
     b.send({type:'AcceptTrade',offerId:offer.id});assert.match((await b.next('Error')).message,/no longer/);
     // Alternate real turns until a 4:1 bank trade is affordable.
     for(let i=0;!Object.values(sa.game.resources).some(n=>n>=4)&&i<5;i++){
@@ -31,7 +31,7 @@ async function run(){
     a.send({type:'OfferTrade',player:jb.playerId,give:{[wanted]:1},receive:{[give]:1}});await both();const stale=sa.game.tradeOffer.id;
     a.send({type:'EndTurn'});await both();assert.equal(sb.game.tradeOffer,null);b.send({type:'AcceptTrade',offerId:stale});assert.match((await b.next('Error')).message,/Trade only/);
     if(process.env.SETTLERS_RECORD_QA)require('fs').writeFileSync(require('path').resolve(__dirname,'../.rea-tools/trading-qa.json'),JSON.stringify([{viewerId:ja.playerId,states:replayA},{viewerId:jb.playerId,states:replayB}]));
-    console.log('PASS: two-human WebSocket trade acceptance and redacted snapshots, duplicate rejection, bank exchange, turn enforcement, offer expiry');
+    console.log('PASS: two-human WebSocket offer/consent/final confirmation and redacted snapshots, duplicate rejection, bank exchange, turn enforcement, offer expiry');
   }finally{await app.close();}
 }
 run().catch(error=>{console.error(error);process.exitCode=1;});

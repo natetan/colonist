@@ -20,10 +20,11 @@ function createApp(options = {}) {
   }
   const random = options.random || crypto.randomInt;
   const store = createStore(options.saveFile);
+  const botTradeTimers=new Map();
   const rooms = store.load(),turnTimers=new Map(),now=options.now||Date.now,setTurnTimeout=options.setTurnTimeout||setTimeout,clearTurnTimeout=options.clearTurnTimeout||clearTimeout;
   let storageFailure=false;
   function persist(){
-    try{for(const room of rooms.values())scheduleTurn(room);store.save(rooms);}catch(error){storageFailure=true;console.error('Saving games failed: '+error.message);throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');}
+    try{for(const room of rooms.values()){scheduleTurn(room);scheduleBotTrades(room);}store.save(rooms);}catch(error){storageFailure=true;console.error('Saving games failed: '+error.message);throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');}
   }
   const clients = new Set();
   const server = http.createServer((req, res) => {
@@ -51,7 +52,7 @@ function createApp(options = {}) {
     const game = g ? { phase: g.phase, currentPlayer: g.order[g.step] || null, solo: g.solo, colors: g.colors, vertices: g.vertices, edges: g.edges, legalVertices: g.phase === 'settlement' ? rules.legalVertices(g) : [], legalEdges: g.phase === 'road' ? rules.legalEdges(g) : [], resources: g.resources[viewer.id] || null } : null;
     if(g && g.turn!==undefined){Object.assign(game,{currentPlayer:turns.current(g),dice:g.dice,production:g.production||null,robber:g.robber,discardCount:g.discards[viewer.id]||0,victims:g.phase==='steal'&&turns.current(g)===viewer.id?g.victims:[],builds:g.phase==='build'&&turns.current(g)===viewer.id?Object.fromEntries(Object.keys(turns.costs).map(type=>[type,turns.buildLocations(g,viewer.id,type)])):{},bank:g.bank});}
     if(g){game.turnTimer=g.turnTimer||null;game.lastTimeout=g.lastTimeout||null;}
-    if(g && g.turn!==undefined){game.bankRates=trading.rates(g,viewer.id);game.tradeOffer=g.tradeOffer;game.tradeDecline=g.tradeDecline||null;game.canAcceptTrade=!!g.tradeOffer&&trading.canRespond(g.tradeOffer,viewer.id)&&trading.hasCards(g.resources[g.tradeOffer.from]||{},g.tradeOffer.give)&&trading.hasCards(g.resources[viewer.id]||{},g.tradeOffer.receive);}
+    if(g && g.turn!==undefined){game.bankRates=trading.rates(g,viewer.id);game.tradeOffer=g.tradeOffer;game.tradeDecline=g.tradeDecline||null;game.confirmableTradePlayers=trading.confirmable(g,viewer.id);game.canAcceptTrade=!!g.tradeOffer&&g.tradeOffer.responses?.[viewer.id]!=='accepted'&&trading.canRespond(g.tradeOffer,viewer.id)&&trading.hasCards(g.resources[g.tradeOffer.from]||{},g.tradeOffer.give)&&trading.hasCards(g.resources[viewer.id]||{},g.tradeOffer.receive);}
     if(g && g.turn!==undefined){game.development=development.view(g,viewer.id,turns.roadLocations);game.scoring=scoring.view(g,viewer.id);}
     const state = { type: 'RoomState', persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', mapSize:room.board.length===30?'extended':'standard', maxPlayers:room.board.length===30?6:4, turnSeconds:room.turnSeconds??60, serverTime:now(), host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
     for(const player of state.players){player.resourceCount=Object.values(g?.resources?.[player.id]||{}).reduce((a,b)=>a+b,0);player.developmentCount=g?.developmentHands?.[player.id]?.length||0;player.knightsPlayed=g?.knightsPlayed?.[player.id]||0;}
@@ -74,6 +75,28 @@ function createApp(options = {}) {
     persist();broadcast(room);playBotTurns(room);return true;
   }
   const botTimers=new Map();
+  function scheduleBotTrades(room){
+    const offer=room.game?.phase==='build'?room.game.tradeOffer:null,old=botTradeTimers.get(room);
+    const pending=offer&&room.players.some(p=>p.bot&&trading.recipients(offer).includes(p.id)&&(offer.responses?.[p.id]||'pending')==='pending');
+    if(old&&(!pending||old.offerId!==offer.id||!room.players.some(p=>p.ws))){clearTimeout(old.handle);botTradeTimers.delete(room);}
+    if(!pending||botTradeTimers.has(room)||!room.players.some(p=>p.ws)||storageFailure)return;
+    const handle=setTimeout(()=>{
+      botTradeTimers.delete(room);
+      if(storageFailure||!rooms.has(room.code)||room.game?.tradeOffer?.id!==offer.id||!room.players.some(p=>p.ws))return;
+      try{
+        if(expireTurn(room))return;
+        for(const p of room.players){
+          if(!p.bot||room.game.tradeOffer?.id!==offer.id)continue;
+          let type=trading.botResponse(room.game,p.id);if(!type)continue;
+          // Availability may have changed while the bot was thinking.
+          if(type==='AcceptTrade'&&!trading.hasCards(room.game.resources[offer.from],offer.give))type='DeclineTrade';
+          turns.act(room.game,room.board,p.id,{type,offerId:offer.id},random,options.developmentRandom);
+        }
+        persist();broadcast(room);
+      }catch(error){console.error('Bot trade response failed: '+error.message);}
+    },Math.max(0,options.botDelayMs??800));
+    handle.unref?.();botTradeTimers.set(room,{offerId:offer.id,handle});
+  }
   function playBotTurns(room,ready=false) {
     if(botTimers.has(room)||storageFailure)return;
     if(room.game.turnTimer?.deadline<=now()&&expireTurn(room))return;
@@ -166,7 +189,7 @@ function createApp(options = {}) {
           } else {
             if (!room.game) throw new Error('The host must start the match first.');
             const actionTurn=turnTimer.key(room.game);
-            if(room.game.turn!==undefined)turns.act(room.game,room.board,ws.player.id,message,random,options.developmentRandom,room.players.filter(p=>!p.bot&&room.game.players.includes(p.id)).map(p=>p.id));
+            if(room.game.turn!==undefined)turns.act(room.game,room.board,ws.player.id,message,random,options.developmentRandom,room.players.filter(p=>room.game.players.includes(p.id)).map(p=>p.id));
             else rules.place(room.game, room.board, ws.player.id, message.type, message.id);
             turnTimer.rewardAction(room,message.type,ws.player.id,actionTurn,now());
           }
@@ -211,7 +234,7 @@ function createApp(options = {}) {
       }
     });
   });
-  return { server, close: () => new Promise((resolve,reject) => { for(const timer of turnTimers.values())clearTurnTimeout(timer.handle);turnTimers.clear();for(const timer of botTimers.values())clearTimeout(timer);botTimers.clear();for (const ws of clients) ws.terminate(); wss.close(() => server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})); }) };
+  return { server, close: () => new Promise((resolve,reject) => { for(const timer of turnTimers.values())clearTurnTimeout(timer.handle);turnTimers.clear();for(const timer of botTimers.values())clearTimeout(timer);botTimers.clear();for(const timer of botTradeTimers.values())clearTimeout(timer.handle);botTradeTimers.clear();for (const ws of clients) ws.terminate(); wss.close(() => server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})); }) };
 }
 if (require.main === module) {
   const saveFile=process.env.SETTLERS_SAVE_FILE==='off'?undefined:process.env.SETTLERS_SAVE_FILE||path.join(__dirname,'data','prototype.json');

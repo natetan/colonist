@@ -131,3 +131,5 @@
 #board{overflow:hidden;isolation:isolate}#board canvas{max-width:none;width:100%;height:100%}
 @media(min-width:701px){.table-area{grid-template-columns:minmax(0,1fr);justify-content:stretch;align-items:stretch}.table-area>#board{width:100%;height:100%;min-width:0;min-height:0;align-self:stretch;justify-self:stretch}}
 @media(max-width:700px){#board{aspect-ratio:900/650}#board canvas{position:absolute;inset:0}}
+
+.trade-accepted{position:absolute;right:-7px;bottom:-5px;color:white;background:#219b45;border:1px solid white;border-radius:50%;font-size:14px;padding:0 3px}.offer-response .confirm-player-trade{font-size:14px;padding:8px}.offer-response{flex-wrap:wrap}.offer-response>span{font-size:12px}

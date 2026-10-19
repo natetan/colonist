@@ -1,6 +1,6 @@
 const assert=require('assert/strict'),fs=require('fs'),vm=require('vm'),path=require('path');
 class Element{
-  constructor(tag='div'){this.tagName=tag;this.children=[];this.dataset={};this.attrs={};this.className='';this.classList={toggle(){}};}
+  constructor(tag='div'){this.tagName=tag;this.children=[];this.dataset={};this.attrs={};this.style={};this.className='';this.classList={toggle(){}};}
   append(...nodes){for(const n of nodes){n.parentElement=this;this.children.push(n);}}
   replaceChildren(...nodes){this.children=[];this.append(...nodes);}
   setAttribute(k,v){this.attrs[k]=v;}
@@ -31,3 +31,8 @@ assert.equal(vm.runInContext('Object.keys(tradeDraft.give).length',context),0);
 vm.runInContext("tradeDraft={give:{sheep:1},receive:{ore:1},to:'B'}",context);panel.open=true;context.reconcileTradeDraft({game:{tradeOffer:{id:1}}},{game:{tradeOffer:null,tradeDecline:{declinedBy:'B'}}});assert.equal(panel.open,true,'Decline keeps draft editable');context.reconcileTradeDraft({game:{tradeOffer:{id:1}}},{game:{tradeOffer:null,tradeDecline:null}});assert.equal(panel.open,false,'Acceptance clears and closes sender draft');assert.equal(vm.runInContext('Object.keys(tradeDraft.give).length',context),0);
 assert.equal(vm.runInContext('Object.keys(tradeDraft.receive).length',context),0);
 console.log('PASS: trade popup identity, remaining counters, undo, bank affordability, dismissal reset');
+
+const incoming=new Element();context.$=()=>incoming;vm.runInContext(source.slice(source.indexOf('function tradeTargets('),source.indexOf('let endgameTab')),context);
+const offers={players:[{id:'A',name:'Host'},{id:'B',name:'Friend'},{id:'C',name:'Bot 1',bot:true}],game:{phase:'build',colors:{A:'#f00',B:'#00f',C:'#0f0'},confirmableTradePlayers:['B','C'],tradeOffer:{id:7,from:'A',to:null,recipients:['B','C'],responses:{B:'accepted',C:'accepted'},give:{wood:1},receive:{brick:1}}}};
+context.playerOffer(offers);const confirmations=incoming.querySelectorAll('button').filter(b=>b.getAttribute('aria-label')?.startsWith('Confirm trade with'));assert.equal(confirmations.length,2);confirmations[1].onclick();assert.equal(sent.at(-1)[0],'ConfirmTrade');assert.equal(sent.at(-1)[1].player,'C');
+assert(incoming.children[0].children[2].children.every(b=>b.title.includes('Accepted')));console.log('PASS: accepted badges and separate final-confirmation buttons for each willing partner');

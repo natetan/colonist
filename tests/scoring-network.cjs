@@ -41,7 +41,7 @@ async function run(){
           move=receive&&give&&g.bank[receive]>0?{type:'BankTrade',give,receive}:receive&&tradeGive&&other.game.resources[receive]>0?{type:'OfferTrade',player:other.game.currentPlayer===ja.playerId?jb.playerId:ja.playerId,give:{[tradeGive]:1},receive:{[receive]:1}}:{type:'EndTurn'};
         }
       }else throw new Error('Unexpected phase '+g.phase);
-      c.send(move);await both();if(move.type==='OfferTrade'){(mine?b:a).send({type:'AcceptTrade',offerId:sa.game.tradeOffer.id});await both();}
+      c.send(move);await both();if(move.type==='OfferTrade'){const tradeId=sa.game.tradeOffer.id;(mine?b:a).send({type:'AcceptTrade',offerId:tradeId});await both();c.send({type:'ConfirmTrade',offerId:tradeId,player:(mine?jb:ja).playerId});await both();}
     }
     assert.equal(sa.game.phase,'finished');assert.deepEqual(sa.game.scoring.winner,sb.game.scoring.winner);assert(sa.game.scoring.winningPoints>=10);
     const winner=sa.players.find(p=>p.id===sa.game.scoring.winner);assert.equal(winner.points,sa.game.scoring.winningPoints);assert(sa.game.scoring.revealedVictoryPoints>0);
