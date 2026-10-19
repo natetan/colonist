@@ -1,5 +1,25 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Settlers of Natac</title><link rel="stylesheet" href="/trading.css"><link rel="stylesheet" href="/game.css"><link rel="stylesheet" href="/sprites.css"></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Settlers of Natac</title>
+<meta name="description" content="Settlers of Natac, the fun alternative to Colonist, which is the alternative to Settlers of Catan. Play single or multiplayer. No download or sign up required!">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Settlers of Natac">
+<meta property="og:title" content="Settlers of Natac — Play Online with Friends">
+<meta property="og:description" content="Settlers of Natac, the fun alternative to Colonist, which is the alternative to Settlers of Catan. Play single or multiplayer. No download or sign up required!">
+<meta property="og:url" content="https://natac.natetan.com/">
+<meta property="og:image" content="https://natac.natetan.com/branding/natac-icon.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:image:alt" content="Settlers of Natac: colorful hexagonal island tiles surrounding a white N">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Settlers of Natac — Play Online with Friends">
+<meta name="twitter:description" content="Settlers of Natac, the fun alternative to Colonist, which is the alternative to Settlers of Catan. Play single or multiplayer. No download or sign up required!">
+<meta name="twitter:image" content="https://natac.natetan.com/branding/natac-icon.png">
+<meta name="twitter:image:alt" content="Settlers of Natac logo">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" type="image/svg+xml" href="/branding/natac-logo.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="/branding/apple-touch-icon.png">
+<link rel="stylesheet" href="/trading.css"><link rel="stylesheet" href="/game.css"><link rel="stylesheet" href="/sprites.css"></head><body>
 <nav class="utility-rail" aria-label="Table tools"><details><summary title="Settings">⚙</summary><label><input id="sound" type="checkbox"> Sound cues</label><p>Turn timers are chosen by the host in the lobby.</p><button id="quit-game" hidden>Quit game</button><p id="quit-hint" hidden>Return to the main menu. A bot takes your seat in an active match.</p></details><button id="share" hidden title="Copy room link">↗</button><details><summary title="Connection and diagnostics">ⓘ</summary><p id="connection">Connecting…</p><pre id="status">Ready</pre><button id="probe">Run renderer probe</button></details></nav>
 <section id="lobby" class="menu-shell"><div class="menu-intro"><span class="menu-eyebrow">YOUR TABLE. YOUR FRIENDS.</span><h1>Settlers of Natac</h1><p>Build an island rivalry.</p></div><div class="menu-card"><label>Your name<input id="name" placeholder="Enter your name" maxlength="24" autocomplete="off"></label><button id="create" disabled>Create game</button><div class="menu-divider">or join your friends</div><label>Room code<input id="code" maxlength="6" placeholder="ABC123"></label><button id="join" disabled>Join game</button><p>Classic, random, and shaped islands · Up to 6 players</p></div></section>
 <section id="room-menu" class="menu-shell" hidden aria-label="Game lobby"><div class="menu-intro"><span class="menu-eyebrow">GATHER YOUR CREW</span><h1>Your island awaits</h1><p id="room-menu-code"></p></div><div class="lobby-grid"><div class="menu-card map-card"><div class="map-heading"><h2>Map preview</h2><span id="map-kind"></span></div><div id="map-preview" aria-label="Board preview"></div><p id="map-description"></p></div><div class="menu-card"><h2>Game settings</h2><label>Island size<select id="map-size"><option value="standard">Standard · 3–4 players</option><option value="extended">Large · 5–6 players</option></select></label><label>Map type<select id="map-type"><option value="classic">Classic</option><option value="random">Random</option><option value="star">Star</option><option value="crescent">Crescent</option><option value="long-island">Long Island</option></select></label><button id="regenerate">Generate again</button><p id="map-host-hint"></p><label>Turn timer<select id="turn-seconds"><option value="0">Off</option><option value="30">30 seconds</option><option value="60" selected>1 minute</option><option value="90">1½ minutes</option><option value="120">2 minutes</option><option value="180">3 minutes</option><option value="300">5 minutes</option></select></label><p>At zero, the turn ends. Mandatory choices are resolved automatically.</p><h2>Players <span id="lobby-count"></span></h2><ul id="lobby-players"></ul><label id="bot-fill-label" hidden>Players with bots<select id="bot-fill"><option value="5">5 players</option><option value="6" selected>6 players</option></select></label><button id="menu-start-bots">Start with bots</button><button id="menu-start">Start game</button><p id="lobby-start-hint"></p><button id="menu-copy">Copy invite link</button></div></div></section>

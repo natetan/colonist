@@ -8,6 +8,10 @@ function get(port,url){return new Promise((resolve,reject)=>http.get({hostname:'
   assert.equal(server.address().address,'127.0.0.1');
   const port=server.address().port;
   const page=await get(port,'/');assert.equal(page.status,200);
+  assert(page.body.includes('name="description"'));assert(page.body.includes('property="og:description"'));assert(page.body.includes('Play single or multiplayer. No download or sign up required!'));assert(page.body.includes('https://natac.natetan.com/branding/natac-icon.png'));
+  assert.equal((await get(port,'/?room=ABCDEF')).body,page.body,'Invite links have server-rendered preview metadata');
+  for(const [url,type]of [['/favicon.ico','image/vnd.microsoft.icon'],['/branding/natac-logo.svg','image/svg+xml'],['/branding/natac-icon.png','image/png'],['/branding/apple-touch-icon.png','image/png']]){const icon=await get(port,url);assert.equal(icon.status,200);assert.equal(icon.headers['content-type'],type);assert(icon.body.length>100);}
+
   assert(page.headers['content-security-policy'].includes("connect-src 'self'"));
   assert(page.headers['content-security-policy'].includes("default-src 'none'"));
   assert.equal(page.headers['x-content-type-options'],'nosniff');

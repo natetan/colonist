@@ -28,6 +28,7 @@ function handshake(port,origin){return new Promise((resolve,reject)=>{const ws=n
   const result=build(output);assert(result.files>50);
   const manifest=JSON.parse(fs.readFileSync(path.join(output,'manifest.sha256.json')));
   assert(Object.keys(manifest).every(f=>!f.startsWith('data/')&&!f.startsWith('research/')&&!f.includes('practice')));
+  for(const name of ['natac-logo.svg','natac-icon.png','favicon.ico','apple-touch-icon.png'])assert(manifest['public/branding/'+name],'Branding must ship with the release');
   assert(manifest['tools/hosted-server.cjs']);assert(manifest['.rea-tools/renderer/factories.js']);
   console.log('PASS: exact HTTPS origins, rejected foreign/missing origins, health, config validation, private deployment allowlist');
   console.log('Private test package: '+output);
