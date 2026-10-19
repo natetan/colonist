@@ -4,7 +4,7 @@ const fs=require('fs'),os=require('os'),path=require('path');
 const tiles=[];for(let r=-2;r<=2;r++)for(let q=Math.max(-2,-r-2);q<=Math.min(2,-r+2);q++)tiles.push({q,r,resource:tiles.length===18?'desert':['wood','brick','sheep','wheat','ore'][tiles.length%5],number:6});
 async function run(){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'settlers-restart-')),saveFile=path.join(dir,'rooms.json');
-  let app=createApp({saveFile,random:()=>3,developmentRandom:()=>0,boardFactory:()=>tiles});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));let port=app.server.address().port;
+  let app=createApp({orderRandom:n=>n-1,saveFile,random:()=>3,developmentRandom:()=>0,boardFactory:()=>tiles});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));let port=app.server.address().port;
   function client(){const ws=new WebSocket(`ws://127.0.0.1:${port}/socket`,{origin:`http://localhost:${port}`}),queue=[],waiters=[];ws.on('message',bytes=>{const m=JSON.parse(bytes),i=waiters.findIndex(w=>w.type===m.type);if(i<0)queue.push(m);else waiters.splice(i,1)[0].resolve(m);});return{ws,send:m=>ws.send(JSON.stringify(m)),next:type=>new Promise((resolve,reject)=>{const i=queue.findIndex(m=>m.type===type);if(i>=0)return resolve(queue.splice(i,1)[0]);const timer=setTimeout(()=>reject(new Error('Timed out '+type)),3000);waiters.push({type,resolve:m=>{clearTimeout(timer);resolve(m);}});})};}
   try{
     let a=client(),b=client();await a.next('SessionEstablished');await b.next('SessionEstablished');a.send({type:'CreateRoom',name:'A'});const ja=await a.next('Joined');await a.next('RoomState');b.send({type:'JoinRoom',name:'B',code:ja.code});const jb=await b.next('Joined');await a.next('RoomState');await b.next('RoomState');
@@ -12,7 +12,7 @@ async function run(){
     async function both(){sa=await a.next('RoomState');sb=await b.next('RoomState');assert.deepEqual(sa.game.tradeOffer,sb.game.tradeOffer);assert(!JSON.stringify(sb).includes(ja.token));}
     async function restart(){
       const beforeA=sa.game,beforeB=sb.game;await app.close();
-      app=createApp({saveFile,random:()=>3,developmentRandom:()=>0});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));port=app.server.address().port;
+      app=createApp({orderRandom:n=>n-1,saveFile,random:()=>3,developmentRandom:()=>0});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));port=app.server.address().port;
       a=client();await a.next('SessionEstablished');a.send({type:'Resume',code:ja.code,token:ja.token});const resumed=await a.next('Joined');assert.equal(resumed.playerId,ja.playerId);sa=await a.next('RoomState');
       b=client();await b.next('SessionEstablished');b.send({type:'Resume',code:jb.code,token:jb.token});await b.next('Joined');sb=await b.next('RoomState');sa=await a.next('RoomState');
       assert.deepEqual(sa.game,beforeA);assert.deepEqual(sb.game,beforeB);assert(sa.persistence);assert(!JSON.stringify(sb).includes(ja.token));assert(!JSON.stringify(sa).includes(jb.token));
@@ -57,7 +57,7 @@ async function run(){
     await app.close();const rules=require('../game.cjs'),{createStore}=require('../persistence.cjs'),botFile=path.join(dir,'bots.json');
     const botGame=rules.start(tiles,[ja.playerId,jb.playerId]);let move=rules.botMove(botGame,tiles);rules.place(botGame,tiles,ja.playerId,move.type,move.id);move=rules.botMove(botGame,tiles);rules.place(botGame,tiles,ja.playerId,move.type,move.id);
     const store=createStore(botFile);store.save(new Map([['B07000',{code:'B07000',board:tiles,game:botGame,players:[{id:ja.playerId,name:'A',token:ja.token},{id:jb.playerId,name:'Bot',bot:true}]}]]));store.close();
-    app=createApp({saveFile:botFile,random:()=>3});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));port=app.server.address().port;
+    app=createApp({orderRandom:n=>n-1,saveFile:botFile,random:()=>3});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));port=app.server.address().port;
     const human=client();await human.next('SessionEstablished');human.send({type:'Resume',code:'B07000',token:ja.token});await human.next('Joined');let botState=await human.next('RoomState');
     for(let i=0;botState.game.currentPlayer!==ja.playerId&&i<10;i++)botState=await human.next('RoomState');
     assert.equal(botState.game.currentPlayer,ja.playerId);assert.equal(botState.game.phase,'settlement');assert.equal(botState.game.vertices.filter(v=>v.owner===jb.playerId).length,2);assert.equal(botState.players.find(p=>p.bot).online,true);

@@ -14,7 +14,7 @@ require('./shaped-board.cjs');
 require('./base-game.cjs');
 require('./interaction-controls.cjs');
 async function run() {
-  const app = createApp({random:()=>3});
+  const app = createApp({orderRandom:n=>n-1,random:()=>3});
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
   const port = app.server.address().port;
   const connections = [];

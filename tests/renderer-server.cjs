@@ -3,7 +3,7 @@ const {WebSocket}=require('ws');
 const {startRendererLab}=require('../tools/renderer-server.cjs');
 function get(port,url){return new Promise((resolve,reject)=>http.get({hostname:'127.0.0.1',port,path:url},res=>{const data=[];res.on('data',chunk=>data.push(chunk));res.on('end',()=>resolve({status:res.statusCode,headers:res.headers,body:Buffer.concat(data).toString()}));}).on('error',reject));}
 (async()=>{
- const server=await startRendererLab(0,{random:()=>2});
+ const server=await startRendererLab(0,{orderRandom:n=>n-1,random:()=>2});
  try{
   assert.equal(server.address().address,'127.0.0.1');
   const port=server.address().port;

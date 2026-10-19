@@ -1,6 +1,6 @@
 const assert=require('assert/strict'),{WebSocket}=require('ws'),{createApp}=require('../server.cjs');
 (async()=>{
- const app=createApp({joinTimeoutMs:1500});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));const port=app.server.address().port;
+ const app=createApp({orderRandom:n=>n-1,joinTimeoutMs:1500});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));const port=app.server.address().port;
  function client(){const ws=new WebSocket(`ws://127.0.0.1:${port}/socket`,{origin:`http://localhost:${port}`}),queue=[],waiting=[];ws.on('message',raw=>{const m=JSON.parse(raw),i=waiting.findIndex(w=>w.type===m.type);if(i<0)queue.push(m);else waiting.splice(i,1)[0].resolve(m);});return {ws,send:m=>ws.send(JSON.stringify(m)),next:type=>new Promise((resolve,reject)=>{const i=queue.findIndex(m=>m.type===type);if(i>=0)return resolve(queue.splice(i,1)[0]);const timer=setTimeout(()=>reject(Error('Timeout '+type)),4000);waiting.push({type,resolve:m=>{clearTimeout(timer);resolve(m);}});})};}
  try{
   const host=client(),guest=client();await host.next('SessionEstablished');await guest.next('SessionEstablished');host.send({type:'CreateRoom',name:'Host'});const h=await host.next('Joined');await host.next('RoomState');

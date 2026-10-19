@@ -9,7 +9,7 @@ function validate(data){
     check(room.turnSeconds===undefined||require('./turn-timer.cjs').choices.includes(room.turnSeconds));
     check(room.mapType===undefined||require('./board.cjs').mapTypes.includes(room.mapType));
     check(Array.isArray(room.players)&&room.players.length>0&&room.players.length<=11);
-    const ids=new Set();for(const p of room.players){check(p&&typeof p.id==='string'&&p.id.length>0&&!ids.has(p.id)&&typeof p.name==='string'&&p.name.length>0&&p.name.length<=24&&typeof p.bot==='boolean'&&(p.bot||typeof p.token==='string'&&/^[a-f0-9]{48}$/.test(p.token)));ids.add(p.id);}
+    const ids=new Set();for(const p of room.players){check(p&&typeof p.id==='string'&&p.id.length>0&&!ids.has(p.id)&&typeof p.name==='string'&&p.name.length>0&&p.name.length<=24&&typeof p.bot==='boolean'&&(p.autopilot===undefined||typeof p.autopilot==='boolean'&&!p.bot)&&(p.bot||typeof p.token==='string'&&/^[a-f0-9]{48}$/.test(p.token)));ids.add(p.id);}
     check((room.hostId?room.players.some(p=>p.id===room.hostId&&!p.bot):!room.players[0].bot)&&room.players.filter(p=>!p.bot).length<=6&&room.players.filter(p=>p.bot).length<=5);
     check(Array.isArray(room.board)&&[19,30].includes(room.board.length));
     const extended=room.board.length===30,supply=extended?24:19,deckCounts=extended?development.extendedCounts:development.counts;
@@ -51,7 +51,7 @@ function validate(data){
   }
   return data;
 }
-function encode(rooms){return {version:1,rooms:[...rooms.values()].map(room=>({code:room.code,board:room.board,...(room.turnSeconds!==undefined?{turnSeconds:room.turnSeconds}:{}),...(room.hostId?{hostId:room.hostId}:{}),...(room.mapType?{mapType:room.mapType}:{}),...(room.harbors!==undefined?{harbors:room.harbors}:{}),game:room.game||null,players:room.players.map(p=>({id:p.id,name:p.name,bot:!!p.bot,...(!p.bot?{token:p.token}:{})}))}))};}
+function encode(rooms){return {version:1,rooms:[...rooms.values()].map(room=>({code:room.code,board:room.board,...(room.turnSeconds!==undefined?{turnSeconds:room.turnSeconds}:{}),...(room.hostId?{hostId:room.hostId}:{}),...(room.mapType?{mapType:room.mapType}:{}),...(room.harbors!==undefined?{harbors:room.harbors}:{}),game:room.game||null,players:room.players.map(p=>({id:p.id,name:p.name,bot:!!p.bot,...(p.autopilot?{autopilot:true}:{}),...(!p.bot?{token:p.token}:{})}))}))};}
 function createStore(file){
   if(!file)return {load:()=>new Map(),save:()=>{},close:()=>{}};
   file=path.resolve(file);fs.mkdirSync(path.dirname(file),{recursive:true});const lock=file+'.lock';

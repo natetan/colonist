@@ -1,4 +1,7 @@
 const palette = ['#ee795b', '#69aefa', '#edc45d', '#75c18c', '#d592dc', '#ffffff'];
+function randomOrder(ids,random=require('crypto').randomInt){
+  const order=ids.slice();for(let i=order.length-1;i>0;i--){const j=random(i+1);if(!Number.isInteger(j)||j<0||j>i)throw new Error('Invalid turn-order random draw.');[order[i],order[j]]=[order[j],order[i]];}return order;
+}
 function topology(tiles) {
   const vertices = [], edges = [], lookup = new Map(), edgeLookup = new Map();
   tiles.forEach((tile, tileIndex) => {
@@ -45,4 +48,4 @@ function botMove(game, tiles) {
   candidates.sort((a, b) => score(b) - score(a) || a - b);
   return { type: 'PlaceSettlement', id: candidates[0] };
 }
-module.exports = { start, place, legalVertices, legalEdges, topology, botMove };
+module.exports = { randomOrder, start, place, legalVertices, legalEdges, topology, botMove };

@@ -13,7 +13,7 @@ function handshake(port,origin){return new Promise((resolve,reject)=>{const ws=n
   for(const publicOrigin of ['https://game.example.com/','http://game.example.com','https://game.example.com/path']){
    fs.writeFileSync(file,JSON.stringify({...config,publicOrigin}));assert.throws(()=>readConfig(file));
   }
-  const server=await startRendererLab(0,{allowedOrigins:[config.publicOrigin]});
+  const server=await startRendererLab(0,{orderRandom:n=>n-1,allowedOrigins:[config.publicOrigin]});
   try{
    const port=server.address().port;
    assert.equal(await handshake(port,config.publicOrigin),101);

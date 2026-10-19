@@ -24,9 +24,19 @@ function createApp(options = {}) {
   const rooms = store.load(),turnTimers=new Map(),now=options.now||Date.now,setTurnTimeout=options.setTurnTimeout||setTimeout,clearTurnTimeout=options.clearTurnTimeout||clearTimeout;
   let storageFailure=false;
   function persist(){
-    try{for(const room of rooms.values()){scheduleTurn(room);scheduleBotTrades(room);}store.save(rooms);}catch(error){storageFailure=true;console.error('Saving games failed: '+error.message);throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');}
+    try{for(const room of rooms.values()){scheduleTurn(room);scheduleBotTrades(room);scheduleTakeovers(room);}store.save(rooms);}catch(error){storageFailure=true;console.error('Saving games failed: '+error.message);throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');}
   }
-  const clients = new Set();
+  const clients = new Set(),takeoverTimers=new Map();let closing=false;
+  const isBot=p=>!!(p.bot||p.autopilot);
+  function clearTakeover(player){const pending=takeoverTimers.get(player);if(pending)clearTimeout(pending.handle);takeoverTimers.delete(player);}
+  function scheduleTakeovers(room){
+    for(const player of room.players){
+      const eligible=!closing&&!storageFailure&&rooms.has(room.code)&&room.game?.phase!=='finished'&&room.game?.players.includes(player.id)&&!player.ws&&!player.bot&&!player.autopilot&&room.players.some(p=>p.ws);
+      if(!eligible){clearTakeover(player);continue;}if(takeoverTimers.has(player))continue;
+      const handle=setTimeout(()=>{takeoverTimers.delete(player);if(closing||storageFailure||player.ws||player.bot||!rooms.has(room.code)||!room.players.some(p=>p.ws))return;try{player.autopilot=true;persist();broadcast(room);playBotTurns(room);}catch(error){console.error('Bot takeover paused: '+error.message);}},options.disconnectGraceMs??15000);
+      handle.unref();takeoverTimers.set(player,{handle,room});
+    }
+  }
   // Detect vanished networks as well as cleanly closed tabs, so seats do not
   // remain occupied forever when a device loses its connection without a close.
   const heartbeat=setInterval(()=>{for(const ws of clients){if(!ws.alive){ws.terminate();continue;}ws.alive=false;if(ws.readyState===WebSocket.OPEN)ws.ping();}},options.heartbeatMs??30000);
@@ -58,7 +68,7 @@ function createApp(options = {}) {
     if(g){game.turnTimer=g.turnTimer||null;game.lastTimeout=g.lastTimeout||null;}
     if(g && g.turn!==undefined){game.bankRates=trading.rates(g,viewer.id);game.tradeOffer=g.tradeOffer;game.tradeDecline=g.tradeDecline||null;game.confirmableTradePlayers=trading.confirmable(g,viewer.id);game.canAcceptTrade=!!g.tradeOffer&&g.tradeOffer.responses?.[viewer.id]!=='accepted'&&trading.canRespond(g.tradeOffer,viewer.id)&&trading.hasCards(g.resources[g.tradeOffer.from]||{},g.tradeOffer.give)&&trading.hasCards(g.resources[viewer.id]||{},g.tradeOffer.receive);}
     if(g && g.turn!==undefined){game.development=development.view(g,viewer.id,turns.roadLocations);game.scoring=scoring.view(g,viewer.id);}
-    const state = { type: 'RoomState', joiningPlayers:room.joiners?.size||0, persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', mapSize:room.board.length===30?'extended':'standard', maxPlayers:room.board.length===30?6:4, turnSeconds:room.turnSeconds??60, serverTime:now(), host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
+    const state = { type: 'RoomState', joiningPlayers:room.joiners?.size||0, persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', mapSize:room.board.length===30?'extended':'standard', maxPlayers:room.board.length===30?6:4, turnSeconds:room.turnSeconds??60, serverTime:now(), host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: isBot(p), autopilot:!!p.autopilot, online: !!p.ws || isBot(p), playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
     for(const player of state.players){player.resourceCount=Object.values(g?.resources?.[player.id]||{}).reduce((a,b)=>a+b,0);player.developmentCount=g?.developmentHands?.[player.id]?.length||0;player.knightsPlayed=g?.knightsPlayed?.[player.id]||0;}
     // Optional presentation adapter receives only the already-redacted snapshot.
     if (options.boardPresentation) state.renderer = options.boardPresentation(state);
@@ -83,7 +93,7 @@ function createApp(options = {}) {
   const botTimers=new Map();
   function scheduleBotTrades(room){
     const offer=room.game?.phase==='build'?room.game.tradeOffer:null,old=botTradeTimers.get(room);
-    const pending=offer&&room.players.some(p=>p.bot&&trading.recipients(offer).includes(p.id)&&(offer.responses?.[p.id]||'pending')==='pending');
+    const pending=offer&&room.players.some(p=>isBot(p)&&trading.recipients(offer).includes(p.id)&&(offer.responses?.[p.id]||'pending')==='pending');
     if(old&&(!pending||old.offerId!==offer.id||!room.players.some(p=>p.ws))){clearTimeout(old.handle);botTradeTimers.delete(room);}
     if(!pending||botTradeTimers.has(room)||!room.players.some(p=>p.ws)||storageFailure)return;
     const handle=setTimeout(()=>{
@@ -92,7 +102,7 @@ function createApp(options = {}) {
       try{
         if(expireTurn(room))return;
         for(const p of room.players){
-          if(!p.bot||room.game.tradeOffer?.id!==offer.id)continue;
+          if(!isBot(p)||room.game.tradeOffer?.id!==offer.id)continue;
           let type=trading.botResponse(room.game,p.id);if(!type)continue;
           // Availability may have changed while the bot was thinking.
           if(type==='AcceptTrade'&&!trading.hasCards(room.game.resources[offer.from],offer.give))type='DeclineTrade';
@@ -110,8 +120,8 @@ function createApp(options = {}) {
     for(let actionCount=0;actionCount<200;actionCount++) {
       const regular=room.game.turn!==undefined;
       let current = room.players.find(p => p.id === (regular?turns.current(room.game):room.game.order[room.game.step]));
-      if(regular&&room.game.phase==='discard')current=room.players.find(p=>p.bot&&room.game.discards[p.id]);
-      if (!current || !current.bot) break;
+      if(regular&&room.game.phase==='discard')current=room.players.find(p=>isBot(p)&&room.game.discards[p.id]);
+      if (!current || !isBot(current)) break;
       if(options.botDelayMs>0&&!ready){const timer=setTimeout(()=>{botTimers.delete(room);if(room.players.some(p=>p.ws)){try{playBotTurns(room,true);}catch(error){console.error("Bot turn paused:",error.message);}}},options.botDelayMs);timer.unref();botTimers.set(room,timer);break;}
       const actionTurn=turnTimer.key(room.game);
       if(regular){const move=turns.botAction(room.game,room.board,current.id);if(!move)break;turns.act(room.game,room.board,current.id,move,random,options.developmentRandom);turnTimer.rewardAction(room,move.type,current.id,actionTurn,now());}
@@ -144,10 +154,10 @@ function createApp(options = {}) {
         if(message.type==='CancelPreview'){const room=detachPreview(ws);if(room)broadcast(room);return;}
         if(message.type==='LeaveRoom'){
           const room=ws.room,player=ws.player;if(!room||!player)throw new Error('You are not in a room.');
-          const humans=room.players.filter(p=>p!==player&&!p.bot);
-          if(!humans.length){closePreviews(room);rooms.delete(room.code);const clock=turnTimers.get(room);if(clock)clearTurnTimeout(clock.handle);turnTimers.delete(room);const timer=botTimers.get(room);if(timer)clearTimeout(timer);botTimers.delete(room);}
+          clearTakeover(player);const humans=room.players.filter(p=>p!==player&&!p.bot);
+          if(!humans.length){for(const p of room.players)clearTakeover(p);closePreviews(room);rooms.delete(room.code);const clock=turnTimers.get(room);if(clock)clearTurnTimeout(clock.handle);turnTimers.delete(room);const timer=botTimers.get(room);if(timer)clearTimeout(timer);botTimers.delete(room);}
           else{
-            if(room.game?.players.includes(player.id)){player.bot=true;player.ws=null;delete player.token;}
+            if(room.game?.players.includes(player.id)){player.bot=true;delete player.autopilot;player.ws=null;delete player.token;}
             else room.players=room.players.filter(p=>p!==player);
             // Host authority follows a remaining human, never the replacement bot.
             if((room.hostId||room.players[0]?.id)===player.id)room.hostId=humans[0].id;
@@ -183,7 +193,7 @@ function createApp(options = {}) {
           if(message.type==='Rematch'){
             if((room.hostId||room.players[0].id)!==ws.player.id)throw new Error('Only the host can start a rematch.');
             if(room.game?.phase!=='finished')throw new Error('Finish the current match before starting a rematch.');
-            room.game=null;room.players=room.players.filter(p=>!p.bot);
+            room.game=null;room.players=room.players.filter(p=>!p.bot);for(const p of room.players)delete p.autopilot;
             persist();broadcast(room);return;
           }
           if (message.type === 'StartGame') {
@@ -204,7 +214,7 @@ function createApp(options = {}) {
                 room.players.push(bot); ids.push(bot.id);
               }
             }
-            room.game = rules.start(room.board, ids, solo);room.game.harbors=room.harbors||[];
+            room.game = rules.start(room.board, ids, solo);const order=rules.randomOrder(ids,options.orderRandom);room.game.players=order;room.game.order=[...order,...order.slice().reverse()];room.game.harbors=room.harbors||[];
           } else {
             if (!room.game) throw new Error('The host must start the match first.');
             const actionTurn=turnTimer.key(room.game);
@@ -223,7 +233,7 @@ function createApp(options = {}) {
           if (!player) throw new Error('Saved session is unavailable. Create or join a room.');
           if (player.ws) throw new Error('This player is already connected in another window.');
           const preview=detachPreview(ws);if(preview)broadcast(preview);
-          player.ws = ws; ws.room = room; ws.player = player;
+          clearTakeover(player);delete player.autopilot;player.ws = ws; ws.room = room; ws.player = player;
           persist();send(ws, { type: 'Joined', code: room.code, playerId: player.id, token: player.token }); broadcast(room);if(room.game)playBotTurns(room);return;
         }
         if (message.type !== 'CreateRoom' && message.type !== 'JoinRoom') throw new Error('Unknown command.');
@@ -247,7 +257,7 @@ function createApp(options = {}) {
     });
     ws.on('close', () => {
       clients.delete(ws);const preview=detachPreview(ws);if(preview)broadcast(preview);
-      if (ws.player) { ws.player.ws = null; broadcast(ws.room); }
+      if (ws.player&&ws.player.ws===ws) { ws.player.ws = null; broadcast(ws.room);if(!closing)scheduleTakeovers(ws.room); }
       // Preserve disconnected seats for refresh/reconnect; discard fully empty rooms after ten minutes.
       if (!options.saveFile && ws.room && ws.room.players.every(p => !p.ws)) {
         const room = ws.room;
@@ -255,7 +265,7 @@ function createApp(options = {}) {
       }
     });
   });
-  return { server, close: () => new Promise((resolve,reject) => { clearInterval(heartbeat);for(const timer of turnTimers.values())clearTurnTimeout(timer.handle);turnTimers.clear();for(const timer of botTimers.values())clearTimeout(timer);botTimers.clear();for(const timer of botTradeTimers.values())clearTimeout(timer.handle);botTradeTimers.clear();for (const ws of clients){detachPreview(ws);ws.terminate();} wss.close(() => server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})); }) };
+  return { server, close: () => new Promise((resolve,reject) => { closing=true;clearInterval(heartbeat);for(const pending of takeoverTimers.values())clearTimeout(pending.handle);takeoverTimers.clear();for(const timer of turnTimers.values())clearTurnTimeout(timer.handle);turnTimers.clear();for(const timer of botTimers.values())clearTimeout(timer);botTimers.clear();for(const timer of botTradeTimers.values())clearTimeout(timer.handle);botTradeTimers.clear();for (const ws of clients){detachPreview(ws);ws.terminate();} wss.close(() => server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})); }) };
 }
 if (require.main === module) {
   const saveFile=process.env.SETTLERS_SAVE_FILE==='off'?undefined:process.env.SETTLERS_SAVE_FILE||path.join(__dirname,'data','prototype.json');

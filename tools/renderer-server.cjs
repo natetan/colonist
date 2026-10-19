@@ -22,7 +22,7 @@ const routes={
   '/fixture.json':path.resolve(__dirname,'../.rea-tools/board-preview-fixture.json'),
 };
 async function startRendererLab(port=3002,options={}){
-const app=createApp({allowedOrigins:options.allowedOrigins,botDelayMs:options.botDelayMs,saveFile:options.saveFile,random:options.random,developmentRandom:options.developmentRandom,boardFactory:options.boardFactory,boardPresentation:presentBoard,httpHandler:(req,res)=>{
+const app=createApp({allowedOrigins:options.allowedOrigins,orderRandom:options.orderRandom,disconnectGraceMs:options.disconnectGraceMs,botDelayMs:options.botDelayMs,saveFile:options.saveFile,random:options.random,developmentRandom:options.developmentRandom,boardFactory:options.boardFactory,boardPresentation:presentBoard,httpHandler:(req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
   res.setHeader('Cache-Control','no-store');
   if(pathname==='/sprites.css'){

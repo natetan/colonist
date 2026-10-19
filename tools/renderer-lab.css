@@ -140,3 +140,25 @@
 .rejoin-help{color:#47535a;font-size:12px;line-height:1.5}.rejoin-help summary{cursor:pointer}.menu-card .rejoin-help input{max-width:100%;width:100%}#recovery-settings input{width:100%;max-width:100%;font-family:monospace}#recovery-settings p{font-size:12px}
 
 #invite-dialog{color:#283c42;background:linear-gradient(#fffaf0,#e8dfce);border:0;border-radius:16px;padding:28px;width:min(400px,calc(100vw - 32px));box-shadow:0 18px 70px #002c5266}#invite-dialog::backdrop{background:#002c5240}#invite-dialog h2{font-size:24px}#invite-dialog label{display:block;margin-top:16px;font-weight:600}#invite-dialog input{display:block;width:100%;max-width:none;margin:8px 0;padding:12px;background:white;color:#233e47;border:1px solid #b7b9ac}#invite-dialog button{display:block;width:100%;background:#238a99;color:white;border:0;padding:12px}#invite-dialog #invite-cancel{background:transparent;color:#226574}#invite-dialog details{color:#52656b}#invite-error{color:#a12615;line-height:1.5}#invite-error:empty{display:none}.joining-player{color:#52656b;font-style:italic}
+
+/* Panels stay readable above the lobby and the board. */
+.utility-rail{z-index:250;display:flex;flex-direction:column;align-items:flex-start;gap:5px;isolation:isolate;max-width:calc(100vw - 20px)}
+.utility-rail details{margin:0;color:#243d47}.utility-rail>details[open]{width:280px;max-width:calc(100vw - 20px);max-height:calc(100dvh - 24px);overflow:auto;background:linear-gradient(#fffaf0,#e8dfce);border:1px solid #bcc5bf;border-radius:10px;box-shadow:0 10px 35px #002b5270;padding:14px}
+.utility-rail>details[open]>summary{font-size:22px;color:#254853}.utility-rail #recovery-settings summary{font:600 14px system-ui,sans-serif;color:#254853;padding:8px 0}.utility-rail #recovery-settings[open]{padding:8px;background:#fffaf0}.utility-rail p,.utility-rail label{color:#243d47;font-size:13px;line-height:1.5}.utility-rail #status{color:#243d47;max-height:35vh;overflow:auto;white-space:pre-wrap}.utility-rail button{white-space:normal}
+/* Card rows grow to fit their artwork; the roster scrolls on shorter screens. */
+@media(min-width:701px){
+ .game-sidebar,.game-sidebar:has(.extended-roster){display:flex;flex-direction:column;height:100dvh;min-height:0;overflow:hidden;gap:5px;container-type:inline-size}
+ .game-sidebar .game-log{flex:1 1 150px;min-height:85px}.game-sidebar .chat-panel,.game-sidebar #bank,.game-sidebar #score-panel{flex:none}
+ .game-sidebar #room-info{flex:0 1 auto;min-height:120px;max-height:calc(100dvh - 230px);overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable}
+}
+#room-info .player-seat,#room-info.extended-roster .player-seat{height:auto;min-height:100px;padding:7px 12px 13px;flex-shrink:0;overflow:visible}
+#room-info .your-seat,#room-info.extended-roster .your-seat{height:auto;min-height:128px;position:static}
+#room-info .player-seat>strong{font-size:16px;line-height:1.3;margin:0 0 5px;overflow-wrap:anywhere}#room-info .your-seat>strong{font-size:21px}
+#room-info .seat-stats{display:grid;grid-template-columns:minmax(48px,1.3fr) repeat(4,minmax(34px,1fr));gap:clamp(3px,1cqw,12px)!important;align-items:center;justify-items:center;min-height:67px}
+#room-info .resource-card,#room-info.extended-roster .resource-card{scale:1;transform:none;margin:0;width:42px;flex:none}#room-info .resource-card strong{margin:0;font-size:17px}
+#room-info .seat-avatar,#room-info.extended-roster .seat-avatar{width:44px;height:44px}#room-info .your-seat .seat-avatar,#room-info.extended-roster .your-seat .seat-avatar{width:60px;height:60px}
+#bank{display:grid;grid-template-columns:minmax(25px,.8fr) repeat(6,minmax(0,1fr));gap:4px;align-items:center;justify-items:center;padding:12px 7px 10px;overflow:visible}#bank .resource-card{transform:none;margin:0}
+@container(max-width:330px){#bank .resource-card{zoom:.82}#room-info .resource-card{zoom:.85}#room-info .seat-stats{grid-template-columns:minmax(40px,1.2fr) repeat(4,minmax(28px,1fr))}}
+#hand .resource-card[role="button"]{cursor:pointer}#hand .resource-card:focus-visible{outline:3px solid #148bbb;outline-offset:2px;border-radius:3px}
+
+@media(min-width:701px){#room-info .your-seat,#room-info.extended-roster .your-seat{position:sticky;bottom:0;z-index:3;box-shadow:0 -4px 8px #0e69a344}}

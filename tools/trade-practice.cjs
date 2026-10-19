@@ -3,7 +3,7 @@ const fs=require('fs'),path=require('path'),{WebSocket}=require('ws');
 const {startRendererLab}=require('./renderer-server.cjs');
 const tiles=[];for(let r=-2;r<=2;r++)for(let q=Math.max(-2,-r-2);q<=Math.min(2,-r+2);q++)tiles.push({q,r,resource:tiles.length===18?'desert':['wood','brick','sheep','wheat','ore'][tiles.length%5],number:6});
 (async()=>{
-  const server=await startRendererLab(Number(process.env.TRADE_PRACTICE_PORT||3011),{random:()=>3,boardFactory:()=>tiles});
+  const server=await startRendererLab(Number(process.env.TRADE_PRACTICE_PORT||3011),{orderRandom:n=>n-1,random:()=>3,boardFactory:()=>tiles});
   const port=server.address().port,clients=[];
   function client(){
     const ws=new WebSocket(`ws://127.0.0.1:${port}/socket`,{origin:`http://localhost:${port}`}),queue=[],waiters=[];clients.push(ws);
