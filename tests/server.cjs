@@ -3,6 +3,7 @@ const http = require('http');
 const { WebSocket } = require('ws');
 const { createApp } = require('../server.cjs');
 const rules = require('../game.cjs');
+require('./reconnect.cjs');
 require('./turns.cjs');
 require('./trading.cjs');
 require('./development.cjs');

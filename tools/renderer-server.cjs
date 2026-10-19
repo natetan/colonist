@@ -9,6 +9,7 @@ const routes={
   '/branding/natac-icon.png':path.resolve(__dirname,'../public/branding/natac-icon.png'),
   '/branding/apple-touch-icon.png':path.resolve(__dirname,'../public/branding/apple-touch-icon.png'),
   '/audio/dice-roll-sound.mp3':path.resolve(__dirname,'../public/audio/dice-roll-sound.mp3'),
+  '/reconnect.js':path.resolve(__dirname,'../public/reconnect.js'),
   '/menu.js':path.join(__dirname,'renderer-menu.js'),
   '/lab.js':path.join(__dirname,'renderer-lab.js'),
   '/game.css':path.join(__dirname,'renderer-lab.css'),

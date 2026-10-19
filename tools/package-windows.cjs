@@ -8,7 +8,7 @@ function build(output){
   const files=['package.json','package-lock.json',
     ...fs.readdirSync(root).filter(f=>f.endsWith('.cjs')),
     ...['renderer-server.cjs','renderer-state.cjs','preview-fixture.cjs','hosted-server.cjs','renderer-lab.html','renderer-lab.js','renderer-menu.js','renderer-lab.css'].map(f=>'tools/'+f),
-    ...['scoring.js','development.js','development-cards.json','trading.js','trading.css','audio/dice-roll-sound.mp3','branding/natac-logo.svg','branding/natac-icon.png','branding/favicon.ico','branding/apple-touch-icon.png'].map(f=>'public/'+f),
+    ...['reconnect.js','scoring.js','development.js','development-cards.json','trading.js','trading.css','audio/dice-roll-sound.mp3','branding/natac-logo.svg','branding/natac-icon.png','branding/favicon.ico','branding/apple-touch-icon.png'].map(f=>'public/'+f),
     '.rea-tools/renderer/factories.js'];
   const assetRoot=path.join(root,'.rea-tools/renderer/assets');
   files.push(...fs.readdirSync(assetRoot).filter(f=>/^[a-zA-Z0-9_-]+\.[a-f0-9]{16,}\.(json|png|webp|svg|woff|woff2)$/.test(f)).map(f=>'.rea-tools/renderer/assets/'+f));

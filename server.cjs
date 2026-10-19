@@ -27,6 +27,10 @@ function createApp(options = {}) {
     try{for(const room of rooms.values()){scheduleTurn(room);scheduleBotTrades(room);}store.save(rooms);}catch(error){storageFailure=true;console.error('Saving games failed: '+error.message);throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');}
   }
   const clients = new Set();
+  // Detect vanished networks as well as cleanly closed tabs, so seats do not
+  // remain occupied forever when a device loses its connection without a close.
+  const heartbeat=setInterval(()=>{for(const ws of clients){if(!ws.alive){ws.terminate();continue;}ws.alive=false;if(ws.readyState===WebSocket.OPEN)ws.ping();}},options.heartbeatMs??30000);
+  heartbeat.unref();
   const server = http.createServer((req, res) => {
     if (req.url === '/healthz') {
       res.writeHead(storageFailure ? 503 : 200, {'Content-Type':'application/json','Cache-Control':'no-store'});
@@ -116,6 +120,7 @@ function createApp(options = {}) {
   }
   wss.on('connection', ws => {
     clients.add(ws);
+    ws.alive=true;ws.on('pong',()=>{ws.alive=true;});
     const sessionId = crypto.randomUUID();
     send(ws, { type: 'Connected', userSessionId: sessionId });
     send(ws, { type: 'SessionEstablished' });
@@ -197,9 +202,9 @@ function createApp(options = {}) {
           playBotTurns(room);
           return;
         }
-        if (message.type === 'Resume') {
+        if (message.type === 'Resume' || message.type==='JoinRoom' && message.token!==undefined) {
           if (ws.room) throw new Error('Already in a room.');
-          const room = rooms.get(message.code);
+          const room = rooms.get(String(message.code).trim().toUpperCase());
           const player = room && typeof message.token === 'string' && room.players.find(p => !p.bot && p.token === message.token);
           if (!player) throw new Error('Saved session is unavailable. Create or join a room.');
           if (player.ws) throw new Error('This player is already connected in another window.');
@@ -234,7 +239,7 @@ function createApp(options = {}) {
       }
     });
   });
-  return { server, close: () => new Promise((resolve,reject) => { for(const timer of turnTimers.values())clearTurnTimeout(timer.handle);turnTimers.clear();for(const timer of botTimers.values())clearTimeout(timer);botTimers.clear();for(const timer of botTradeTimers.values())clearTimeout(timer.handle);botTradeTimers.clear();for (const ws of clients) ws.terminate(); wss.close(() => server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})); }) };
+  return { server, close: () => new Promise((resolve,reject) => { clearInterval(heartbeat);for(const timer of turnTimers.values())clearTurnTimeout(timer.handle);turnTimers.clear();for(const timer of botTimers.values())clearTimeout(timer);botTimers.clear();for(const timer of botTradeTimers.values())clearTimeout(timer.handle);botTradeTimers.clear();for (const ws of clients) ws.terminate(); wss.close(() => server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})); }) };
 }
 if (require.main === module) {
   const saveFile=process.env.SETTLERS_SAVE_FILE==='off'?undefined:process.env.SETTLERS_SAVE_FILE||path.join(__dirname,'data','prototype.json');

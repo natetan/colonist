@@ -24,7 +24,10 @@ window.addEventListener('unhandledrejection',event=>log(`Rejected: ${event.reaso
 let assetReady, currentManager, latestState, joined, socket, retry, buildMode, cleanupScene;
 let pendingRender, rendering=false,mapDragging=false;
 const $=id=>document.getElementById(id);
-const sessionKey='private-settlers-renderer-session';
+function browserStorage(name){try{return window[name];}catch{return null;}}
+const seatSessions=SeatSessions.create(browserStorage('localStorage'),browserStorage('sessionStorage'));
+let pendingResume;
+function resumeSeat(saved){pendingResume=saved;send('Resume',saved);}
 function assets(){
   if(assetReady)return assetReady;
   assetReady=(async()=>{
@@ -432,19 +435,20 @@ function connect(){
   socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/socket`);
   socket.onmessage=event=>{
     const state=JSON.parse(event.data);if(state.type==='RoomState')$('menu-error').textContent='';
-    if(state.type==='SessionEstablished'){$('connection').textContent='Connected to local game server';$('create').disabled=$('join').disabled=false;let saved;try{saved=JSON.parse(sessionStorage.getItem(sessionKey));}catch{}if(saved)send('Resume',saved);}
-    if(state.type==='LeftRoom'){sessionStorage.removeItem(sessionKey);location.assign('/');return;}
-    if(state.type==='Joined'){$('quit-game').hidden=$('quit-hint').hidden=false;joined=state;sessionStorage.setItem(sessionKey,JSON.stringify({code:state.code,token:state.token}));$('lobby').hidden=true;$('probe').hidden=true;$('share').hidden=false;}
+    if(state.type==='SessionEstablished'){$('connection').textContent='Connected to local game server';$('create').disabled=$('join').disabled=false;const saved=joined?seatSessions.find(joined.code):seatSessions.automatic(new URLSearchParams(location.search).get('room'));if(saved)resumeSeat(saved);}
+    if(state.type==='LeftRoom'){seatSessions.forget(joined?.code);location.assign('/');return;}
+    if(state.type==='Joined'){$('quit-game').hidden=$('quit-hint').hidden=false;joined=state;pendingResume=null;seatSessions.remember(state);$('recovery-settings').hidden=false;$('seat-key').value=state.token;$('recovery-key').value='';$('lobby').hidden=true;$('probe').hidden=true;$('share').hidden=false;}
     if(state.type==='RoomState'){$('connection').textContent=state.persistence?'Connected · games saved locally':'Connected · temporary games';const previous=latestState;reconcileTradeDraft(previous,state);turnFeedback(state);publicEvents(state);latestState=state;updateTurnClock();if(state.game?.phase!=='build'||state.game?.edges.some(e=>e.owner===joined.playerId&&previous?.game?.edges[e.id]?.owner!==e.owner)||state.game?.vertices.some(v=>v.owner===joined.playerId&&(previous?.game?.vertices[v.id]?.owner!==v.owner||previous?.game?.vertices[v.id]?.city!==v.city)))buildMode=null;MainMenu.render(state,joined.playerId,send);controls(state);resourceFeedback(previous,state);scheduleRender(state.renderer.fixture,state.renderer,state);}
     if(state.type==='Chat'){if(latestState)appendLog($('chat-messages'),feedEntry(latestState,state.playerId||state.player||state.id,state.text));else appendLog($('chat-messages'),state.name+': '+state.text);}
-    if(state.type==='Error'){$('menu-error').textContent=state.message;$('error').textContent=state.message;if(state.message.startsWith('Saved session')){sessionStorage.removeItem(sessionKey);joined=null;$('lobby').hidden=false;$('probe').hidden=false;}}
+    if(state.type==='Error'){$('menu-error').textContent=state.message;$('error').textContent=state.message;if(state.message.startsWith('Saved session')){if(pendingResume)seatSessions.forget(pendingResume.code);pendingResume=null;joined=null;latestState=null;$('recovery-settings').hidden=true;$('seat-key').value='';$('game-layout').hidden=true;$('room-menu').hidden=true;$('lobby').hidden=false;$('probe').hidden=false;$('menu-error').hidden=false;}}
   };
   socket.onclose=()=>{$('connection').textContent='Disconnected. Reconnecting…';$('create').disabled=$('join').disabled=true;clearTimeout(retry);retry=setTimeout(connect,1500);};
   socket.onerror=()=>{$('connection').textContent='Unable to reach local server';};
 }
 $('quit-game').onclick=()=>send('LeaveRoom');
 $('create').onclick=()=>send('CreateRoom',{name:$('name').value});
-$('join').onclick=()=>send('JoinRoom',{name:$('name').value,code:$('code').value.trim().toUpperCase()});
+$('join').onclick=()=>{const code=$('code').value.trim().toUpperCase(),token=$('recovery-key').value.trim(),saved=token?{code,token}:seatSessions.find(code);if(saved){if(!SeatSessions.valid(saved)){$('menu-error').textContent='Use the 48-character seat recovery key from game settings.';return;}resumeSeat(saved);}else send('JoinRoom',{name:$('name').value,code});};
+$('copy-seat-key').onclick=async()=>{try{await navigator.clipboard.writeText(joined.token);$('copy-seat-key').textContent='Recovery key copied';}catch{$('seat-key').type='text';$('seat-key').select();}};
 $('code').value=new URLSearchParams(location.search).get('room')||'';
 $('sound').checked=soundEnabled;$('sound').onchange=()=>{soundEnabled=$('sound').checked;localStorage.setItem('settlers-sound',soundEnabled?'on':'off');if(soundEnabled){unlockSound();audioContext?.resume().then(()=>cue()).catch(()=>{});}else diceRollAudio?.pause();};
 $('chat-form').onsubmit=event=>{event.preventDefault();const text=$('chat-input').value.trim();if(text){send('Chat',{text});$('chat-input').value='';}};

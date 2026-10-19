@@ -136,3 +136,5 @@
 
 /* Resource hand uses the same eight-pixel fan as owned development cards. */
 #hand .resource-hand-stack{height:59px;flex:none}#hand .resource-stack-art{position:relative;display:block;width:100%;height:59px;pointer-events:none}#hand .resource-stack-art>span{position:absolute;top:0}#hand .resource-hand-stack>strong{z-index:1;pointer-events:none}#hand .resource-stack-empty .resource-stack-art{opacity:.4}
+
+.rejoin-help{color:#47535a;font-size:12px;line-height:1.5}.rejoin-help summary{cursor:pointer}.menu-card .rejoin-help input{max-width:100%;width:100%}#recovery-settings input{width:100%;max-width:100%;font-family:monospace}#recovery-settings p{font-size:12px}
