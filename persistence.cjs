@@ -6,6 +6,7 @@ function validate(data){
   check(data&&data.version===1&&Array.isArray(data.rooms));const codes=new Set();
   for(const room of data.rooms){
     check(room&&/^[A-F0-9]{6}$/.test(room.code)&&!codes.has(room.code));codes.add(room.code);
+    check(room.turnSeconds===undefined||require('./turn-timer.cjs').choices.includes(room.turnSeconds));
     check(room.mapType===undefined||['classic','random'].includes(room.mapType));
     check(Array.isArray(room.players)&&room.players.length>0&&room.players.length<=11);
     const ids=new Set();for(const p of room.players){check(p&&typeof p.id==='string'&&p.id.length>0&&!ids.has(p.id)&&typeof p.name==='string'&&p.name.length>0&&p.name.length<=24&&typeof p.bot==='boolean'&&(p.bot||typeof p.token==='string'&&/^[a-f0-9]{48}$/.test(p.token)));ids.add(p.id);}
@@ -20,6 +21,8 @@ function validate(data){
       check(room.harbors.filter(h=>h.resource===null).length===(extended?5:4)&&resources.every(r=>room.harbors.filter(h=>h.resource===r).length===(extended&&r==='sheep'?2:1)));
     }
     const g=room.game;if(!g)continue;
+    if(g.turnTimer)check(typeof g.turnTimer.key==='string'&&integer(g.turnTimer.deadline,1));
+    if(g.lastTimeout)check(ids.has(g.lastTimeout.player)&&typeof g.lastTimeout.setup==='boolean'&&integer(g.lastTimeout.sequence,1));
     if(room.harbors!==undefined)check(JSON.stringify(g.harbors)===JSON.stringify(room.harbors));
     check(Array.isArray(g.players)&&g.players.length>0&&g.players.length<=6&&new Set(g.players).size===g.players.length&&g.players.every(id=>ids.has(id))&&g.colors&&g.players.every(id=>typeof g.colors[id]==='string'));
     const geometry=rules.topology(room.board);check(Array.isArray(g.vertices)&&g.vertices.length===geometry.vertices.length&&Array.isArray(g.edges)&&g.edges.length===geometry.edges.length);
@@ -47,7 +50,7 @@ function validate(data){
   }
   return data;
 }
-function encode(rooms){return {version:1,rooms:[...rooms.values()].map(room=>({code:room.code,board:room.board,...(room.hostId?{hostId:room.hostId}:{}),...(room.mapType?{mapType:room.mapType}:{}),...(room.harbors!==undefined?{harbors:room.harbors}:{}),game:room.game||null,players:room.players.map(p=>({id:p.id,name:p.name,bot:!!p.bot,...(!p.bot?{token:p.token}:{})}))}))};}
+function encode(rooms){return {version:1,rooms:[...rooms.values()].map(room=>({code:room.code,board:room.board,...(room.turnSeconds!==undefined?{turnSeconds:room.turnSeconds}:{}),...(room.hostId?{hostId:room.hostId}:{}),...(room.mapType?{mapType:room.mapType}:{}),...(room.harbors!==undefined?{harbors:room.harbors}:{}),game:room.game||null,players:room.players.map(p=>({id:p.id,name:p.name,bot:!!p.bot,...(!p.bot?{token:p.token}:{})}))}))};}
 function createStore(file){
   if(!file)return {load:()=>new Map(),save:()=>{},close:()=>{}};
   file=path.resolve(file);fs.mkdirSync(path.dirname(file),{recursive:true});const lock=file+'.lock';

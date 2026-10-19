@@ -11,7 +11,7 @@ context.cardBadge=()=>new Element();const sent=[];context.send=(...args)=>sent.p
 // Exercise the actual turn notification and audio envelope without audio hardware.
 const tones=[],listeners={};
 class FakeAudio{constructor(){this.state='running';this.currentTime=10;this.destination={};}resume(){return Promise.resolve();}createOscillator(){const tone={frequency:{setValueAtTime(value){this.value=value;},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(time){this.startTime=time;},stop(time){this.stopTime=time;}};tones.push(tone);return tone;}createGain(){return{gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){}};}}
-const audio={localStorage:{getItem:()=>null},document:{addEventListener:(event,fn)=>listeners[event]=fn},AudioContext:FakeAudio,joined:{playerId:'A'},latestState:null};vm.createContext(audio);vm.runInContext(source.slice(source.indexOf('let audioContext,'),source.indexOf('setInterval(()=>{const elapsed')),audio);
+const audio={localStorage:{getItem:()=>null},document:{addEventListener:(event,fn)=>listeners[event]=fn},AudioContext:FakeAudio,joined:{playerId:'A'},latestState:null};vm.createContext(audio);vm.runInContext(source.slice(source.indexOf('let audioContext,'),source.indexOf('setInterval(updateTurnClock')),audio);
 listeners.keydown();audio.turnFeedback({code:'ONE',game:{currentPlayer:'B',phase:'roll'}});assert.equal(tones.length,0);
 const yourTurn={code:'ONE',game:{currentPlayer:'A',phase:'roll'}};audio.turnFeedback(yourTurn);assert.equal(tones.length,3);assert.equal(tones[0].frequency.value,880);assert(tones[0].stopTime-tones[0].startTime>.9);
 audio.turnFeedback(yourTurn);assert.equal(tones.length,3,'Repeated snapshots do not repeat the ding');
@@ -32,3 +32,10 @@ const rolled={...city,game:{...city.game,production:{sequence:2},dice:[3,4]}};au
 audio.latestState=rolled;audio.turnFeedback(rolled);assert.equal(sounds.length,0,'Repeated roll snapshot stays silent');
 audio.latestState=null;audio.turnFeedback(rolled);assert.equal(sounds.length,0,'Initial connection does not replay the last roll');
 console.log('PASS: dice, road, settlement, city and award sound transitions, with no snapshot repeats');
+
+let clockNow=100000;audio.Date={now:()=>clockNow};audio.$=get;sounds.length=0;audio.latestState={code:'CLOCK',game:{currentPlayer:'A',turnTimer:{key:'turn:1:0',deadline:109000}}};audio.updateTurnClock();assert.equal(sounds.length,0);
+for(let remaining=8;remaining>=1;remaining--){clockNow=109000-remaining*1000;audio.updateTurnClock();audio.updateTurnClock();}assert.equal(sounds.filter(s=>s==='warning').length,8,'Exactly one warning per final second');
+clockNow=109000;audio.updateTurnClock();assert.equal(get('phase-clock').textContent,'00:00');assert.equal(sounds.length,8,'No warning at zero');
+audio.latestState.game={currentPlayer:'B',turnTimer:{key:'turn:2:1',deadline:clockNow+8000}};audio.updateTurnClock();assert.equal(sounds.length,8,'Other players do not hear someone else’s warning');audio.latestState.game.discardCount=2;audio.updateTurnClock();assert.equal(sounds.length,9,'A player waiting to discard is warned');
+audio.latestState.game.turnTimer=null;audio.updateTurnClock();assert.equal(get('phase-clock').textContent,'Off');
+console.log('PASS: synchronized countdown, final eight warning ticks, duplicate suppression, zero and inactive-player silence');

@@ -288,3 +288,9 @@ In the lobby, choose **Island size → Large · 5–6 players**, then Classic or
 This is our larger-map variant with the existing one-player-at-a-time turns, seven-card discard threshold, and ten-point target. It does **not** implement paired turns or the special building phase from physical 5–6 player editions. Component scaling follows the [official 5–6 player rulebook](https://www.catan.com/sites/default/files/2024-03/Catan%20Game%205-6%20Rules%202022%20240313.pdf). Standard maps and older saved games keep their existing supplies.
 
 Run `npm run test:extended` to check 100 generated large maps, 5/6-player setup and conservation, saved-state validation, complete five- and six-player games (including delayed bots), and six-human broadcast trade responses. `npm run test:extended-board` runs only the map/rule checks.
+
+### Turn timers
+
+The host chooses a turn timer in the lobby: Off, 30 seconds, 1 minute (default), 90 seconds, 2, 3, or 5 minutes. Settings lock when the match starts. The countdown covers the entire turn, including rolling, trading, building, and mandatory choices; actions and reconnecting do not reset it. Each starting settlement/road pair has its own allowance. Final-eight-second warning ticks play for the active player (and anyone still required to discard), using the Sound setting.
+
+At zero the server expires open offers and skips the turn without rolling or buying anything for the player. Pending discards and robber/steal choices are resolved automatically; unused free roads are forfeited. During setup the server completes the current settlement/road pair so the placement order remains valid. Deadlines are saved and restored. If everyone disconnects, scheduled callbacks stop; an overdue turn is resolved on reconnect. Run `npm run test:timers` for expiry, settings permissions, setup/discard safety, reconnect and late-action checks. Renderer tests cover the countdown and eight warning ticks.

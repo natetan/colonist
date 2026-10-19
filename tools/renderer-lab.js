@@ -154,7 +154,7 @@ function resourceFeedback(previous,state){
 }
 function appendLog(parent,content){const follow=parent.scrollHeight-parent.scrollTop-parent.clientHeight<35,p=document.createElement('p');if(typeof content==='string')p.textContent=content;else p.append(content);parent.append(p);while(parent.children.length>500)parent.firstElementChild.remove();if(follow)parent.scrollTop=parent.scrollHeight;}
 function feedEntry(state,id,verb,icons=[]){const row=document.createElement('span');row.className='feed-entry';const player=state.players.find(p=>p.id===id);if(player){const avatar=sprite(player.bot?'icon_bot':'icon_player');avatar.classList.add('feed-avatar');const name=document.createElement('strong');name.textContent=player.name;const colors=['#d9363e','#205ebd','#ba5d24','#237c1d','#8746ac','#666'];name.style.color=colors[state.players.filter(p=>p.playing).findIndex(p=>p.id===id)]||'#555';row.append(avatar,name);}row.append(document.createTextNode(' '+verb+' '));for(const icon of icons){icon.classList.add('feed-icon');row.append(icon);}return row;}
-function publicEvents(state){const prev=latestState;if(!prev||prev.code!==state.code){if(prev?.code!==state.code){$('events').replaceChildren();$('chat-messages').replaceChildren();appendLog($('events'),'Welcome to your private table.');}return;}const g=state.game,old=prev.game;if(!g){if(old)appendLog($('events'),'The host returned the table to the lobby.');return;}
+function publicEvents(state){const prev=latestState;if(!prev||prev.code!==state.code){if(prev?.code!==state.code){$('events').replaceChildren();$('chat-messages').replaceChildren();appendLog($('events'),'Welcome to your private table.');}return;}const g=state.game,old=prev.game;if(g?.lastTimeout&&g.lastTimeout.sequence!==old?.lastTimeout?.sequence)appendLog($('events'),feedEntry(state,g.lastTimeout.player,g.lastTimeout.setup?'ran out of time. Setup was completed automatically.':'ran out of time. Turn skipped.'));if(!g){if(old)appendLog($('events'),'The host returned the table to the lobby.');return;}
   const piece=(id,type)=>actionIcon(type+'_'+(['red','blue','orange','green','purple','white'][state.players.filter(p=>p.playing).findIndex(p=>p.id===id)]||'red'));
   const event=(id,verb,icons)=>appendLog($('events'),feedEntry(state,id,verb,icons));
   for(const v of g.vertices){const before=old?.vertices[v.id];if(v.owner&&(!before?.owner||before.city!==v.city))event(v.owner,v.city?'built a City (+1 VP)':'placed a Settlement',[piece(v.owner,v.city?'city':'settlement')]);}
@@ -201,7 +201,8 @@ function referenceTrade(parent,state,viewerId,send){
   const help=document.createElement('p');help.className='trade-requirements';help.textContent=bankValid?'Bank exchange ready':a.length===1?`Bank rate: ${g.bankRates?.[a[0]]||4} ${a[0]} for one card. Select cards to offer below, then request above.`:'Select cards to offer below, then request above.';offer.append(help);
   if(g.tradeOffer){const existing=g.tradeOffer;const status=document.createElement('p');status.textContent='Pending offer · '+state.players.find(p=>p.id===existing.from)?.name+' → '+(existing.to===null?'All players':state.players.find(p=>p.id===existing.to)?.name);offer.append(status);for(const [label,type,allowed]of [['Cancel offer','CancelTrade',existing.from===viewerId],['Accept offer','AcceptTrade',mayRespond(existing,viewerId)&&g.canAcceptTrade],['Decline offer','DeclineTrade',mayRespond(existing,viewerId)]])if(allowed){const button=document.createElement('button');button.textContent=label;button.onclick=()=>send(type,{offerId:existing.id});offer.append(button);}}
 }
-let audioContext,diceRollAudio,soundEnabled=localStorage.getItem('settlers-sound')!=='off',turnStarted=Date.now(),turnKey;
+let audioContext,diceRollAudio,soundEnabled=localStorage.getItem('settlers-sound')!=='off',turnKey;
+let clockOffset=0,warningDeadline,warningTicks=new Set();
 function unlockSound(){if(!soundEnabled)return;try{audioContext??=new AudioContext();audioContext.resume().catch(()=>{});}catch{/* Audio is optional on browsers without Web Audio. */}}
 for(const event of ['pointerdown','keydown'])document.addEventListener(event,unlockSound);
 function cue(kind='turn'){
@@ -213,6 +214,7 @@ function cue(kind='turn'){
     gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(volume,start+.006);gain.gain.exponentialRampToValueAtTime(.0001,start+decay);
     oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(start);oscillator.stop(start+decay+.02);oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
   };
+  if(kind==='warning'){tone(1200,.12,.09,0,'triangle');return;}
   if(kind==='dice'){
     diceRollAudio??=new Audio('/audio/dice-roll-sound.mp3');diceRollAudio.preload='auto';diceRollAudio.volume=.85;
     diceRollAudio.currentTime=0;diceRollAudio.play().catch(()=>{});return;
@@ -237,8 +239,9 @@ function cue(kind='turn'){
   for(const [frequency,volume,decay]of [[880,.12,.95],[1760,.035,.55],[2376,.012,.3]])tone(frequency,volume,decay);
 }
 function turnFeedback(state){
+  if(Number.isFinite(state.serverTime))clockOffset=state.serverTime-Date.now();
   const g=state.game,old=latestState?.code===state.code?latestState.game:null,key=state.code+':'+g?.currentPlayer+':'+g?.phase;
-  if(key!==turnKey){turnStarted=Date.now();turnKey=key;if(g?.currentPlayer===joined.playerId&&['roll','settlement'].includes(g.phase))cue();}
+  if(key!==turnKey){turnKey=key;if(g?.currentPlayer===joined.playerId&&['roll','settlement'].includes(g.phase))cue();}
   if(!g||!old)return;
   if(g.production?.sequence!=null&&g.production.sequence!==old.production?.sequence)cue('dice');
   const addedRoad=g.edges?.some(e=>e.owner&&!old.edges?.some(previous=>previous.id===e.id&&previous.owner===e.owner));
@@ -246,7 +249,15 @@ function turnFeedback(state){
   if(placed)cue(placed.city?'city':'settlement');else if(addedRoad)cue('road');else if(g.robber!==old.robber)cue('robber');
   for(const award of ['longestRoad','largestArmy'])if(g.scoring?.[award]&&g.scoring[award]!==old.scoring?.[award])cue(award);
 }
-setInterval(()=>{const elapsed=Math.floor((Date.now()-turnStarted)/1000);$('phase-clock').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;},1000);
+function updateTurnClock(){
+  const state=latestState,g=state?.game,clock=$('phase-clock'),timer=g?.turnTimer;
+  if(!timer){clock.textContent='Off';clock.classList.toggle('timer-urgent',false);return;}
+  const seconds=Math.max(0,Math.ceil((timer.deadline-Date.now()-clockOffset)/1000)),deadlineKey=state.code+':'+timer.key+':'+timer.deadline;
+  if(warningDeadline!==deadlineKey){warningDeadline=deadlineKey;warningTicks.clear();}
+  clock.textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');clock.title='Time remaining in this turn';clock.setAttribute('aria-label','Turn time remaining '+clock.textContent);clock.classList.toggle('timer-urgent',seconds<=8);
+  if(seconds>0&&seconds<=8&&(g.currentPlayer===joined?.playerId||g.discardCount>0)&&!warningTicks.has(seconds)){warningTicks.add(seconds);cue('warning');}
+}
+setInterval(updateTurnClock,250);
 let developmentChoice,selectedVictim,developmentCatalog={"Knight":{"name":"Knight","picture":"card_knight","effect":"Move the robber to another tile, then steal one random resource card from an eligible player."},"VictoryPoint":{"name":"Victory point","picture":"card_vp","effect":"Adds one private victory point automatically. You do not play this card."},"Monopoly":{"name":"Monopoly","picture":"card_monopoly","effect":"Choose one resource. Collect all cards of that resource from every other player."},"RoadBuilding":{"name":"Road building","picture":"card_roadbuilding","effect":"Place up to two roads for free, following normal placement rules and piece limits."},"YearOfPlenty":{"name":"Year of plenty","picture":"card_yearofplenty","effect":"Choose two available resource cards from the bank. You may choose the same resource twice if available."}},developmentPicks=[];
 const cardTip=document.createElement('div');cardTip.className='card-tooltip';cardTip.hidden=true;cardTip.id='development-tooltip';cardTip.setAttribute('role','tooltip');document.body.append(cardTip);
 function showCardTip(element,info,status){cardTip.replaceChildren();const title=document.createElement('strong');title.textContent=info.name;const effect=document.createElement('p');effect.textContent=info.effect;const availability=document.createElement('p');availability.textContent=status;cardTip.append(title,effect,availability);const rect=element.getBoundingClientRect();cardTip.style.left=Math.max(8,Math.min(rect.left,innerWidth-308))+'px';cardTip.hidden=false;cardTip.style.top=Math.max(8,rect.top-cardTip.offsetHeight-10)+'px';}
@@ -376,7 +387,7 @@ function connect(){
     if(state.type==='SessionEstablished'){$('connection').textContent='Connected to local game server';$('create').disabled=$('join').disabled=false;let saved;try{saved=JSON.parse(sessionStorage.getItem(sessionKey));}catch{}if(saved)send('Resume',saved);}
     if(state.type==='LeftRoom'){sessionStorage.removeItem(sessionKey);location.assign('/');return;}
     if(state.type==='Joined'){$('quit-game').hidden=$('quit-hint').hidden=false;joined=state;sessionStorage.setItem(sessionKey,JSON.stringify({code:state.code,token:state.token}));$('lobby').hidden=true;$('probe').hidden=true;$('share').hidden=false;}
-    if(state.type==='RoomState'){$('connection').textContent=state.persistence?'Connected · games saved locally':'Connected · temporary games';const previous=latestState;reconcileTradeDraft(previous,state);turnFeedback(state);publicEvents(state);latestState=state;if(state.game?.phase!=='build'||state.game?.edges.some(e=>e.owner===joined.playerId&&previous?.game?.edges[e.id]?.owner!==e.owner)||state.game?.vertices.some(v=>v.owner===joined.playerId&&(previous?.game?.vertices[v.id]?.owner!==v.owner||previous?.game?.vertices[v.id]?.city!==v.city)))buildMode=null;MainMenu.render(state,joined.playerId,send);controls(state);resourceFeedback(previous,state);scheduleRender(state.renderer.fixture,state.renderer,state);}
+    if(state.type==='RoomState'){$('connection').textContent=state.persistence?'Connected · games saved locally':'Connected · temporary games';const previous=latestState;reconcileTradeDraft(previous,state);turnFeedback(state);publicEvents(state);latestState=state;updateTurnClock();if(state.game?.phase!=='build'||state.game?.edges.some(e=>e.owner===joined.playerId&&previous?.game?.edges[e.id]?.owner!==e.owner)||state.game?.vertices.some(v=>v.owner===joined.playerId&&(previous?.game?.vertices[v.id]?.owner!==v.owner||previous?.game?.vertices[v.id]?.city!==v.city)))buildMode=null;MainMenu.render(state,joined.playerId,send);controls(state);resourceFeedback(previous,state);scheduleRender(state.renderer.fixture,state.renderer,state);}
     if(state.type==='Chat'){if(latestState)appendLog($('chat-messages'),feedEntry(latestState,state.playerId||state.player||state.id,state.text));else appendLog($('chat-messages'),state.name+': '+state.text);}
     if(state.type==='Error'){$('menu-error').textContent=state.message;$('error').textContent=state.message;if(state.message.startsWith('Saved session')){sessionStorage.removeItem(sessionKey);joined=null;$('lobby').hidden=false;$('probe').hidden=false;}}
   };

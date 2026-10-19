@@ -13,3 +13,6 @@ console.log('PASS: menu preview, Classic/Random controls, regeneration, guest pe
 const large={...state,...boards.classic(true),maxPlayers:6,mapSize:'extended'};context.window.MainMenu.render(large,'A',(...args)=>sent.push(args));assert.equal(get('map-size').value,'extended');assert.equal(get('bot-fill-label').hidden,false);assert.equal(get('lobby-count').textContent,'2 / 6');assert.equal(get('map-preview').children[0].children.filter(n=>n.attributes.points).length,30);
 get('bot-fill').value='5';get('menu-start-bots').onclick();assert.equal(sent[sent.length-1][1].targetPlayers,5);get('map-size').value='standard';get('map-size').onchange();assert.equal(sent[sent.length-1][1].mapSize,'standard');
 console.log('PASS: large-map preview, six-seat lobby, bot target selection and island size requests');
+
+context.window.MainMenu.render({...state,turnSeconds:60},'A',(...args)=>sent.push(args));assert.equal(get('turn-seconds').value,'60');get('turn-seconds').value='90';get('turn-seconds').onchange();assert.equal(sent[sent.length-1][0],'SetTurnTimer');assert.equal(sent[sent.length-1][1].seconds,90);context.window.MainMenu.render({...state,turnSeconds:90},'B',()=>{});assert.equal(get('turn-seconds').disabled,true);
+console.log('PASS: shared lobby turn-duration setting and guest lock');

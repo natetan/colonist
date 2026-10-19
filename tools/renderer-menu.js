@@ -27,6 +27,7 @@ window.MainMenu=(()=>{
     $('room-menu-code').textContent=`Room ${state.code} · Share the code to invite friends`;
     $('map-size').value=size;$('map-size').disabled=!host;$('map-size').onchange=()=>send('SetMap',{mapType:type,mapSize:$('map-size').value});
     $('bot-fill-label').hidden=capacity!==6;$('bot-fill').disabled=!host;
+    $('turn-seconds').value=String(state.turnSeconds??60);$('turn-seconds').disabled=!host;$('turn-seconds').onchange=()=>send('SetTurnTimer',{seconds:Number($('turn-seconds').value)});
     $('map-type').value=type;$('map-type').disabled=!host;
     $('map-kind').textContent=type==='classic'?'CLASSIC':'RANDOM';
     $('map-description').textContent=type==='classic'?'A fixed island with the same terrain, numbers, and harbors every game.':'A fresh island with shuffled terrain, numbers, and harbors. Red 6s and 8s stay apart.';

@@ -39,7 +39,8 @@
     "inspect:module": "node tools/find-client-module.cjs",
     "test:lobby-maps": "node tests/lobby-maps.cjs",
     "test:extended-board": "node tests/extended-board.cjs",
-    "test:extended": "node tests/extended-network.cjs"
+    "test:extended": "node tests/extended-network.cjs",
+    "test:timers": "node tests/turn-timer.cjs && node tests/turn-timer-network.cjs"
   },
   "dependencies": {
     "@msgpack/msgpack": "2.8.0",

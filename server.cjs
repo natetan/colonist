@@ -9,15 +9,16 @@ const trading = require('./trading.cjs');
 const development = require('./development.cjs');
 const scoring = require('./scoring.cjs');
 const boards = require('./board.cjs');
+const turnTimer=require('./turn-timer.cjs');
 const {createStore} = require('./persistence.cjs');
 
 function createApp(options = {}) {
   const random = options.random || crypto.randomInt;
   const store = createStore(options.saveFile);
-  const rooms = store.load();
+  const rooms = store.load(),turnTimers=new Map(),now=options.now||Date.now,setTurnTimeout=options.setTurnTimeout||setTimeout,clearTurnTimeout=options.clearTurnTimeout||clearTimeout;
   let storageFailure=false;
   function persist(){
-    try{store.save(rooms);}catch(error){storageFailure=true;console.error('Saving games failed: '+error.message);throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');}
+    try{for(const room of rooms.values())scheduleTurn(room);store.save(rooms);}catch(error){storageFailure=true;console.error('Saving games failed: '+error.message);throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');}
   }
   const clients = new Set();
   const server = http.createServer((req, res) => {
@@ -40,18 +41,33 @@ function createApp(options = {}) {
     const g = room.game;
     const game = g ? { phase: g.phase, currentPlayer: g.order[g.step] || null, solo: g.solo, colors: g.colors, vertices: g.vertices, edges: g.edges, legalVertices: g.phase === 'settlement' ? rules.legalVertices(g) : [], legalEdges: g.phase === 'road' ? rules.legalEdges(g) : [], resources: g.resources[viewer.id] || null } : null;
     if(g && g.turn!==undefined){Object.assign(game,{currentPlayer:turns.current(g),dice:g.dice,production:g.production||null,robber:g.robber,discardCount:g.discards[viewer.id]||0,victims:g.phase==='steal'&&turns.current(g)===viewer.id?g.victims:[],builds:g.phase==='build'&&turns.current(g)===viewer.id?Object.fromEntries(Object.keys(turns.costs).map(type=>[type,turns.buildLocations(g,viewer.id,type)])):{},bank:g.bank});}
+    if(g){game.turnTimer=g.turnTimer||null;game.lastTimeout=g.lastTimeout||null;}
     if(g && g.turn!==undefined){game.bankRates=trading.rates(g,viewer.id);game.tradeOffer=g.tradeOffer;game.tradeDecline=g.tradeDecline||null;game.canAcceptTrade=!!g.tradeOffer&&trading.canRespond(g.tradeOffer,viewer.id)&&trading.hasCards(g.resources[g.tradeOffer.from]||{},g.tradeOffer.give)&&trading.hasCards(g.resources[viewer.id]||{},g.tradeOffer.receive);}
     if(g && g.turn!==undefined){game.development=development.view(g,viewer.id,turns.roadLocations);game.scoring=scoring.view(g,viewer.id);}
-    const state = { type: 'RoomState', persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', mapSize:room.board.length===30?'extended':'standard', maxPlayers:room.board.length===30?6:4, host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
+    const state = { type: 'RoomState', persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', mapSize:room.board.length===30?'extended':'standard', maxPlayers:room.board.length===30?6:4, turnSeconds:room.turnSeconds??60, serverTime:now(), host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
     for(const player of state.players){player.resourceCount=Object.values(g?.resources?.[player.id]||{}).reduce((a,b)=>a+b,0);player.developmentCount=g?.developmentHands?.[player.id]?.length||0;player.knightsPlayed=g?.knightsPlayed?.[player.id]||0;}
     // Optional presentation adapter receives only the already-redacted snapshot.
     if (options.boardPresentation) state.renderer = options.boardPresentation(state);
     return state;
   }
-  function broadcast(room) { if(storageFailure)return;for (const player of room.players) if (player.ws) send(player.ws, snapshot(room, player)); }
+  function broadcast(room) { if(storageFailure)return;scheduleTurn(room);for (const player of room.players) if (player.ws) send(player.ws, snapshot(room, player)); }
+  function scheduleTurn(room){
+    const old=turnTimers.get(room);if(!room.players.some(p=>p.ws)){if(old)clearTurnTimeout(old.handle);turnTimers.delete(room);return;}
+    const timer=turnTimer.sync(room,now());
+    if(old&&(!timer||old.deadline!==timer.deadline||!room.players.some(p=>p.ws))){clearTurnTimeout(old.handle);turnTimers.delete(room);}
+    if(!timer||turnTimers.has(room)||!room.players.some(p=>p.ws)||storageFailure)return;
+    const handle=setTurnTimeout(()=>{turnTimers.delete(room);try{expireTurn(room);}catch(error){console.error('Turn timer paused: '+error.message);}},Math.min(2147483647,Math.max(1,timer.deadline-now())));handle.unref?.();turnTimers.set(room,{deadline:timer.deadline,handle});
+  }
+  function expireTurn(room){
+    if(storageFailure||!rooms.has(room.code)||!room.players.some(p=>p.ws))return false;
+    if(!turnTimer.expire(room,now(),random,options.developmentRandom)){scheduleTurn(room);return false;}
+    const pending=botTimers.get(room);if(pending)clearTimeout(pending);botTimers.delete(room);
+    persist();broadcast(room);playBotTurns(room);return true;
+  }
   const botTimers=new Map();
   function playBotTurns(room,ready=false) {
     if(botTimers.has(room)||storageFailure)return;
+    if(room.game.turnTimer?.deadline<=now()&&expireTurn(room))return;
     if(room.game.phase==='complete'){turns.begin(room.game,room.board);persist();broadcast(room);}
     for(let actionCount=0;actionCount<200;actionCount++) {
       const regular=room.game.turn!==undefined;
@@ -74,10 +90,11 @@ function createApp(options = {}) {
       try {
         if(storageFailure)throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');
         const message = JSON.parse(bytes.toString());
+        if(ws.room&&expireTurn(ws.room)&&!['Chat','LeaveRoom'].includes(message.type))throw new Error('Time expired. The turn has advanced.');
         if(message.type==='LeaveRoom'){
           const room=ws.room,player=ws.player;if(!room||!player)throw new Error('You are not in a room.');
           const humans=room.players.filter(p=>p!==player&&!p.bot);
-          if(!humans.length){rooms.delete(room.code);const timer=botTimers.get(room);if(timer)clearTimeout(timer);botTimers.delete(room);}
+          if(!humans.length){rooms.delete(room.code);const clock=turnTimers.get(room);if(clock)clearTurnTimeout(clock.handle);turnTimers.delete(room);const timer=botTimers.get(room);if(timer)clearTimeout(timer);botTimers.delete(room);}
           else{
             if(room.game?.players.includes(player.id)){player.bot=true;player.ws=null;delete player.token;}
             else room.players=room.players.filter(p=>p!==player);
@@ -93,6 +110,12 @@ function createApp(options = {}) {
           if(typeof message.text!=='string'||!message.text.trim()||message.text.length>300)throw new Error('Chat messages must contain 1–300 characters.');
           if(ws.lastChat&&Date.now()-ws.lastChat<750)throw new Error('Wait a moment before sending another message.');
           ws.lastChat=Date.now();const chat={type:'Chat',player:ws.player.id,name:ws.player.name,text:message.text.trim()};for(const p of ws.room.players)if(p.ws)send(p.ws,chat);return;
+        }
+        if(message.type==='SetTurnTimer'){
+          const room=ws.room;if(!room||(room.hostId||room.players[0].id)!==ws.player.id)throw new Error('Only the host can change the turn timer.');
+          if(room.game)throw new Error('Timer settings are locked after starting.');
+          if(!turnTimer.choices.includes(message.seconds))throw new Error('Choose a supported turn duration.');
+          room.turnSeconds=message.seconds;persist();broadcast(room);return;
         }
         if(message.type==='SetMap'){
           const room=ws.room;if(!room||(room.hostId||room.players[0].id)!==ws.player.id)throw new Error('Only the host can change the map.');
@@ -154,7 +177,7 @@ function createApp(options = {}) {
         let room;
         if (message.type === 'CreateRoom') {
           let code; do { code = crypto.randomBytes(3).toString('hex').toUpperCase(); } while (rooms.has(code));
-          const fixed=boards.classic();room = { code, players: [], mapType:options.boardFactory?'random':'classic',board:options.boardFactory?options.boardFactory():fixed.board };room.harbors=options.boardFactory?boards.harbors(room.board,options.boardRandom):fixed.harbors;rooms.set(code, room);
+          const fixed=boards.classic();room = { code, players: [], turnSeconds:60, mapType:options.boardFactory?'random':'classic',board:options.boardFactory?options.boardFactory():fixed.board };room.harbors=options.boardFactory?boards.harbors(room.board,options.boardRandom):fixed.harbors;rooms.set(code, room);
         } else {
           room = rooms.get(String(message.code).trim().toUpperCase());
           if (!room) throw new Error('Room not found.');
@@ -176,7 +199,7 @@ function createApp(options = {}) {
       }
     });
   });
-  return { server, close: () => new Promise((resolve,reject) => { for(const timer of botTimers.values())clearTimeout(timer);botTimers.clear();for (const ws of clients) ws.terminate(); wss.close(() => server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})); }) };
+  return { server, close: () => new Promise((resolve,reject) => { for(const timer of turnTimers.values())clearTurnTimeout(timer.handle);turnTimers.clear();for(const timer of botTimers.values())clearTimeout(timer);botTimers.clear();for (const ws of clients) ws.terminate(); wss.close(() => server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})); }) };
 }
 if (require.main === module) {
   const saveFile=process.env.SETTLERS_SAVE_FILE==='off'?undefined:process.env.SETTLERS_SAVE_FILE||path.join(__dirname,'data','prototype.json');
