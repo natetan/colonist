@@ -9,6 +9,7 @@ require('./development.cjs');
 require('./scoring.cjs');
 require('./persistence.cjs');
 require('./board.cjs');
+require('./shaped-board.cjs');
 require('./base-game.cjs');
 require('./interaction-controls.cjs');
 async function run() {

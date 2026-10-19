@@ -153,10 +153,10 @@ function createApp(options = {}) {
         if(message.type==='SetMap'){
           const room=ws.room;if(!room||(room.hostId||room.players[0].id)!==ws.player.id)throw new Error('Only the host can change the map.');
           if(room.game)throw new Error('The map is locked after starting.');
-          if(!['classic','random'].includes(message.mapType))throw new Error('Choose Classic or Random.');
+          if(!boards.mapTypes.includes(message.mapType))throw new Error('Choose Classic or Random, Star, Crescent, or Long Island.');
           const size=message.mapSize||(room.board.length===30?'extended':'standard');if(!['standard','extended'].includes(size))throw new Error('Choose a supported island size.');
           const extended=size==='extended';if(room.players.length>(extended?6:4))throw new Error('Too many seats for that island size.');
-          const next=message.mapType==='classic'?boards.classic(extended):(()=>{const board=boards.generate(options.boardRandom,extended);return {board,harbors:boards.harbors(board,options.boardRandom)};})();
+          const next=message.mapType==='classic'?boards.classic(extended):(()=>{const board=boards.generate(options.boardRandom,extended,message.mapType);return {board,harbors:boards.harbors(board,options.boardRandom)};})();
           room.mapType=message.mapType;room.board=next.board;room.harbors=next.harbors;persist();broadcast(room);return;
         }
         if (['Rematch','StartGame','PlaceSettlement','PlaceRoad','RollDice','EndTurn','BuildRoad','BuildSettlement','BuildCity','MoveRobber','Steal','Discard',...trading.commands,...development.commands].includes(message.type)) {

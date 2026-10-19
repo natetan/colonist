@@ -7,13 +7,14 @@ function validate(data){
   for(const room of data.rooms){
     check(room&&/^[A-F0-9]{6}$/.test(room.code)&&!codes.has(room.code));codes.add(room.code);
     check(room.turnSeconds===undefined||require('./turn-timer.cjs').choices.includes(room.turnSeconds));
-    check(room.mapType===undefined||['classic','random'].includes(room.mapType));
+    check(room.mapType===undefined||require('./board.cjs').mapTypes.includes(room.mapType));
     check(Array.isArray(room.players)&&room.players.length>0&&room.players.length<=11);
     const ids=new Set();for(const p of room.players){check(p&&typeof p.id==='string'&&p.id.length>0&&!ids.has(p.id)&&typeof p.name==='string'&&p.name.length>0&&p.name.length<=24&&typeof p.bot==='boolean'&&(p.bot||typeof p.token==='string'&&/^[a-f0-9]{48}$/.test(p.token)));ids.add(p.id);}
     check((room.hostId?room.players.some(p=>p.id===room.hostId&&!p.bot):!room.players[0].bot)&&room.players.filter(p=>!p.bot).length<=6&&room.players.filter(p=>p.bot).length<=5);
     check(Array.isArray(room.board)&&[19,30].includes(room.board.length));
     const extended=room.board.length===30,supply=extended?24:19,deckCounts=extended?development.extendedCounts:development.counts;
-    const expectedLocations=new Set(require('./board.cjs').layout(extended).map(t=>t.q+','+t.r)),locations=new Set();
+    const boards=require('./board.cjs'),legacy=room.mapType==='star'?new Set(boards.legacyStarLayout(extended).map(t=>t.q+','+t.r)):null;
+    const expectedLocations=legacy&&room.board.every(t=>legacy.has(t.q+','+t.r))?legacy:new Set(boards.shapeLayout(room.mapType||'random',extended).map(t=>t.q+','+t.r)),locations=new Set();
     for(const t of room.board){check(t&&Number.isInteger(t.q)&&Number.isInteger(t.r)&&expectedLocations.has(t.q+','+t.r)&&[...resources,'desert'].includes(t.resource)&&(t.resource==='desert'?t.number===null||integer(t.number,2,12):integer(t.number,2,12)&&t.number!==7));locations.add(t.q+','+t.r);}check(locations.size===room.board.length&&room.board.filter(t=>t.resource==='desert').length===(extended?2:1));
     if(room.harbors!==undefined){
       const coast=require('./board.cjs').coastline(room.board),ends=new Set();check(Array.isArray(room.harbors)&&room.harbors.length===(extended?11:9));

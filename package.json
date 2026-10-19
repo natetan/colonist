@@ -6,7 +6,7 @@
     "start": "node server.cjs",
     "test": "node tests/server.cjs",
     "test:base-game-network": "node tests/base-game-network.cjs",
-    "test:board": "node tests/board.cjs",
+    "test:board": "node tests/board.cjs && node tests/shaped-board.cjs",
     "test:harbors-network": "node tests/harbors-network.cjs",
     "test:persistence": "node tests/persistence.cjs",
     "test:persistence-network": "node tests/persistence-network.cjs",
