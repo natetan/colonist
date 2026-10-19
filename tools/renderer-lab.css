@@ -111,6 +111,9 @@
 .bottom-bar #hand>.resource-card,.bottom-bar #hand>.development-stack{zoom:1.2;transform:none;margin-right:0}
 .hand-divider{flex-shrink:0}
 .development-stack[data-development-type="VictoryPoint"] .hand-development:disabled{opacity:1}
+/* Reserve a full card slot even before a requested or offered card is selected. */
+.bottom-bar .trade-proposal .offer-row{height:76px;min-height:76px;flex-shrink:0}
+.bottom-bar .trade-proposal .trade-requirements{min-height:2lh}
 
 @media(min-width:701px){.bottom-bar>#action-box{grid-row:auto;grid-column:auto}}
 
