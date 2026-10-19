@@ -260,3 +260,11 @@ On a seven, only players with more than seven resource cards discard floor(hand/
 On desktop, the board column fills the same viewport height as the sidebar, keeping the hand and action dock aligned with the bottom player row.
 
 Build placement ends after the server confirms your new road, settlement, or city. The extra cancel-placement button is removed; clicking the selected build icon again exits an uncommitted placement.
+
+### Full-game and trading QA
+
+Run `npm run practice:trading` for a disposable two-human match at port 3011. Open both printed host/friend URLs in separate tabs; setup and the first roll are already complete. These are real multiplayer seats: offer cards in the host tab, then decline or accept in the friend tab. The diagnostic board deliberately uses sixes for quick production. It has no persistence and does not modify your saved rooms. Keep it on localhost; the generated seat links and bootstrap files are local diagnostics. Stop with Ctrl+C and rerun to reset.
+
+Run `npm run qa:renderer` to record a complete integration-test match and two-human trade snapshots, then open the printed port-3010 replay URL. Use its scenario selector for discard, development hand, incoming/declined offers, results, and recorded animation transitions. Replay controls do not send live game moves. Generated snapshots, HTML, and assets remain ignored.
+
+This pass verified complete four-player matches on two generated boards (including asynchronous bot scheduling), real browser-to-browser offer/decline/accept flows, resource payment and development-card purchase flights, discard controls, and the results overlay. Fixed clipped boards on shorter desktop windows, over-wide inventory, detached discard-box positioning, and sender drafts surviving completed trades. Multiplayer offers still target one human; counteroffers and broadcast negotiations remain later work, as do larger matches.

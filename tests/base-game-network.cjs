@@ -2,15 +2,15 @@
 const assert=require('assert/strict'),{WebSocket}=require('ws'),{createApp}=require('../server.cjs'),turns=require('../turns.cjs'),boards=require('../board.cjs');
 function rng(seed){return n=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed%n;};}
 async function run(){
- const dice=rng(91),app=createApp({boardRandom:rng(1234),random:(min,max)=>max===undefined?dice(min):min+dice(max-min),developmentRandom:rng(52)});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));const port=app.server.address().port;
+ const seed=Number(process.env.SETTLERS_TEST_SEED||91),dice=rng(seed),app=createApp({botDelayMs:Number(process.env.SETTLERS_TEST_BOT_DELAY_MS||0),boardRandom:rng(seed+1143),random:(min,max)=>max===undefined?dice(min):min+dice(max-min),developmentRandom:rng(seed+39)});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));const port=app.server.address().port;
  const ws=new WebSocket(`ws://127.0.0.1:${port}/socket`,{origin:`http://localhost:${port}`}),queue=[],waiting=[];
  ws.on('message',bytes=>{const m=JSON.parse(bytes);if(m.type==='Error')throw new Error(m.message);const i=waiting.findIndex(w=>w.type===m.type);if(i<0)queue.push(m);else waiting.splice(i,1)[0].resolve(m);});
  const next=type=>new Promise((resolve,reject)=>{const i=queue.findIndex(m=>m.type===type);if(i>=0)return resolve(queue.splice(i,1)[0]);const timer=setTimeout(()=>reject(new Error('Timed out '+type)),5000);waiting.push({type,resolve:m=>{clearTimeout(timer);resolve(m);}});});const send=m=>ws.send(JSON.stringify(m));
  try{
-  await next('SessionEstablished');send({type:'CreateRoom',name:'Base-game tester'});const joined=await next('Joined');await next('RoomState');send({type:'StartGame',bots:true});let state=await next('RoomState');const id=joined.playerId;let sevens=0,trades=0;
+  await next('SessionEstablished');send({type:'CreateRoom',name:'Base-game tester'});const joined=await next('Joined');await next('RoomState');send({type:'StartGame',bots:true});let state=await next('RoomState');const id=joined.playerId;let sevens=0,trades=0;const replay=[];
   const reds=state.board.filter(t=>t.number===6||t.number===8);for(const a of reds)for(const b of reds)if(a!==b)assert(!boards.adjacent(a,b));assert.equal(state.harbors.length,9);
   for(let action=0;state.game.phase!=='finished'&&action<3000;action++){
-   const g=state.game,h=g.resources;let move;
+   if(process.env.SETTLERS_RECORD_QA)replay.push(state);const g=state.game,h=g.resources;let move;
    if(g.discardCount){let left=g.discardCount;const cards={};for(const r of Object.keys(h).sort((a,b)=>h[b]-h[a])){cards[r]=Math.min(left,h[r]);left-=cards[r];}move={type:'Discard',cards};sevens++;}
    else if(g.currentPlayer!==id){state=await next('RoomState');continue;}
    else if(g.phase==='settlement'){
@@ -37,6 +37,7 @@ async function run(){
    send(move);state=await next('RoomState');
    for(const r of Object.keys(state.game.bank||{}))assert.equal(state.game.bank[r]+state.players.reduce((n,p)=>n+(p.id===id?state.game.resources[r]:0),0)<=19,true);
   }
+  if(process.env.SETTLERS_RECORD_QA){replay.push(state);require('fs').mkdirSync(require('path').resolve(__dirname,'../.rea-tools'),{recursive:true});require('fs').writeFileSync(require('path').resolve(__dirname,'../.rea-tools/full-game-qa.json'),JSON.stringify({viewerId:id,states:replay}));}
   assert.equal(state.game.phase,'finished');assert(state.game.scoring.winningPoints>=10);assert.equal(state.players.length,4);assert(trades>0);assert(sevens>0);console.log(`PASS: complete four-player standard-board match with harbors, real dice/sevens, ${trades} human maritime trades, development cards, bots and ten-point victory`);
  }finally{await app.close();}
 }

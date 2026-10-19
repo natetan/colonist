@@ -7,7 +7,8 @@ async function run(){
   try{
     const a=client(),b=client();await a.next('SessionEstablished');await b.next('SessionEstablished');a.send({type:'CreateRoom',name:'A'});const ja=await a.next('Joined');await a.next('RoomState');b.send({type:'JoinRoom',name:'B',code:ja.code});const jb=await b.next('Joined');await a.next('RoomState');await b.next('RoomState');
     a.send({type:'StartGame'});let sa=await a.next('RoomState'),sb=await b.next('RoomState');
-    async function both(){sa=await a.next('RoomState');sb=await b.next('RoomState');assert.deepEqual(sa.game.tradeOffer,sb.game.tradeOffer);assert(!JSON.stringify(sb).includes(ja.token));}
+    const replayA=[],replayB=[];
+    async function both(){sa=await a.next('RoomState');sb=await b.next('RoomState');assert.deepEqual(sa.game.tradeOffer,sb.game.tradeOffer);assert(!JSON.stringify(sb).includes(ja.token));if(process.env.SETTLERS_RECORD_QA){replayA.push(sa);replayB.push(sb);}}
     while(['settlement','road'].includes(sa.game.phase)){const c=sa.game.currentPlayer===ja.playerId?a:b;c.send({type:sa.game.phase==='settlement'?'PlaceSettlement':'PlaceRoad',id:(sa.game.phase==='settlement'?sa.game.legalVertices:sa.game.legalEdges)[0]});await both();}
     while(sa.game.phase!=='roll')await both();
     a.send({type:'RollDice'});await both();
@@ -29,6 +30,7 @@ async function run(){
     b.send({type:'BankTrade',give,receive:wanted});assert.match((await b.next('Error')).message,/another player/);
     a.send({type:'OfferTrade',player:jb.playerId,give:{[wanted]:1},receive:{[give]:1}});await both();const stale=sa.game.tradeOffer.id;
     a.send({type:'EndTurn'});await both();assert.equal(sb.game.tradeOffer,null);b.send({type:'AcceptTrade',offerId:stale});assert.match((await b.next('Error')).message,/Trade only/);
+    if(process.env.SETTLERS_RECORD_QA)require('fs').writeFileSync(require('path').resolve(__dirname,'../.rea-tools/trading-qa.json'),JSON.stringify([{viewerId:ja.playerId,states:replayA},{viewerId:jb.playerId,states:replayB}]));
     console.log('PASS: two-human WebSocket trade acceptance and redacted snapshots, duplicate rejection, bank exchange, turn enforcement, offer expiry');
   }finally{await app.close();}
 }
