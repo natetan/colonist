@@ -27,7 +27,7 @@ window.TradeControls=(()=>{
       bankButton=button('Trade with bank',()=>send('BankTrade',{give:give.value,receive:receive.value}));section.append(bankHelp);updateBank();
       const opponents=state.players.filter(p=>p.playing&&!p.bot&&p.id!==viewerId&&p.online);
       if(opponents.length){
-        const player=select('Offer to',opponents.map(p=>[p.id,p.name]),draft.player,value=>{draft.player=value;});draft.player=player.value;
+        const player=select('Offer to',[['all','All players'],...opponents.map(p=>[p.id,p.name])],draft.player,value=>{draft.player=value;});draft.player=player.value;
         const table=document.createElement('table');const header=document.createElement('tr');for(const text of ['Resource','You give','You receive']){const th=document.createElement('th');th.textContent=text;header.append(th);}table.append(header);
         const fields={give:{},receive:{}};let offerButton;
         const offerHelp=document.createElement('p');offerHelp.setAttribute('role','status');
@@ -42,9 +42,10 @@ window.TradeControls=(()=>{
     }
     const offer=g.tradeOffer;if(!offer)return;
     const name=id=>state.players.find(p=>p.id===id)?.name||'Player';
-    const p=document.createElement('p');p.textContent=`${name(offer.from)} offers ${describe(offer.give)} to ${name(offer.to)} for ${describe(offer.receive)}.`;section.append(p);
+    const p=document.createElement('p');p.textContent=`${name(offer.from)} offers ${describe(offer.give)} to ${(offer.to===null?'all players':name(offer.to))} for ${describe(offer.receive)}.`;section.append(p);
+    for(const id of offer.recipients||[offer.to]){const response=document.createElement('p');response.textContent=name(id)+': '+(offer.responses?.[id]==='declined'?'Declined ✕':'Awaiting response');section.append(response);}
     if(offer.from===viewerId)button('Cancel trade offer',()=>send('CancelTrade',{offerId:offer.id}));
-    if(offer.to===viewerId){button('Accept trade',()=>send('AcceptTrade',{offerId:offer.id}),!g.canAcceptTrade);button('Decline trade',()=>send('DeclineTrade',{offerId:offer.id}));if(!g.canAcceptTrade){const help=document.createElement('p');help.textContent='You do not have all the requested cards.';section.append(help);}}
+    if((offer.recipients||[offer.to]).includes(viewerId)&&offer.responses?.[viewerId]!=='declined'){button('Accept trade',()=>send('AcceptTrade',{offerId:offer.id}),!g.canAcceptTrade);button('Decline trade',()=>send('DeclineTrade',{offerId:offer.id}));if(!g.canAcceptTrade){const help=document.createElement('p');help.textContent='You do not have all the requested cards.';section.append(help);}}
   }
   return {render};
 })();

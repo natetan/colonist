@@ -32,3 +32,5 @@ act(g,'A',{type:'OfferTrade',player:'C',give:{wood:1},receive:{brick:1}});reject
 act(g,'A',{type:'OfferTrade',player:'B',give:{wood:1},receive:{brick:1}});assert.equal(g.tradeDecline,null);const expired=g.tradeOffer.id;act(g,'A',{type:'EndTurn'});assert.equal(g.tradeDecline,null);assert.equal(g.tradeOffer,null);reject(g,'B',{type:'AcceptTrade',offerId:expired},/Trade only/);
 for(const phase of ['roll','discard','robber','steal','settlement','road']){g=fixture();g.phase=phase;reject(g,'A',{type:'BankTrade',give:'wood',receive:'brick'},/Trade only/);reject(g,'A',{type:'OfferTrade',player:'B',give:{wood:1},receive:{brick:1}},/Trade only/);}
 console.log('PASS: bank/player trade conservation, atomic rejection, turn/phase ownership, malformed amounts, stale/replayed offers, replacement/cancel/decline/expiry, acceptance affordability');
+
+{const g=fixture();turns.act(g,tiles,'A',{type:'OfferTrade',player:'all',give:{wood:1},receive:{brick:1}},undefined,undefined,['A','B']);assert.deepEqual(g.tradeOffer.recipients,['B']);reject(g,'C',{type:'DeclineTrade',offerId:g.tradeOffer.id},/no longer/);}

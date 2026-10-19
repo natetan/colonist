@@ -21,6 +21,7 @@ context.referenceTrade(panel,state,'A',context.send);context.syncTradeInventory(
 const root=panel.querySelector('.reference-trade'),sheep=hand.children[2];
 sheep.onclick();sheep.onclick();assert.equal(sheep.querySelector('strong').textContent,1);assert.equal(panel.querySelector('.reference-trade'),root,'Popup identity stays stable');assert.equal(panel.open,true);
 const remove=root.querySelectorAll('button').find(b=>b.getAttribute('aria-label')==='Remove offered sheep');remove.onclick();assert.equal(sheep.querySelector('strong').textContent,2);
+root.querySelectorAll('button').find(b=>b.getAttribute('aria-label')==='Request ore').onclick();const offerButton=root.querySelectorAll('button').find(b=>b.getAttribute('aria-label')==='Send player offer');offerButton.onclick();assert.equal(sent[0][1].player,'all');sent.length=0;
 const bank=root.querySelectorAll('button').find(b=>b.getAttribute('aria-label')==='Trade with bank');assert.equal(bank.disabled,true,'One sheep cannot pay a 4:1 trade');assert.equal(sent.length,0);
 panel.open=false;context.syncTradeInventory(state,panel);assert.equal(sheep.querySelector('strong').textContent,3);
 // Run the real dismissal helper: a closed draft must not survive reopening.

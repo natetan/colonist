@@ -19,14 +19,16 @@ function rates(g,id){
   }
   return result;
 }
-function act(g,id,message) {
+function recipients(offer){return offer.recipients||[offer.to];}
+function canRespond(offer,id){return !!offer&&recipients(offer).includes(id)&&offer.responses?.[id]!=='declined';}
+function act(g,id,message,eligibleRecipients=g.players) {
   if(!commands.includes(message.type))return false;
   if(g.phase!=='build')throw new Error('Trade only after rolling and resolving the robber.');
   const current=g.players[g.turn];
   if(['AcceptTrade','DeclineTrade'].includes(message.type)){
     const offer=g.tradeOffer;
-    if(!offer||offer.id!==message.offerId||offer.from!==current||offer.to!==id)throw new Error('That trade offer is no longer available to you.');
-    if(message.type==='DeclineTrade'){g.tradeDecline={...offer,declinedBy:id};g.tradeOffer=null;return true;}
+    if(!offer||offer.id!==message.offerId||offer.from!==current||!canRespond(offer,id))throw new Error('That trade offer is no longer available to you.');
+    if(message.type==='DeclineTrade'){if(offer.to===null){offer.responses[id]='declined';}else{g.tradeDecline={...offer,declinedBy:id};g.tradeOffer=null;}return true;}
     // Recheck both hands at acceptance; the offer reserves no cards.
     if(!hasCards(g.resources[offer.from],offer.give)||!hasCards(g.resources[id],offer.receive))throw new Error('This trade cannot be completed. Cancel or change the offer.');
     for(const [r,n]of Object.entries(offer.give)){g.resources[offer.from][r]-=n;g.resources[id][r]+=n;}
@@ -45,12 +47,13 @@ function act(g,id,message) {
     if(!g.tradeOffer||g.tradeOffer.from!==id||g.tradeOffer.id!==message.offerId)throw new Error('That trade offer is no longer available to cancel.');
     g.tradeOffer=null;return true;
   }
-  if(!g.players.includes(message.player)||message.player===id)throw new Error('Choose another player in this match.');
+  const broadcast=message.player==='all',targets=broadcast?[...new Set(eligibleRecipients)].filter(p=>g.players.includes(p)&&p!==id):[message.player];
+  if(!targets.length||targets.some(p=>!g.players.includes(p)||p===id))throw new Error('Choose another player in this match.');
   const give=cards(message.give),receive=cards(message.receive);
   if(Object.keys(give).some(r=>owns(receive,r)))throw new Error('A resource cannot appear on both sides of a trade.');
   if(!hasCards(g.resources[id],give))throw new Error('You do not have the cards you offered.');
   g.tradeDecline=null;
   g.tradeSequence=(g.tradeSequence||0)+1;
-  g.tradeOffer={id:g.tradeSequence,from:id,to:message.player,give,receive};return true;
+  g.tradeOffer={id:g.tradeSequence,from:id,to:broadcast?null:message.player,recipients:targets,responses:Object.fromEntries(targets.map(p=>[p,'pending'])),give,receive};return true;
 }
-module.exports={resources,commands,act,hasCards,rates};
+module.exports={resources,commands,act,hasCards,rates,recipients,canRespond};

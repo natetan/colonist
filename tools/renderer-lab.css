@@ -113,3 +113,5 @@
 @media(min-width:701px){.bottom-bar>#action-box{grid-row:auto;grid-column:auto}}
 
 .offer-avatar>img{display:block;width:82%;height:82%;object-fit:contain}
+
+.offer-responses{margin-left:auto;display:flex;gap:9px;flex-wrap:wrap}.offer-responses .offer-avatar{width:32px;height:32px}.offer-title{flex-wrap:wrap}

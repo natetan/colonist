@@ -16,6 +16,11 @@ try{
  turns.act(g,tiles,'A',{type:'Discard',cards:{wood:4}});assert.equal(g.phase,'robber');store.save(rooms);validate(JSON.parse(fs.readFileSync(file,'utf8')));
  g.phase='roll';g.developmentDeck.splice(g.developmentDeck.indexOf('RoadBuilding'),1);g.developmentHands.A.push({id:++g.nextDevelopmentId,type:'RoadBuilding',boughtTurn:0});turns.act(g,tiles,'A',{type:'PlayDevelopmentCard',cardId:g.nextDevelopmentId});
  assert.equal(g.phase,'free-road');store.save(rooms);validate(JSON.parse(fs.readFileSync(file,'utf8')));turns.act(g,tiles,'A',{type:'PlaceFreeRoad',id:turns.roadLocations(g,'A')[0]});assert.equal(g.freeRoadsRemaining,1);store.save(rooms);validate(JSON.parse(fs.readFileSync(file,'utf8')));
+ // Broadcast response state round-trips and rejects invalid recipients/responses.
+ const broadcast=encode(rooms),saved=broadcast.rooms[0].game;saved.phase='build';delete saved.developmentReturnPhase;saved.freeRoadsRemaining=0;
+ turns.act(saved,tiles,'A',{type:'OfferTrade',player:'all',give:{wood:1},receive:{brick:1}});turns.act(saved,tiles,'B',{type:'DeclineTrade',offerId:saved.tradeOffer.id});validate(broadcast);
+ const badResponse=JSON.parse(JSON.stringify(broadcast));badResponse.rooms[0].game.tradeOffer.responses.outsider='declined';assert.throws(()=>validate(badResponse),/Invalid/);
+ room.game=saved;store.save(rooms);assert.equal(store.load().get(room.code).game.tradeOffer.responses.B,'declined');room.game=g;store.save(rooms);
  store.close();store=createStore(file);const restored=store.load().get(room.code);assert.deepEqual(restored.game,g);assert.equal(restored.players[0].token,players[0].token);assert.equal(restored.players[0].ws,null);
  const before=fs.readFileSync(file,'utf8'),rename=fs.renameSync;fs.renameSync=()=>{throw new Error('simulated disk failure');};try{assert.throws(()=>store.save(rooms),/simulated/);}finally{fs.renameSync=rename;}assert.equal(fs.readFileSync(file,'utf8'),before);assert(!fs.readdirSync(dir).some(f=>f.endsWith('.tmp')));assert.equal(fs.readFileSync(file+'.bak','utf8'),before);
  const broken=JSON.parse(before);broken.rooms[0].game.bank.wood++;assert.throws(()=>validate(broken),/Invalid/);broken.version=999;assert.throws(()=>validate(broken),/Invalid/);

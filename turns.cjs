@@ -24,11 +24,11 @@ function roadLocations(g,id){
   if (g.edges.filter(e=>e.owner===id).length>=15) return [];
   return g.edges.filter(e=>e.owner===null&&[e.a,e.b].some(v=>g.vertices[v].owner===id || (g.vertices[v].owner===null&&g.edges.some(other=>other.owner===id&&(other.a===v||other.b===v))))).map(e=>e.id);
 }
-function applyAct(g, tiles, id, message, random = crypto.randomInt, developmentRandom=crypto.randomInt) {
+function applyAct(g, tiles, id, message, random = crypto.randomInt, developmentRandom=crypto.randomInt,tradeRecipients=g.players) {
   if (!g.players.includes(id)) throw new Error('You are not playing in this match.');
   const type = message.type;
   if(development.act(g,id,message,developmentRandom,roadLocations))return;
-  if(trading.act(g,id,message))return;
+  if(trading.act(g,id,message,tradeRecipients))return;
   if (type==='Discard') {
     if (g.phase!=='discard'||!g.discards[id]) throw new Error('You do not need to discard.');
     const cards=message.cards;
@@ -62,9 +62,9 @@ function applyAct(g, tiles, id, message, random = crypto.randomInt, developmentR
   for(const[r,n]of Object.entries(costs[type])){g.resources[id][r]-=n;g.bank[r]+=n;}
   if(type==='BuildRoad')g.edges[message.id].owner=id;else if(type==='BuildCity')g.vertices[message.id].city=true;else g.vertices[message.id].owner=id;
 }
-function act(g,tiles,id,message,random=crypto.randomInt,developmentRandom=crypto.randomInt){
+function act(g,tiles,id,message,random=crypto.randomInt,developmentRandom=crypto.randomInt,tradeRecipients=g.players){
   if(g.winner||g.phase==='finished')throw new Error('The match has finished. Create a new room to play again.');
-  applyAct(g,tiles,id,message,random,developmentRandom);
+  applyAct(g,tiles,id,message,random,developmentRandom,tradeRecipients);
   scoring.refresh(g);
 }
 function botAction(g,tiles,id) {
