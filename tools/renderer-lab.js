@@ -202,9 +202,47 @@ function referenceTrade(parent,state,viewerId,send){
   if(g.tradeOffer){const existing=g.tradeOffer;const status=document.createElement('p');status.textContent='Pending offer · '+state.players.find(p=>p.id===existing.from)?.name+' → '+(existing.to===null?'All players':state.players.find(p=>p.id===existing.to)?.name);offer.append(status);for(const [label,type,allowed]of [['Cancel offer','CancelTrade',existing.from===viewerId],['Accept offer','AcceptTrade',mayRespond(existing,viewerId)&&g.canAcceptTrade],['Decline offer','DeclineTrade',mayRespond(existing,viewerId)]])if(allowed){const button=document.createElement('button');button.textContent=label;button.onclick=()=>send(type,{offerId:existing.id});offer.append(button);}}
 }
 let audioContext,soundEnabled=localStorage.getItem('settlers-sound')!=='off',turnStarted=Date.now(),turnKey;
-document.addEventListener('pointerdown',()=>{if(soundEnabled){audioContext??=new AudioContext();audioContext.resume().catch(()=>{});}});
-function cue(dice=false){if(!soundEnabled||!audioContext||audioContext.state!=='running')return;for(let i=0;i<(dice?5:2);i++){const oscillator=audioContext.createOscillator(),gain=audioContext.createGain(),start=audioContext.currentTime+i*.075;oscillator.type=dice?'triangle':'sine';oscillator.frequency.value=dice?180+i*67:660+i*220;gain.gain.setValueAtTime(.035,start);gain.gain.exponentialRampToValueAtTime(.001,start+.065);oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(start);oscillator.stop(start+.07);}}
-function turnFeedback(state){const g=state.game,key=state.code+':'+g?.currentPlayer+':'+g?.phase;if(key!==turnKey){turnStarted=Date.now();turnKey=key;if(g?.currentPlayer===joined.playerId&&['roll','settlement'].includes(g.phase))cue();}if(g?.dice&&latestState?.game?.phase==='roll'&&g.phase!=='roll')cue(true);}
+function unlockSound(){if(!soundEnabled)return;try{audioContext??=new AudioContext();audioContext.resume().catch(()=>{});}catch{/* Audio is optional on browsers without Web Audio. */}}
+for(const event of ['pointerdown','keydown'])document.addEventListener(event,unlockSound);
+function cue(kind='turn'){
+  if(!soundEnabled||!audioContext||audioContext.state!=='running')return;
+  const now=audioContext.currentTime;
+  const tone=(frequency,volume,decay,delay=0,type='sine',endFrequency)=>{
+    const oscillator=audioContext.createOscillator(),gain=audioContext.createGain(),start=now+delay;oscillator.type=type;
+    oscillator.frequency.setValueAtTime(frequency,start);if(endFrequency)oscillator.frequency.exponentialRampToValueAtTime(endFrequency,start+decay);
+    gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(volume,start+.006);gain.gain.exponentialRampToValueAtTime(.0001,start+decay);
+    oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(start);oscillator.stop(start+decay+.02);oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
+  };
+  if(kind==='dice'){for(let i=0;i<8;i++)tone([410,230,540,300,470,210,380,260][i],.055,.065,i*.045,'triangle',100);return;}
+  if(['road','settlement','city','robber'].includes(kind)){
+    // A brief broadband contact click over hollow plastic resonances.
+    const buffer=audioContext.createBuffer(1,Math.ceil(audioContext.sampleRate*.045),audioContext.sampleRate),samples=buffer.getChannelData(0);
+    for(let i=0;i<samples.length;i++)samples[i]=(Math.random()*2-1)*Math.exp(-i/(audioContext.sampleRate*.008));
+    const click=audioContext.createBufferSource(),filter=audioContext.createBiquadFilter(),impact=audioContext.createGain();
+    click.buffer=buffer;filter.type='bandpass';filter.frequency.value=1900;filter.Q.value=.7;impact.gain.value=.65;
+    click.connect(filter);filter.connect(impact);impact.connect(audioContext.destination);click.start(now);click.onended=()=>{click.disconnect();filter.disconnect();impact.disconnect();};
+    tone(kind==='city'?340:460,.25,.085,0,'sine',kind==='city'?210:290);
+    tone(1250,.12,.035,.001,'triangle',850);
+    tone(690,.075,.055,.012,'sine',510);
+    return;
+  }
+  if(kind==='longestRoad'||kind==='largestArmy'){
+    const notes=kind==='longestRoad'?[523.25,659.25,783.99,1046.5]:[392,523.25,659.25,783.99];
+    notes.forEach((frequency,i)=>{tone(frequency,.075,i===3?.65:.22,i*.13,'triangle');tone(frequency*2,.018,.2,i*.13);});return;
+  }
+  // A struck bell: a clear fundamental with softer, quickly fading overtones.
+  for(const [frequency,volume,decay]of [[880,.12,.95],[1760,.035,.55],[2376,.012,.3]])tone(frequency,volume,decay);
+}
+function turnFeedback(state){
+  const g=state.game,old=latestState?.code===state.code?latestState.game:null,key=state.code+':'+g?.currentPlayer+':'+g?.phase;
+  if(key!==turnKey){turnStarted=Date.now();turnKey=key;if(g?.currentPlayer===joined.playerId&&['roll','settlement'].includes(g.phase))cue();}
+  if(!g||!old)return;
+  if(g.dice&&old.phase==='roll'&&g.phase!=='roll')cue('dice');
+  const addedRoad=g.edges?.some(e=>e.owner&&!old.edges?.some(previous=>previous.id===e.id&&previous.owner===e.owner));
+  const placed=g.vertices?.find(v=>v.owner&&(!old.vertices?.some(previous=>previous.id===v.id&&previous.owner===v.owner)||v.city&&!old.vertices?.find(previous=>previous.id===v.id)?.city));
+  if(placed)cue(placed.city?'city':'settlement');else if(addedRoad)cue('road');else if(g.robber!==old.robber)cue('robber');
+  for(const award of ['longestRoad','largestArmy'])if(g.scoring?.[award]&&g.scoring[award]!==old.scoring?.[award])cue(award);
+}
 setInterval(()=>{const elapsed=Math.floor((Date.now()-turnStarted)/1000);$('phase-clock').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;},1000);
 let developmentChoice,selectedVictim,developmentCatalog={"Knight":{"name":"Knight","picture":"card_knight","effect":"Move the robber to another tile, then steal one random resource card from an eligible player."},"VictoryPoint":{"name":"Victory point","picture":"card_vp","effect":"Adds one private victory point automatically. You do not play this card."},"Monopoly":{"name":"Monopoly","picture":"card_monopoly","effect":"Choose one resource. Collect all cards of that resource from every other player."},"RoadBuilding":{"name":"Road building","picture":"card_roadbuilding","effect":"Place up to two roads for free, following normal placement rules and piece limits."},"YearOfPlenty":{"name":"Year of plenty","picture":"card_yearofplenty","effect":"Choose two available resource cards from the bank. You may choose the same resource twice if available."}},developmentPicks=[];
 const cardTip=document.createElement('div');cardTip.className='card-tooltip';cardTip.hidden=true;cardTip.id='development-tooltip';cardTip.setAttribute('role','tooltip');document.body.append(cardTip);
@@ -343,7 +381,7 @@ function connect(){
 $('create').onclick=()=>send('CreateRoom',{name:$('name').value});
 $('join').onclick=()=>send('JoinRoom',{name:$('name').value,code:$('code').value.trim().toUpperCase()});
 $('code').value=new URLSearchParams(location.search).get('room')||'';
-$('sound').checked=soundEnabled;$('sound').onchange=()=>{soundEnabled=$('sound').checked;localStorage.setItem('settlers-sound',soundEnabled?'on':'off');};
+$('sound').checked=soundEnabled;$('sound').onchange=()=>{soundEnabled=$('sound').checked;localStorage.setItem('settlers-sound',soundEnabled?'on':'off');if(soundEnabled){unlockSound();audioContext?.resume().then(()=>cue()).catch(()=>{});}};
 $('chat-form').onsubmit=event=>{event.preventDefault();const text=$('chat-input').value.trim();if(text){send('Chat',{text});$('chat-input').value='';}};
 $('share').onclick=async()=>{const url=new URL(location.href);url.searchParams.set('room',joined.code);try{await navigator.clipboard.writeText(url.href);$('share').textContent='Copied room link';setTimeout(()=>$('share').textContent='Copy room link',2000);}catch{$('error').textContent=`Room code: ${joined.code}. Copy the address and add ?room=${joined.code}`;}};
 $('probe').onclick=async()=>{try{const fixture=await(await fetch('/fixture.json')).json();scheduleRender(fixture,{robber:Object.values(fixture.gameState.mapState.tileHexStates).findIndex(t=>t.type===0)});}catch(error){log(error.message);}};

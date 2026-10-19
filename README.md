@@ -268,3 +268,7 @@ Run `npm run practice:trading` for a disposable four-human match at port 3011. O
 Run `npm run qa:renderer` to record a complete integration-test match and two-human trade snapshots, then open the printed port-3010 replay URL. Use its scenario selector for discard, development hand, incoming/declined offers, results, and recorded animation transitions. Replay controls do not send live game moves. Generated snapshots, HTML, and assets remain ignored.
 
 This pass verified complete four-player matches on two generated boards (including asynchronous bot scheduling), real browser-to-browser offer/decline/accept flows, resource payment and development-card purchase flights, discard controls, and the results overlay. Fixed clipped boards on shorter desktop windows, over-wide inventory, detached discard-box positioning, and sender drafts surviving completed trades. Multiplayer offers still target one human; counteroffers and broadcast negotiations remain later work, as do larger matches.
+
+The renderer plays a short synthesized bell when your turn starts (including settlement setup). Settings → Sound enables or mutes it and remembers your choice. Browser audio needs an initial click or keypress in the game tab; no audio download is required.
+
+Sound also includes a dice rattle, soft placement impacts for roads/buildings/the robber, and distinct ascending fanfares when Longest Road or Largest Army changes holder. These follow confirmed server updates for every player; repeated snapshots stay silent.
