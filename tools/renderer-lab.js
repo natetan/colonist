@@ -45,18 +45,31 @@ function assets(){
   })().catch(error=>{assetReady=undefined;throw error;});
   return assetReady;
 }
-let placedState;
+let placedState,cameraBoardKey;
+function captureMapCamera(view){
+  const center=view.toWorld(view.screenWidth/2,view.screenHeight/2);
+  return {zoom:view.scale.x/view.initialFitScale,x:(center.x-view.mapCenter.x)/view.hexagonHeight,y:(center.y-view.mapCenter.y)/view.hexagonHeight};
+}
+function restoreMapCamera(view,camera){
+  if(!camera)return;
+  view.scale.set(view.initialFitScale*camera.zoom);
+  view.moveCenter(view.mapCenter.x+camera.x*view.hexagonHeight,view.mapCenter.y+camera.y*view.hexagonHeight);
+}
 async function render(fixture,presentation,state){
   const pixi=await assets();
-  if(!activeApp){activeApp=new pixi.Application({width:900,height:650,backgroundColor:0x0e69a3,antialias:true});$('board').replaceChildren(activeApp.view);load(71198).z.setCanvasConfigVariables(activeApp);}
+  const boardKey=state?state.code+':'+JSON.stringify(state.board):null;
+  const camera=boardKey&&boardKey===cameraBoardKey&&currentManager?captureMapCamera(currentManager.mapController.mapView):null;
+  const bounds=$('board').getBoundingClientRect(),width=Math.max(1,Math.round(bounds.width)||900),height=Math.max(1,Math.round(bounds.height)||650);
+  if(!activeApp){activeApp=new pixi.Application({width,height,backgroundColor:0x0e69a3,antialias:true});$('board').replaceChildren(activeApp.view);load(71198).z.setCanvasConfigVariables(activeApp);}
   const app=activeApp;
+  if(app.screen.width!==width||app.screen.height!==height)app.renderer.resize(width,height);
   cleanupScene?.();
   for(const child of app.stage.removeChildren())child.destroy({children:true});
   for(const dot of $('board').querySelectorAll('.placement,.harbor-label'))dot.remove();
   const ticks=[];cleanupScene=()=>{for(const tick of ticks)app.ticker.remove(tick);};
   const tick=fn=>{ticks.push(fn);app.ticker.add(fn);};
   const animations=new Set(),mechanics=new Set();
-  const manager={gameState:new(load(35606).n)(),canvasController:{app,appW:900,appH:650,chatWidth:0,itemSize:0},eventController:{registerUIGameMechanic:value=>mechanics.add(value),registerUIGameAnimation:value=>animations.add(value),unregisterUIGameAnimation:value=>animations.delete(value),sendEvent:()=>{}},toolTipController:{createTip:()=>{},disableTip:()=>{}}};
+  const manager={gameState:new(load(35606).n)(),canvasController:{app,appW:width,appH:height,chatWidth:0,itemSize:0},eventController:{registerUIGameMechanic:value=>mechanics.add(value),registerUIGameAnimation:value=>animations.add(value),unregisterUIGameAnimation:value=>animations.delete(value),sendEvent:()=>{}},toolTipController:{createTip:()=>{},disableTip:()=>{}}};
   // Bind only the manager setter; constructing the entry class would run site startup.
   load(55547).gC.prototype.initializeGameManager.call({},manager);
   tick(()=>{for(const animation of [...animations])animation.onGameTick?.(app.ticker.elapsedMS,app.ticker.deltaTime);});
@@ -64,6 +77,7 @@ async function render(fixture,presentation,state){
   manager.gameController=new(load(68736).UIGameController)(manager,fixture);
   manager.mapController=new(load(584).UIWGameMapController)(manager);manager.mapController.createMap();currentManager=manager;
   const view=manager.mapController.mapView, map=manager.gameController.mapValidator.tileState;
+  view.initialFitScale=view.scale.x;restoreMapCamera(view,camera);cameraBoardKey=boardKey;
   if(state?.game&&placedState?.code===state.code&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
     const dropping=[];
     for(const vertex of state.game.vertices){const old=placedState.game?.vertices[vertex.id];if(vertex.owner&&(!old?.owner||old.city!==vertex.city)){const corner=map.tileCorners[presentation.mapping.corners[vertex.id]],building=manager.mapController.cornerController.buildingViews.find(v=>v.corner===corner);if(building)dropping.push(building);}}
@@ -127,6 +141,10 @@ function scheduleRender(fixture,presentation,state){
     finally{rendering=false;}
   });
 }
+if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{
+  const board=$('board');
+  if(activeApp&&latestState&&board.clientWidth&&board.clientHeight&&(Math.round(board.clientWidth)!==activeApp.screen.width||Math.round(board.clientHeight)!==activeApp.screen.height))scheduleRender(latestState.renderer.fixture,latestState.renderer,latestState);
+}).observe($('board'));
 function send(type,extra={}){if(socket?.readyState!==WebSocket.OPEN)return;$('error').textContent='';socket.send(JSON.stringify({type,...extra}));}
 const cardSprites={wood:'card_lumber',brick:'card_brick',sheep:'card_wool',wheat:'card_grain',ore:'card_ore'};
 function sprite(name){const e=document.createElement('span');e.className='sprite-'+name;e.setAttribute('aria-hidden','true');return e;}

@@ -32,7 +32,7 @@
     "test:bot-pacing": "node tests/bot-pacing.cjs",
     "renderer:lab": "node tools/renderer-server.cjs",
     "fetch:renderer-assets": "node tools/fetch-renderer-assets.cjs",
-    "test:renderer": "node tests/renderer-menu.cjs && node tests/renderer-controls.cjs && node tests/renderer-trade-controls.cjs && node tests/renderer-server.cjs",
+    "test:renderer": "node tests/renderer-camera.cjs && node tests/renderer-menu.cjs && node tests/renderer-controls.cjs && node tests/renderer-trade-controls.cjs && node tests/renderer-server.cjs",
     "test:renderer-state": "node tests/renderer-state.cjs",
     "inspect:client": "node tools/inspect-client.cjs",
     "inspect:rea": "node tools/run-rea.cjs",
