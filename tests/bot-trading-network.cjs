@@ -29,8 +29,8 @@ const board=[];for(let r=-2;r<=2;r++)for(let q=Math.max(-2,-r-2);q<=Math.min(2,-
    if(accepted)break;
   }
   assert(accepted,'At least one fair useful offer should interest a bot');
-  assert(state.game.confirmableTradePlayers.includes(accepted.player));send({type:'ConfirmTrade',offerId:accepted.candidate.id,player:accepted.player});state=await next('RoomState');
-  assert.equal(state.game.tradeOffer,null);assert.equal(state.game.resources[accepted.give],originalHand[accepted.give]-1);assert.equal(state.game.resources[accepted.receive],originalHand[accepted.receive]+1);assert.equal(state.game.turnTimer.deadline,deadline+20000);
+  assert(state.game.confirmableTradePlayers.includes(accepted.player));const confirmationStarted=Date.now();send({type:'ConfirmTrade',offerId:accepted.candidate.id,player:accepted.player});state=await next('RoomState');
+  assert.equal(state.game.tradeOffer,null);assert.equal(state.game.resources[accepted.give],originalHand[accepted.give]-1);assert.equal(state.game.resources[accepted.receive],originalHand[accepted.receive]+1);assert(state.game.turnTimer.deadline>=Math.min(deadline+20000,confirmationStarted+60000));assert(state.game.turnTimer.deadline<=Math.min(deadline+20000,Date.now()+60000));
   assert(Object.values(state.game.resources).every(n=>typeof n==='number'),'Only the human hand is exposed');
   console.log('PASS: three bots receive broadcast offers, decline impossible offers, consent to useful trades, wait for owner selection, conserve the private hand and credit only completion');
  }finally{ws.terminate();await app.close();}

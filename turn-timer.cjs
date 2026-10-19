@@ -8,6 +8,8 @@ function sync(room,now){
  if(!seconds||['complete','finished'].includes(g.phase)){delete g.turnTimer;return null;}
  const currentKey=key(g);
  if(g.turnTimer?.key!==currentKey)g.turnTimer={key:currentKey,deadline:now+seconds*1000};
+ // Also normalize saved deadlines from releases that allowed unlimited bonuses.
+ g.turnTimer.deadline=Math.min(g.turnTimer.deadline,now+seconds*1000);
  return g.turnTimer;
 }
 // Invoke only after authoritative move validation succeeds. Never credit the
@@ -19,7 +21,7 @@ function rewardAction(room,type,actor,beforeKey,now){
  if(actor!==current)return false;
  const timer=sync(room,now);
  if(!timer||timer.deadline<=now)return false;
- timer.deadline+=20000;return true;
+ timer.deadline=Math.min(timer.deadline+20000,now+(room.turnSeconds??60)*1000);return true;
 }
 function expire(room,now,random,developmentRandom){
  const g=room.game,timer=sync(room,now);if(!timer||timer.deadline>now)return false;
