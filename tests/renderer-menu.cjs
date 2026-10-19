@@ -19,3 +19,6 @@ console.log('PASS: shared lobby turn-duration setting and guest lock');
 
 for(const type of ['star','crescent','long-island'])for(const extended of [false,true]){const board=boards.generate(undefined,extended,type);context.window.MainMenu.render({...state,mapType:type,board,maxPlayers:extended?6:4},'A',(...args)=>sent.push(args));assert.equal(get('regenerate').disabled,false);get('regenerate').onclick();assert.equal(sent[sent.length-1][1].mapType,type);const [x,y,w,h]=get('map-preview').children[0].attributes.viewBox.split(' ').map(Number);for(const t of board){const px=51*Math.sqrt(3)*(t.q+t.r/2),py=76.5*t.r;assert(px-51>=x&&px+51<=x+w&&py-51>=y&&py+51<=y+h);}}
 console.log('PASS: shaped preview bounds for both sizes and regeneration preserves selected shape');
+
+context.window.MainMenu.render({...state,joiningPlayers:1},'A',()=>{});assert.equal(get('lobby-count').textContent,'3 / 4');assert.equal(get('lobby-players').children.at(-1).textContent,'Player joining…');assert.equal(get('menu-start').disabled,true);assert.equal(get('menu-start-bots').disabled,true);
+console.log('PASS: temporary joining entries and start controls wait for names');

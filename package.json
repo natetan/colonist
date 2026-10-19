@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "node server.cjs",
-    "test": "node tests/server.cjs && node tests/reconnect-network.cjs",
+    "test": "node tests/server.cjs && node tests/reconnect-network.cjs && node tests/invite-network.cjs",
+    "test:invites": "node tests/invite-network.cjs",
     "test:reconnect": "node tests/reconnect.cjs && node tests/reconnect-network.cjs",
     "test:base-game-network": "node tests/base-game-network.cjs",
     "test:board": "node tests/board.cjs && node tests/shaped-board.cjs",

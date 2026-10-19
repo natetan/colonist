@@ -8,9 +8,9 @@ seats.forget(a.code);assert.equal(sessions.create(persistent,storage()).find(a.c
 const legacy=storage();legacy.setItem('private-settlers-renderer-session',JSON.stringify(a));assert.equal(sessions.create(persistent,legacy).automatic().token,a.token);assert.equal(sessions.create(persistent,storage()).find(a.code).token,a.token);
 const blocked={getItem(){throw Error('blocked')},setItem(){throw Error('blocked')},removeItem(){throw Error('blocked')}};const memory=sessions.create(blocked,blocked);memory.remember(a);assert.equal(memory.automatic().token,a.token);memory.forget(a.code);assert.equal(memory.find(a.code),null);
 assert(!sessions.valid({...a,token:'wrong'}));
-const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{value:'',hidden:false,textContent:''});return elements.get(id);},sent=[];
-const source=fs.readFileSync('tools/renderer-lab.js','utf8'),context={SeatSessions:sessions,seatSessions:sessions.create(persistent,storage()),$:get,send:(...v)=>sent.push(v),resumeSeat:s=>sent.push(['Resume',s]),navigator:{}};vm.createContext(context);
+const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{value:'',hidden:false,textContent:'',addEventListener(){},focus(){}});return elements.get(id);},sent=[];
+const source=fs.readFileSync('tools/renderer-lab.js','utf8'),context={SeatSessions:sessions,seatSessions:sessions.create(persistent,storage()),$:get,send:(...v)=>sent.push(v),resumeSeat:s=>sent.push(['Resume',s]),beginInvite:code=>sent.push(['PreviewRoom',{code}]),navigator:{}};vm.createContext(context);
 vm.runInContext(source.slice(source.indexOf("$('join').onclick="),source.indexOf("$('code').value=")),context);
 get('code').value=a.code;get('name').value='';get('join').onclick();assert.equal(sent.at(-1)[0],'Resume');assert.equal(sent.at(-1)[1].token,a.token);
-get('code').value='FEDCBA';get('recovery-key').value=b.token;get('join').onclick();assert.equal(sent.at(-1)[1].token,b.token);get('recovery-key').value='';get('name').value='New player';get('join').onclick();assert.equal(sent.at(-1)[0],'JoinRoom');
+get('code').value='FEDCBA';get('recovery-key').value=b.token;get('join').onclick();assert.equal(sent.at(-1)[1].token,b.token);get('recovery-key').value='';get('name').value='New player';get('join').onclick();assert.equal(sent.at(-1)[0],'PreviewRoom');
 console.log('PASS: durable per-room seats, closed tabs, legacy migration, invite isolation, storage denial, quit cleanup, and real join-button recovery without a name');

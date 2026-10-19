@@ -58,13 +58,15 @@ function createApp(options = {}) {
     if(g){game.turnTimer=g.turnTimer||null;game.lastTimeout=g.lastTimeout||null;}
     if(g && g.turn!==undefined){game.bankRates=trading.rates(g,viewer.id);game.tradeOffer=g.tradeOffer;game.tradeDecline=g.tradeDecline||null;game.confirmableTradePlayers=trading.confirmable(g,viewer.id);game.canAcceptTrade=!!g.tradeOffer&&g.tradeOffer.responses?.[viewer.id]!=='accepted'&&trading.canRespond(g.tradeOffer,viewer.id)&&trading.hasCards(g.resources[g.tradeOffer.from]||{},g.tradeOffer.give)&&trading.hasCards(g.resources[viewer.id]||{},g.tradeOffer.receive);}
     if(g && g.turn!==undefined){game.development=development.view(g,viewer.id,turns.roadLocations);game.scoring=scoring.view(g,viewer.id);}
-    const state = { type: 'RoomState', persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', mapSize:room.board.length===30?'extended':'standard', maxPlayers:room.board.length===30?6:4, turnSeconds:room.turnSeconds??60, serverTime:now(), host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
+    const state = { type: 'RoomState', joiningPlayers:room.joiners?.size||0, persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', mapSize:room.board.length===30?'extended':'standard', maxPlayers:room.board.length===30?6:4, turnSeconds:room.turnSeconds??60, serverTime:now(), host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
     for(const player of state.players){player.resourceCount=Object.values(g?.resources?.[player.id]||{}).reduce((a,b)=>a+b,0);player.developmentCount=g?.developmentHands?.[player.id]?.length||0;player.knightsPlayed=g?.knightsPlayed?.[player.id]||0;}
     // Optional presentation adapter receives only the already-redacted snapshot.
     if (options.boardPresentation) state.renderer = options.boardPresentation(state);
     return state;
   }
-  function broadcast(room) { if(storageFailure)return;scheduleTurn(room);for (const player of room.players) if (player.ws) send(player.ws, snapshot(room, player)); }
+  function broadcast(room) { if(storageFailure)return;scheduleTurn(room);for (const player of room.players) if (player.ws) send(player.ws, snapshot(room, player));if(!room.game)for(const ws of room.joiners||[])send(ws,{...snapshot(room,{id:null}),type:'LobbyPreview'}); }
+  function detachPreview(ws){const room=ws.previewRoom;if(!room)return null;clearTimeout(ws.previewTimer);room.joiners?.delete(ws);ws.previewRoom=null;return room;}
+  function closePreviews(room){for(const ws of [...(room.joiners||[])]){detachPreview(ws);send(ws,{type:'InviteClosed',message:'This room is no longer available.'});}}
   function scheduleTurn(room){
     const old=turnTimers.get(room);if(!room.players.some(p=>p.ws)){if(old)clearTurnTimeout(old.handle);turnTimers.delete(room);return;}
     const timer=turnTimer.sync(room,now());
@@ -129,10 +131,21 @@ function createApp(options = {}) {
         if(storageFailure)throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');
         const message = JSON.parse(bytes.toString());
         if(ws.room&&expireTurn(ws.room)&&!['Chat','LeaveRoom'].includes(message.type))throw new Error('Time expired. The turn has advanced.');
+        if(message.type==='PreviewRoom'){
+          if(ws.room)throw new Error('You are already in a room.');
+          const room=rooms.get(String(message.code).trim().toUpperCase());if(!room)throw new Error('Room not found.');
+          if(room.game)throw new Error('The match has started. Use your saved seat or private recovery key to return.');
+          if(ws.previewRoom===room){send(ws,{...snapshot(room,{id:null}),type:'LobbyPreview'});return;}
+          const capacity=room.board.length===30?6:4;if(room.players.length+(room.joiners?.size||0)>=capacity)throw new Error('This table is full.');
+          const old=detachPreview(ws);if(old)broadcast(old);
+          room.joiners??=new Set();room.joiners.add(ws);ws.previewRoom=room;
+          ws.previewTimer=setTimeout(()=>{if(detachPreview(ws)){send(ws,{type:'InviteClosed',message:'Your joining reservation expired. You can try joining again.'});broadcast(room);}},options.joinTimeoutMs??90000);ws.previewTimer.unref();broadcast(room);return;
+        }
+        if(message.type==='CancelPreview'){const room=detachPreview(ws);if(room)broadcast(room);return;}
         if(message.type==='LeaveRoom'){
           const room=ws.room,player=ws.player;if(!room||!player)throw new Error('You are not in a room.');
           const humans=room.players.filter(p=>p!==player&&!p.bot);
-          if(!humans.length){rooms.delete(room.code);const clock=turnTimers.get(room);if(clock)clearTurnTimeout(clock.handle);turnTimers.delete(room);const timer=botTimers.get(room);if(timer)clearTimeout(timer);botTimers.delete(room);}
+          if(!humans.length){closePreviews(room);rooms.delete(room.code);const clock=turnTimers.get(room);if(clock)clearTurnTimeout(clock.handle);turnTimers.delete(room);const timer=botTimers.get(room);if(timer)clearTimeout(timer);botTimers.delete(room);}
           else{
             if(room.game?.players.includes(player.id)){player.bot=true;player.ws=null;delete player.token;}
             else room.players=room.players.filter(p=>p!==player);
@@ -160,7 +173,7 @@ function createApp(options = {}) {
           if(room.game)throw new Error('The map is locked after starting.');
           if(!boards.mapTypes.includes(message.mapType))throw new Error('Choose Classic or Random, Star, Crescent, or Long Island.');
           const size=message.mapSize||(room.board.length===30?'extended':'standard');if(!['standard','extended'].includes(size))throw new Error('Choose a supported island size.');
-          const extended=size==='extended';if(room.players.length>(extended?6:4))throw new Error('Too many seats for that island size.');
+          const extended=size==='extended';if(room.players.length+(room.joiners?.size||0)>(extended?6:4))throw new Error('Too many seats for that island size.');
           const next=message.mapType==='classic'?boards.classic(extended):(()=>{const board=boards.generate(options.boardRandom,extended,message.mapType);return {board,harbors:boards.harbors(board,options.boardRandom)};})();
           room.mapType=message.mapType;room.board=next.board;room.harbors=next.harbors;persist();broadcast(room);return;
         }
@@ -176,6 +189,7 @@ function createApp(options = {}) {
           if (message.type === 'StartGame') {
             if ((room.hostId||room.players[0].id) !== ws.player.id) throw new Error('Only the host can start.');
             if (room.game) throw new Error('The match has already started.');
+            if(room.joiners?.size)throw new Error('Wait for joining players to enter their names before starting.');
             const ids = room.players.filter(p => p.ws).map(p => p.id);
             const capacity=room.board.length===30?6:4;if(ids.length>capacity)throw new Error('Too many players for this island.');
             const solo = message.solo === true;
@@ -208,6 +222,7 @@ function createApp(options = {}) {
           const player = room && typeof message.token === 'string' && room.players.find(p => !p.bot && p.token === message.token);
           if (!player) throw new Error('Saved session is unavailable. Create or join a room.');
           if (player.ws) throw new Error('This player is already connected in another window.');
+          const preview=detachPreview(ws);if(preview)broadcast(preview);
           player.ws = ws; ws.room = room; ws.player = player;
           persist();send(ws, { type: 'Joined', code: room.code, playerId: player.id, token: player.token }); broadcast(room);if(room.game)playBotTurns(room);return;
         }
@@ -222,15 +237,16 @@ function createApp(options = {}) {
           room = rooms.get(String(message.code).trim().toUpperCase());
           if (!room) throw new Error('Room not found.');
           if (room.game) throw new Error('Match already started. Only existing players can reconnect.');
-          if (room.players.length >= (room.board.length===30?6:4)) throw new Error(room.board.length===30?'This table supports six players.':'This table supports four players.');
+          if (room.players.length+(room.joiners?.size||0)-(ws.previewRoom===room?1:0) >= (room.board.length===30?6:4)) throw new Error(room.board.length===30?'This table supports six players.':'This table supports four players.');
         }
+        const preview=detachPreview(ws);if(preview&&preview!==room)broadcast(preview);
         const player = { id: sessionId, token: crypto.randomBytes(24).toString('hex'), name: message.name.trim(), ws };
         room.players.push(player); ws.room = room; ws.player = player;
         persist();send(ws, { type: 'Joined', code: room.code, playerId: player.id, token: player.token }); broadcast(room);
       } catch (error) { send(ws, { type: 'Error', message: error.message }); }
     });
     ws.on('close', () => {
-      clients.delete(ws);
+      clients.delete(ws);const preview=detachPreview(ws);if(preview)broadcast(preview);
       if (ws.player) { ws.player.ws = null; broadcast(ws.room); }
       // Preserve disconnected seats for refresh/reconnect; discard fully empty rooms after ten minutes.
       if (!options.saveFile && ws.room && ws.room.players.every(p => !p.ws)) {
@@ -239,7 +255,7 @@ function createApp(options = {}) {
       }
     });
   });
-  return { server, close: () => new Promise((resolve,reject) => { clearInterval(heartbeat);for(const timer of turnTimers.values())clearTurnTimeout(timer.handle);turnTimers.clear();for(const timer of botTimers.values())clearTimeout(timer);botTimers.clear();for(const timer of botTradeTimers.values())clearTimeout(timer.handle);botTradeTimers.clear();for (const ws of clients) ws.terminate(); wss.close(() => server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})); }) };
+  return { server, close: () => new Promise((resolve,reject) => { clearInterval(heartbeat);for(const timer of turnTimers.values())clearTurnTimeout(timer.handle);turnTimers.clear();for(const timer of botTimers.values())clearTimeout(timer);botTimers.clear();for(const timer of botTradeTimers.values())clearTimeout(timer.handle);botTradeTimers.clear();for (const ws of clients){detachPreview(ws);ws.terminate();} wss.close(() => server.close(()=>{try{store.close();resolve();}catch(error){reject(error);}})); }) };
 }
 if (require.main === module) {
   const saveFile=process.env.SETTLERS_SAVE_FILE==='off'?undefined:process.env.SETTLERS_SAVE_FILE||path.join(__dirname,'data','prototype.json');

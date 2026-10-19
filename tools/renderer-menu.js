@@ -36,11 +36,12 @@ window.MainMenu=(()=>{
     $('map-host-hint').textContent=host?(type==='classic'?'Choose Random to generate a new island.':'Generate until you find your next island.'):'The host chooses the map. Everyone sees the same island.';
     $('map-type').onchange=()=>send('SetMap',{mapType:$('map-type').value,mapSize:size});
     $('regenerate').onclick=()=>send('SetMap',{mapType:type,mapSize:size});
-    $('lobby-count').textContent=`${state.players.length} / ${capacity}`;
+    $('lobby-count').textContent=`${state.players.length+(state.joiningPlayers||0)} / ${capacity}`;
     $('lobby-players').replaceChildren(...state.players.map(p=>{const li=document.createElement('li');li.textContent=p.name+(p.id===state.host?' · Host':'')+(p.online?'':' · Offline');return li;}));
-    $('menu-start').disabled=!host||online<2;$('menu-start-bots').disabled=!host;
+    for(let i=0;i<(state.joiningPlayers||0);i++){const li=document.createElement('li');li.textContent='Player joining…';li.className='joining-player';$('lobby-players').append(li);}
+    $('menu-start').disabled=!host||online<2||!!state.joiningPlayers;$('menu-start-bots').disabled=!host||!!state.joiningPlayers;
     $('menu-start').onclick=()=>send('StartGame');$('menu-start-bots').onclick=()=>send('StartGame',{bots:true,targetPlayers:capacity===6?Number($('bot-fill').value):4});
-    $('lobby-start-hint').textContent=host?'Start with friends, or fill empty seats with bots. '+capacity+' players maximum.':'Waiting for the host to start.';
+    $('lobby-start-hint').textContent=state.joiningPlayers?'Waiting for joining players to enter their names…':host?'Start with friends, or fill empty seats with bots. '+capacity+' players maximum.':'Waiting for the host to start.';
     $('menu-copy').onclick=async()=>{const url=new URL(location.href);url.searchParams.set('room',state.code);try{await navigator.clipboard.writeText(url.href);$('menu-copy').textContent='Invite copied';}catch{$('menu-error').textContent='Share room code: '+state.code;}};
     preview(state);
   }
