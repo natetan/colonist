@@ -6,3 +6,19 @@ const saved=context.captureMapCamera(old),next=view(.6,120);context.restoreMapCa
 const resized=view(.3,60);context.restoreMapCamera(resized,saved);assert.equal(resized.scale.x,.6);assert.deepEqual(resized.center,{x:105,y:-53});
 const fresh=view(.4,80);context.restoreMapCamera(fresh,null);assert.equal(fresh.scale.x,.4);assert.equal(fresh.center,undefined);
 console.log('PASS: camera pan and relative zoom survive scene recreation and viewport resizing; fresh boards retain default fit');
+const removed=[],clamps={updateClamps(){throw Error('Inherited pan wall returned');}},zoom={untouched:true};
+context.configureMapPan({plugins:{remove:name=>removed.push(name)}},[clamps,zoom]);clamps.updateClamps();assert.deepEqual(removed,['clamp']);assert.equal(zoom.untouched,true);
+const listeners={},captures=[];context.mapDragging=false;context.pendingRender=null;
+context.bindMapDrag({addEventListener:(name,fn)=>listeners[name]=fn,setPointerCapture:id=>captures.push(id)});
+listeners.pointerdown({pointerType:'mouse',button:0,pointerId:1});assert.equal(context.mapDragging,true);assert.deepEqual(captures,[1]);
+listeners.pointerdown({pointerType:'touch',button:0,pointerId:2});listeners.pointerup({pointerId:1});assert.equal(context.mapDragging,true);
+listeners.pointercancel({pointerId:2});assert.equal(context.mapDragging,false);
+listeners.pointerdown({pointerType:'mouse',button:2,pointerId:3});assert.equal(context.mapDragging,false);
+console.log('PASS: inherited pan walls disabled without removing zoom limits; pointer capture, multitouch release, cancellation and right-click handling');
+(async()=>{
+ const frames=[],renders=[],scheduler={assets:async()=>{},render:async(...args)=>renders.push(args),requestAnimationFrame:fn=>frames.push(fn),status:{}};
+ vm.createContext(scheduler);vm.runInContext('let pendingRender,rendering=false,mapDragging=true;'+source.slice(source.indexOf('function scheduleRender('),source.indexOf("if(typeof ResizeObserver")),scheduler);
+ scheduler.scheduleRender('old',null,{move:1});scheduler.scheduleRender('latest',null,{move:2});assert.equal(frames.length,0);
+ vm.runInContext('mapDragging=false;scheduleRender(...pendingRender)',scheduler);assert.equal(frames.length,1);await frames.shift()();assert.equal(renders.length,1);assert.equal(renders[0][0],'latest');
+ console.log('PASS: moves arriving during a drag are coalesced and drawn only after release');
+})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -22,7 +22,7 @@ window.addEventListener('error',event=>log(`Error: ${event.message}`));
 window.addEventListener('unhandledrejection',event=>log(`Rejected: ${event.reason?.message||event.reason}`));
 
 let assetReady, currentManager, latestState, joined, socket, retry, buildMode, cleanupScene;
-let pendingRender, rendering=false;
+let pendingRender, rendering=false,mapDragging=false;
 const $=id=>document.getElementById(id);
 const sessionKey='private-settlers-renderer-session';
 function assets(){
@@ -55,12 +55,31 @@ function restoreMapCamera(view,camera){
   view.scale.set(view.initialFitScale*camera.zoom);
   view.moveCenter(view.mapCenter.x+camera.x*view.hexagonHeight,view.mapCenter.y+camera.y*view.hexagonHeight);
 }
+function configureMapPan(view,mechanics){
+  // The inherited world clamps create zoom-dependent walls. Keep zoom limits,
+  // but let players move the island freely inside the clipped canvas.
+  for(const mechanic of mechanics)if(typeof mechanic.updateClamps==='function')mechanic.updateClamps=()=>{};
+  view.plugins.remove('clamp');
+}
+function bindMapDrag(canvas){
+  const pointers=new Set();
+  canvas.addEventListener('pointerdown',event=>{
+    if(event.pointerType==='mouse'&&event.button!==0)return;
+    pointers.add(event.pointerId);mapDragging=true;
+    canvas.setPointerCapture(event.pointerId);
+  });
+  const release=event=>{
+    pointers.delete(event.pointerId);mapDragging=pointers.size>0;
+    if(!mapDragging&&pendingRender)scheduleRender(...pendingRender);
+  };
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,release);
+}
 async function render(fixture,presentation,state){
   const pixi=await assets();
   const boardKey=state?state.code+':'+JSON.stringify(state.board):null;
   const camera=boardKey&&boardKey===cameraBoardKey&&currentManager?captureMapCamera(currentManager.mapController.mapView):null;
   const bounds=$('board').getBoundingClientRect(),width=Math.max(1,Math.round(bounds.width)||900),height=Math.max(1,Math.round(bounds.height)||650);
-  if(!activeApp){activeApp=new pixi.Application({width,height,backgroundColor:0x0e69a3,antialias:true});$('board').replaceChildren(activeApp.view);load(71198).z.setCanvasConfigVariables(activeApp);}
+  if(!activeApp){activeApp=new pixi.Application({width,height,backgroundColor:0x0e69a3,antialias:true});$('board').replaceChildren(activeApp.view);load(71198).z.setCanvasConfigVariables(activeApp);bindMapDrag(activeApp.view);}
   const app=activeApp;
   if(app.screen.width!==width||app.screen.height!==height)app.renderer.resize(width,height);
   cleanupScene?.();
@@ -77,6 +96,7 @@ async function render(fixture,presentation,state){
   manager.gameController=new(load(68736).UIGameController)(manager,fixture);
   manager.mapController=new(load(584).UIWGameMapController)(manager);manager.mapController.createMap();currentManager=manager;
   const view=manager.mapController.mapView, map=manager.gameController.mapValidator.tileState;
+  configureMapPan(view,mechanics);
   view.initialFitScale=view.scale.x;restoreMapCamera(view,camera);cameraBoardKey=boardKey;
   if(state?.game&&placedState?.code===state.code&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
     const dropping=[];
@@ -134,9 +154,9 @@ async function render(fixture,presentation,state){
   status.textContent=`Rendered ${manager.mapController.tileViews.length} tiles · ${manager.mapController.cornerController.buildingViews.length} buildings · ${map.tileEdges.filter(e=>e.owner!=null).length} roads`;
 }
 function scheduleRender(fixture,presentation,state){
-  pendingRender=[fixture,presentation,state];if(rendering)return;rendering=true;
+  pendingRender=[fixture,presentation,state];if(rendering||mapDragging)return;rendering=true;
   requestAnimationFrame(async()=>{
-    try{await assets();while(pendingRender){const next=pendingRender;pendingRender=undefined;await render(...next);}}
+    try{await assets();while(pendingRender&&!mapDragging){const next=pendingRender;pendingRender=undefined;await render(...next);}}
     catch(error){status.textContent=error.stack||error.message;pendingRender=undefined;}
     finally{rendering=false;}
   });
