@@ -32,7 +32,7 @@ for(const [name,predicate]of [
 // Keep every match frame for animation playback, not only the named checkpoints.
 const frames=match.states.map(state=>({viewerId:match.viewerId,state:{...state,renderer:presentBoard(state)}}));
 fs.writeFileSync(path.join(assets,'qa-snapshots.json'),JSON.stringify({scenarios,frames}));
-const html=fs.readFileSync(path.join(__dirname,'renderer-lab.html'),'utf8').replace('<title>Private Settlers</title>','<title>Renderer QA replay</title>').replace('<script src="/lab.js">','<script src="/assets/qa-transport.js"></script><script src="/lab.js">');
+const html=fs.readFileSync(path.join(__dirname,'renderer-lab.html'),'utf8').replace('<title>Settlers of Natac</title>','<title>Renderer QA replay</title>').replace('<script src="/lab.js">','<script src="/assets/qa-transport.js"></script><script src="/lab.js">');
 fs.writeFileSync(path.join(assets,'qa.html'),html);
 fs.copyFileSync(path.join(__dirname,'renderer-qa-transport.js'),path.join(assets,'qa-transport.js'));
 require('./renderer-server.cjs').startRendererLab(Number(process.env.RENDERER_QA_PORT||3010)).then(server=>{

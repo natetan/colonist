@@ -21,7 +21,7 @@ const tiles=[];for(let r=-2;r<=2;r++)for(let q=Math.max(-2,-r-2);q<=Math.min(2,-
     const assets=path.resolve(__dirname,'../.rea-tools/renderer/assets'),html=fs.readFileSync(path.join(__dirname,'renderer-lab.html'),'utf8');
     for(const [i,seat]of seats.entries()){const session=sessions[i];
       fs.writeFileSync(path.join(assets,'practice-'+seat+'.js'),`sessionStorage.setItem('private-settlers-renderer-session',${JSON.stringify(JSON.stringify({code:session.code,token:session.token}))});`);
-      fs.writeFileSync(path.join(assets,'practice-'+seat+'.html'),html.replace('<title>Private Settlers</title>','<title>Trading practice: '+seat+'</title>').replace('<script src="/lab.js">',`<script src="/assets/practice-${seat}.js"></script><script src="/lab.js">`));
+      fs.writeFileSync(path.join(assets,'practice-'+seat+'.html'),html.replace('<title>Settlers of Natac</title>','<title>Trading practice: '+seat+'</title>').replace('<script src="/lab.js">',`<script src="/assets/practice-${seat}.js"></script><script src="/lab.js">`));
       console.log(`${seat}: http://127.0.0.1:${port}/assets/practice-${seat}.html`);
     }
     console.log('Live multiplayer practice match: setup and first roll completed. Open the printed seat URLs in separate tabs to offer, decline, and accept. No saved games are modified.');
