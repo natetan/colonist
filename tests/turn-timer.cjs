@@ -13,3 +13,21 @@ room=fixture();g=room.game;g.phase='free-road';g.freeRoadsRemaining=2;g.developm
 room=fixture();g=room.game;const deadline=timer.sync(room,1000).deadline;const restored=JSON.parse(JSON.stringify(encode(new Map([[room.code,room]]))));validate(restored);const saved=restored.rooms[0];assert.equal(timer.sync(saved,50000).deadline,deadline,'Saved games retain the original deadline');
 room.turnSeconds=0;assert.equal(timer.sync(room,100000),null);assert.equal(timer.expire(room,100000,()=>0),false);g.phase='finished';assert.equal(timer.sync(room,100000),null);
 console.log('PASS: shared turn deadlines, setup auto-completion, reverse setup, exact expiry, trade clearing, unrolled skips, forced discards/robber resolution, unused free roads, saved deadlines and timer Off');
+room=fixture();g=room.game;timer.sync(room,1000);
+function action(actor,message,now=58000){const before=timer.key(g);turns.act(g,room.board,actor,message,()=>2,()=>0);timer.rewardAction(room,message.type,actor,before,now);}
+action('A',{type:'RollDice'});assert.equal(g.turnTimer.deadline-58000,23000);
+g.phase='build';for(const id of g.players)for(const r of Object.keys(g.bank))g.resources[id][r]=0;for(const r of Object.keys(g.bank))g.bank[r]=19;
+for(const [r,n]of Object.entries({wood:8,brick:4,sheep:3,wheat:4,ore:4})){g.resources.A[r]=n;g.bank[r]-=n;}g.resources.B.brick=2;g.bank.brick-=2;
+action('A',{type:'BuildRoad',id:turns.buildLocations(g,'A','BuildRoad')[0]});assert.equal(g.turnTimer.deadline,101000);
+action('A',{type:'BuildCity',id:turns.buildLocations(g,'A','BuildCity')[0]});assert.equal(g.turnTimer.deadline,121000);
+action('A',{type:'BuyDevelopmentCard'});assert.equal(g.turnTimer.deadline,141000);
+action('A',{type:'BankTrade',give:'wood',receive:'ore'});assert.equal(g.turnTimer.deadline,161000);
+action('A',{type:'OfferTrade',player:'all',give:{wood:1},receive:{brick:1}});assert.equal(g.turnTimer.deadline,161000);
+const offerId=g.tradeOffer.id;action('B',{type:'AcceptTrade',offerId});assert.equal(g.turnTimer.deadline,181000,'Guest acceptance extends the active player clock exactly once');
+const extendedSave=encode(new Map([[room.code,room]]));validate(extendedSave);assert.equal(timer.sync(extendedSave.rooms[0],100000).deadline,181000,'Extended deadlines survive save/reload');
+assert.throws(()=>action('B',{type:'AcceptTrade',offerId}));assert.equal(g.turnTimer.deadline,181000);
+action('A',{type:'EndTurn'});assert.equal(timer.sync(room,58000).deadline,118000,'EndTurn never credits the next player');
+for(const type of ['OfferTrade','CancelTrade','DeclineTrade','Chat'])assert.equal(timer.rewardAction(room,type,'B',timer.key(g),58000),false);
+room.turnSeconds=0;assert.equal(timer.rewardAction(room,'RollDice','B',timer.key(g),58000),false);assert.equal(g.turnTimer,undefined);
+room.turnSeconds=60;timer.sync(room,1000);assert.equal(timer.rewardAction(room,'BuildRoad','B',timer.key(g),61000),false,'Expired clocks cannot be revived');
+console.log('PASS: additive 20-second roll/build/city/development/bank/player-trade bonuses, guest acceptance, replay rejection, excluded offers, next-turn isolation, Off and exact expiry');

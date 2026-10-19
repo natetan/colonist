@@ -84,8 +84,9 @@ function createApp(options = {}) {
       if(regular&&room.game.phase==='discard')current=room.players.find(p=>p.bot&&room.game.discards[p.id]);
       if (!current || !current.bot) break;
       if(options.botDelayMs>0&&!ready){const timer=setTimeout(()=>{botTimers.delete(room);if(room.players.some(p=>p.ws)){try{playBotTurns(room,true);}catch(error){console.error("Bot turn paused:",error.message);}}},options.botDelayMs);timer.unref();botTimers.set(room,timer);break;}
-      if(regular){const move=turns.botAction(room.game,room.board,current.id);if(!move)break;turns.act(room.game,room.board,current.id,move,random,options.developmentRandom);}
-      else {const move = rules.botMove(room.game, room.board);rules.place(room.game, room.board, current.id, move.type, move.id);if(room.game.phase==='complete')turns.begin(room.game,room.board);}
+      const actionTurn=turnTimer.key(room.game);
+      if(regular){const move=turns.botAction(room.game,room.board,current.id);if(!move)break;turns.act(room.game,room.board,current.id,move,random,options.developmentRandom);turnTimer.rewardAction(room,move.type,current.id,actionTurn,now());}
+      else {const move = rules.botMove(room.game, room.board);rules.place(room.game, room.board, current.id, move.type, move.id);turnTimer.rewardAction(room,move.type,current.id,actionTurn,now());if(room.game.phase==='complete')turns.begin(room.game,room.board);}
       persist();broadcast(room);
       if(options.botDelayMs>0){playBotTurns(room);break;}
     }
@@ -164,8 +165,10 @@ function createApp(options = {}) {
             room.game = rules.start(room.board, ids, solo);room.game.harbors=room.harbors||[];
           } else {
             if (!room.game) throw new Error('The host must start the match first.');
+            const actionTurn=turnTimer.key(room.game);
             if(room.game.turn!==undefined)turns.act(room.game,room.board,ws.player.id,message,random,options.developmentRandom,room.players.filter(p=>!p.bot&&room.game.players.includes(p.id)).map(p=>p.id));
             else rules.place(room.game, room.board, ws.player.id, message.type, message.id);
+            turnTimer.rewardAction(room,message.type,ws.player.id,actionTurn,now());
           }
           persist();broadcast(room);
           playBotTurns(room);
