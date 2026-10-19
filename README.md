@@ -8,6 +8,9 @@ configuration generator that preserves an existing IIS server on port 80.
 The existing Windows VM now runs automatic game/HTTPS services; public HTTPS,
 two-player setup, and reconnect have been checked. Run `node tests/hosting.cjs`
 for local configuration checks; see the guide for the live smoke test and limits.
+Updates are explicitly deployed with `deploy/windows/Deploy.ps1`: local edits and
+ordinary Git pushes do not change the live server. See the deployment guide for
+the one-time VM Git access setup and the test/push/fetch/release workflow.
 
 ## Current status
 

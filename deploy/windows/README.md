@@ -68,6 +68,61 @@ Check the existing FastDL health URL still works.
 
 ## Operations and verification
 
+### Explicit deployment from Git
+
+Local editing, committing, and ordinary pushes do not update the VM. No polling,
+scheduled pull, Git hook, or automatic GitHub deployment is configured. Changes
+made with the assistant stay local unless deployment is explicitly requested.
+
+Commit the changes you want to release, then run this from the local repository:
+
+```powershell
+.\deploy\windows\Deploy.ps1 -ResourceGroup '<resource-group>' -VmName '<vm-name>'
+```
+
+Use a supported Node runtime and sign in with `az login` first. The script checks
+that the working tree is clean, runs local server/menu/hosting checks, pushes
+the current branch to `origin`, and asks the already-running VM to fetch the
+exact commit. It never commits files or starts a stopped VM. `-Plan` prints the
+selected branch/commit without tests, push, Azure calls, or VM changes (a clean
+working tree is still required).
+
+The VM builds a new versioned release from that commit, reuses the installed
+ignored renderer assets, installs locked dependencies, then briefly stops only
+`PrivateSettlersGame`. It backs up saves, switches the service to the new release,
+and checks local health. A failed switch restores the old service configuration
+and starts the previous release. Caddy, HTTPS/DNS, IW5, and the state directory
+remain separate. Existing clients may briefly disconnect and reconnect.
+
+The wrapper requires the `DEPLOY_OK <commit>` receipt from the remote script;
+an Azure Run Command exit code alone does not establish a successful deployment.
+Old releases, checkouts, and private save backups are retained for recovery; clean
+them up deliberately as disk usage grows. Rollback restores app code, not data:
+future changes to save formats need an explicit migration/rollback plan.
+
+#### One-time Git access on the VM
+
+Install Git for Windows so the Azure agent's account can run `git`. Public repos
+can use the default HTTPS URL. Private repos require a **read-only GitHub deploy
+key**: generate an SSH key as the VM administration account, restrict its private
+key ACL to administrators/SYSTEM, add only its public key in the repository's
+Settings → Deploy keys, and verify GitHub's SSH host key against its official
+published fingerprints. Do not disable host-key checking. Keep the key outside
+the app/state directories and out of Git. The game services need no Git access.
+
+Then deploy using the SSH URL and a VM-local SSH configuration:
+
+```powershell
+.\deploy\windows\Deploy.ps1 -ResourceGroup '<resource-group>' -VmName '<vm-name>' -ServerRepository 'git@github.com:natetan/colonist.git' -GitSshCommand 'ssh -F C:/ProgramData/SettlersDeploy/ssh_config'
+```
+
+Do not pass a GitHub password or token in either URL or command. No Git credentials
+or live VM configuration are committed here. This new Git update workflow has
+been tested with isolated service/Git fixtures; it has **not yet been run against
+the live VM**. Its first invocation needs the one-time Git access check above.
+Run `powershell -File tests/deploy-windows.ps1` to exercise release activation,
+save preservation/backups, and unhealthy-release rollback without live services.
+
 Services are `PrivateSettlersGame` and `PrivateSettlersHttps`, both automatic and
 running as `NT AUTHORITY\LocalService`. Their WinSW executable/XML pairs live in
 `<Root>\services`; logs and saves live in `<Root>\state`. Use elevated PowerShell:
