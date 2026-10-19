@@ -13,7 +13,7 @@ class Element{
 const hand=new Element(),panel=new Element('details');panel.open=true;
 const badge=(resource,n)=>{const b=new Element();b.className='resource-card';b.dataset.resource=resource;const count=new Element('strong');count.textContent=n;b.append(count);return b;};
 for(const r of ['wood','brick','sheep','wheat','ore'])hand.append(badge(r,r==='sheep'?3:0));
-const sent=[],context={document:{createElement:t=>new Element(t),activeElement:null},$:()=>hand,joined:{playerId:'A'},send:(...v)=>sent.push(v),sprite:()=>new Element(),actionIcon:()=>new Element(),cardBadge:badge,cardSprites:{wood:1,brick:1,sheep:1,wheat:1,ore:1},closePanels(){panel.open=false;}};
+const sent=[],context={document:{createElement:t=>new Element(t),activeElement:null},$:()=>hand,joined:{playerId:'A'},send:(...v)=>sent.push(v),sprite:()=>new Element(),actionIcon:()=>new Element(),cardBadge:badge,resourceStack(){},cardSprites:{wood:1,brick:1,sheep:1,wheat:1,ore:1},closePanels(){panel.open=false;}};
 vm.createContext(context);const source=fs.readFileSync(path.resolve(__dirname,'../tools/renderer-lab.js'),'utf8');
 vm.runInContext(source.slice(source.indexOf('let tradeDraft='),source.indexOf('let audioContext')),context);
 const state={code:'TEST',players:[{id:'A',playing:true,online:true},{id:'B',name:'Friend',playing:true,online:true}],game:{phase:'build',currentPlayer:'A',resources:{wood:0,brick:0,sheep:3,wheat:0,ore:0},bank:{wood:19,brick:19,sheep:16,wheat:19,ore:19},bankRates:{sheep:4}}};

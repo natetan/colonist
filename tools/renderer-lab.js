@@ -174,6 +174,15 @@ Object.assign(actionArtwork,{icon_trade_bank_check:'icon_trade_bank_check.cca85e
 function actionIcon(name){const img=document.createElement('img');img.className='action-icon';img.src='/assets/'+actionArtwork[name];img.alt='';img.draggable=false;return img;}
 function sidebarIcon(name){const img=document.createElement('img');img.src='/assets/'+({army:'icon_largest_army.206b49b3c9d2b206f699.svg',road:'icon_longest_road.5cfdeb3352b20463e64b.svg',roadAward:'icon_longest_road_highlight.50dc66b851ecee9a8662.svg',back:'card_rescardback.03c18312a76028b0d9c9.svg',bank:'bank.825b2690b4b1b694d646.svg'}[name]);img.alt='';img.draggable=false;return img;}
 function cardBadge(resource,count){const card=document.createElement('div');card.className='resource-card';card.dataset.resource=resource;card.append(resource==='resources'?sidebarIcon('back'):sprite(cardSprites[resource]||'card_devcardback'));const n=document.createElement('strong');n.textContent=count;card.append(n);card.setAttribute('aria-label',`${resource}: ${count} cards`);card.title=`${resource}: ${count}`;return card;}
+// Keep the exact count on top while capping the visual fan for large hands.
+function resourceStack(card,count){
+  let art=card.querySelector('.resource-stack-art');
+  if(!art){art=document.createElement('span');art.className='resource-stack-art';card.firstElementChild.replaceWith(art);}
+  const layers=Math.max(1,Math.min(count,5));art.replaceChildren();
+  for(let i=0;i<layers;i++){const image=sprite(cardSprites[card.dataset.resource]);image.style.left=(i*8)+'px';art.append(image);}
+  card.style.width=(42+(layers-1)*8)+'px';card.classList.add('resource-hand-stack');
+  card.classList.toggle('resource-stack-empty',count===0);
+}
 function flyCard(art,origin,target,delay=0){
   if(!origin||!target||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   const a=origin.getBoundingClientRect(),b=target.getBoundingClientRect(),flight=sprite(art);flight.classList.add('flying-card');flight.style.left=(a.left+a.width/2-21)+'px';flight.style.top=(a.top+a.height/2-30)+'px';document.body.append(flight);
@@ -214,7 +223,7 @@ function reconcileTradeDraft(previous,state){
 }
 function syncTradeInventory(state,panel){
   if(!state?.game)return;const open=panel.open&&state.game.currentPlayer===joined.playerId;
-  for(const card of $('hand').querySelectorAll('.resource-card[data-resource]')){const r=card.dataset.resource,total=state.game.resources[r];if(total===undefined)continue;const remaining=Math.max(0,total-(tradeDraft.give[r]||0));card.querySelector('strong').textContent=open?remaining:total;card.title=open?r+': '+remaining+' remaining':r+': '+total;card.tabIndex=open?0:-1;card.setAttribute('role',open?'button':'group');card.setAttribute('aria-label',open?'Offer '+r+', '+remaining+' remaining':r+': '+total+' cards');card.classList.toggle('trade-hand-selectable',open);card.onclick=open?()=>{if(remaining===0||tradeDraft.receive[r])return;tradeDraft.give[r]=(tradeDraft.give[r]||0)+1;referenceTrade(panel,state,joined.playerId,send);syncTradeInventory(state,panel);}:null;card.onkeydown=open?event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();card.click();}}:null;}
+  for(const card of $('hand').querySelectorAll('.resource-card[data-resource]')){const r=card.dataset.resource,total=state.game.resources[r];if(total===undefined)continue;const remaining=Math.max(0,total-(tradeDraft.give[r]||0));card.querySelector('strong').textContent=open?remaining:total;resourceStack(card,open?remaining:total);card.title=open?r+': '+remaining+' remaining':r+': '+total;card.tabIndex=open?0:-1;card.setAttribute('role',open?'button':'group');card.setAttribute('aria-label',open?'Offer '+r+', '+remaining+' remaining':r+': '+total+' cards');card.classList.toggle('trade-hand-selectable',open);card.onclick=open?()=>{if(remaining===0||tradeDraft.receive[r])return;tradeDraft.give[r]=(tradeDraft.give[r]||0)+1;referenceTrade(panel,state,joined.playerId,send);syncTradeInventory(state,panel);}:null;card.onkeydown=open?event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();card.click();}}:null;}
 }
 function referenceTrade(parent,state,viewerId,send){
   const g=state.game;if(tradeRoom!==state.code){tradeRoom=state.code;tradeDraft={give:{},receive:{},to:''};}
@@ -404,7 +413,7 @@ function controls(state){
   if(!g){gameEnd(state);$('turn').textContent='Waiting to start';if(state.host===joined.playerId){button('Start with bots',()=>send('StartGame',{bots:true}));button('Start game',()=>send('StartGame'),state.players.filter(p=>p.online&&!p.bot).length<2);}return;}
   const player=state.players.find(p=>p.id===g.currentPlayer);
   $('turn').textContent=g.discardCount?'Discard '+g.discardCount+' cards':mine?(g.phase==='roll'?'Roll Dice':g.phase==='build'?'Your Turn':hints[g.phase]||g.phase):`${player?.name||'Player'} · ${g.phase}`;$('turn').title=$('hint').textContent;
-  for(const [resource,count]of Object.entries(g.resources||{}))$('hand').append(cardBadge(resource,count));
+  for(const [resource,count]of Object.entries(g.resources||{})){const card=cardBadge(resource,count);resourceStack(card,count);$('hand').append(card);}
   developmentHand(state,mine);
   playerOffer(state);
   gameEnd(state);
