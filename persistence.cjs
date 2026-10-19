@@ -13,7 +13,7 @@ function validate(data){
     check((room.hostId?room.players.some(p=>p.id===room.hostId&&!p.bot):!room.players[0].bot)&&room.players.filter(p=>!p.bot).length<=6&&room.players.filter(p=>p.bot).length<=5);
     check(Array.isArray(room.board)&&[19,30].includes(room.board.length));
     const extended=room.board.length===30,supply=extended?24:19,deckCounts=extended?development.extendedCounts:development.counts;
-    const boards=require('./board.cjs'),legacy=room.mapType==='star'?new Set(boards.legacyStarLayout(extended).map(t=>t.q+','+t.r)):null;
+    const boards=require('./board.cjs'),legacyLayout=room.mapType==='star'?boards.legacyStarLayout:room.mapType==='china'?boards.legacyChinaLayout:null,legacy=legacyLayout?new Set(legacyLayout(extended).map(t=>t.q+','+t.r)):null;
     const expectedLocations=legacy&&room.board.every(t=>legacy.has(t.q+','+t.r))?legacy:new Set(boards.shapeLayout(room.mapType||'random',extended).map(t=>t.q+','+t.r)),locations=new Set();
     for(const t of room.board){check(t&&Number.isInteger(t.q)&&Number.isInteger(t.r)&&expectedLocations.has(t.q+','+t.r)&&[...resources,'desert'].includes(t.resource)&&(t.resource==='desert'?t.number===null||integer(t.number,2,12):integer(t.number,2,12)&&t.number!==7));locations.add(t.q+','+t.r);}check(locations.size===room.board.length&&room.board.filter(t=>t.resource==='desert').length===(extended?2:1));
     if(room.harbors!==undefined){

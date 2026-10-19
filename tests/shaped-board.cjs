@@ -1,5 +1,5 @@
 const assert=require('assert/strict'),boards=require('../board.cjs'),rules=require('../game.cjs'),turns=require('../turns.cjs'),{encode,validate}=require('../persistence.cjs'),{presentBoard}=require('../tools/renderer-state.cjs');
-for(const extended of [false,true])for(const type of ['star','crescent','long-island']){
+for(const extended of [false,true])for(const type of ['star','crescent','long-island','china']){
  for(let seed=1;seed<=60;seed++){
   let value=seed;const random=n=>{value=(Math.imul(value,1664525)+1013904223)>>>0;return value%n;};
   const board=boards.generate(random,extended,type),harbors=boards.harbors(board,random),topology=rules.topology(board);
@@ -22,7 +22,10 @@ for(const extended of [false,true])for(const type of ['star','crescent','long-is
  for(const random of [()=>0,n=>n-1]){const board=boards.generate(random,extended,type);assert.equal(boards.harbors(board,random).length,extended?11:9);}
 }
 assert.throws(()=>boards.generate(undefined,false,'unknown'),/Unsupported/);
-console.log('PASS: 360 shaped maps, exact supplies, connected coastlines, separated reds, production balance, disjoint ports, deterministic draws, 4/6-player setup, bot actions, persistence and renderer topology');
+console.log('PASS: 480 shaped maps, exact supplies, connected coastlines, separated reds, production balance, disjoint ports, deterministic draws, 4/6-player setup, bot actions, persistence and renderer topology');
 
 for(const extended of [false,true]){const generated=boards.generate(undefined,extended,'star'),legacy=boards.legacyStarLayout(extended),board=generated.map((t,i)=>({...t,...legacy[i]})),room={code:'ABCDEF',mapType:'star',board,harbors:boards.harbors(board),players:[{id:'P0',name:'Saved player',bot:false,token:'a'.repeat(48)}]};assert.equal(validate(encode(new Map([[room.code,room]]))).rooms[0].board.length,extended?30:19);assert.notDeepEqual(boards.shapeLayout('star',extended),legacy);}
 console.log('PASS: previous Star saves remain compatible at both sizes');
+
+for(const extended of [false,true]){const generated=boards.generate(undefined,extended,'china'),legacy=boards.legacyChinaLayout(extended),board=generated.map((t,i)=>({...t,...legacy[i]})),room={code:'ABCDEF',mapType:'china',board,harbors:boards.harbors(board),players:[{id:'P0',name:'Saved player',bot:false,token:'a'.repeat(48)}]};validate(encode(new Map([[room.code,room]])));const x=t=>2*t.q+t.r,oldNortheast=Math.max(...legacy.filter(t=>t.r<=-3).map(x)),oldSoutheast=Math.max(...legacy.filter(t=>t.r>=1).map(x)),next=boards.shapeLayout('china',extended);assert(Math.max(...next.filter(t=>t.r<=-3).map(x))>oldNortheast);assert(Math.max(...next.filter(t=>t.r>=1).map(x))>oldSoutheast);}
+console.log('PASS: China extends farther northeast and southeast at both sizes; previous China saves remain compatible');
