@@ -20,7 +20,7 @@ function translateGeometry(board) {
 }
 function presentBoard(snapshot) {
   const mapping = translateGeometry(snapshot.board);
-  const fixture = createPreviewFixture(snapshot.board,previewSettings());
+  const fixture = createPreviewFixture(snapshot.board,{...previewSettings(),maxPlayers:snapshot.maxPlayers||(snapshot.board.length===30?6:4)});
   const map = serializeLandMap(snapshot.board);
   const playerColors = Object.fromEntries(snapshot.players.filter(p=>p.playing).map((p,i)=>[p.id,colors[i%colors.length]]));
   if(snapshot.game){

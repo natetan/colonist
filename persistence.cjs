@@ -7,15 +7,17 @@ function validate(data){
   for(const room of data.rooms){
     check(room&&/^[A-F0-9]{6}$/.test(room.code)&&!codes.has(room.code));codes.add(room.code);
     check(room.mapType===undefined||['classic','random'].includes(room.mapType));
-    check(Array.isArray(room.players)&&room.players.length>0&&room.players.length<=9);
+    check(Array.isArray(room.players)&&room.players.length>0&&room.players.length<=11);
     const ids=new Set();for(const p of room.players){check(p&&typeof p.id==='string'&&p.id.length>0&&!ids.has(p.id)&&typeof p.name==='string'&&p.name.length>0&&p.name.length<=24&&typeof p.bot==='boolean'&&(p.bot||typeof p.token==='string'&&/^[a-f0-9]{48}$/.test(p.token)));ids.add(p.id);}
-    check((room.hostId?room.players.some(p=>p.id===room.hostId&&!p.bot):!room.players[0].bot)&&room.players.filter(p=>!p.bot).length<=6&&room.players.filter(p=>p.bot).length<=3);
-    check(Array.isArray(room.board)&&room.board.length===19);
-    const locations=new Set();for(const t of room.board){check(t&&integer(t.q,-2,2)&&integer(t.r,-2,2)&&Math.abs(t.q+t.r)<=2&&[...resources,'desert'].includes(t.resource)&&(t.resource==='desert'?t.number===null||integer(t.number,2,12):integer(t.number,2,12)&&t.number!==7));locations.add(`${t.q},${t.r}`);}check(locations.size===19&&room.board.filter(t=>t.resource==='desert').length===1);
+    check((room.hostId?room.players.some(p=>p.id===room.hostId&&!p.bot):!room.players[0].bot)&&room.players.filter(p=>!p.bot).length<=6&&room.players.filter(p=>p.bot).length<=5);
+    check(Array.isArray(room.board)&&[19,30].includes(room.board.length));
+    const extended=room.board.length===30,supply=extended?24:19,deckCounts=extended?development.extendedCounts:development.counts;
+    const expectedLocations=new Set(require('./board.cjs').layout(extended).map(t=>t.q+','+t.r)),locations=new Set();
+    for(const t of room.board){check(t&&Number.isInteger(t.q)&&Number.isInteger(t.r)&&expectedLocations.has(t.q+','+t.r)&&[...resources,'desert'].includes(t.resource)&&(t.resource==='desert'?t.number===null||integer(t.number,2,12):integer(t.number,2,12)&&t.number!==7));locations.add(t.q+','+t.r);}check(locations.size===room.board.length&&room.board.filter(t=>t.resource==='desert').length===(extended?2:1));
     if(room.harbors!==undefined){
-      const coast=require('./board.cjs').coastline(room.board),ends=new Set();check(Array.isArray(room.harbors)&&room.harbors.length===9);
+      const coast=require('./board.cjs').coastline(room.board),ends=new Set();check(Array.isArray(room.harbors)&&room.harbors.length===(extended?11:9));
       for(const h of room.harbors){check(h&&coast.includes(h.edge)&&(h.resource===null||resources.includes(h.resource)));const e=rules.topology(room.board).edges[h.edge];check(!ends.has(e.a)&&!ends.has(e.b));ends.add(e.a);ends.add(e.b);}
-      check(room.harbors.filter(h=>h.resource===null).length===4&&resources.every(r=>room.harbors.filter(h=>h.resource===r).length===1));
+      check(room.harbors.filter(h=>h.resource===null).length===(extended?5:4)&&resources.every(r=>room.harbors.filter(h=>h.resource===r).length===(extended&&r==='sheep'?2:1)));
     }
     const g=room.game;if(!g)continue;
     if(room.harbors!==undefined)check(JSON.stringify(g.harbors)===JSON.stringify(room.harbors));
@@ -26,20 +28,21 @@ function validate(data){
     for(const [i,e]of g.edges.entries())check(e&&e.id===i&&e.a===geometry.edges[i].a&&e.b===geometry.edges[i].b&&owner(e.owner));
     check(JSON.stringify(g.order)===JSON.stringify([...g.players,...g.players.slice().reverse()])&&integer(g.step,0,g.order.length));
     check(['settlement','road','complete','roll','build','discard','robber','steal','free-road','finished'].includes(g.phase));
-    check(g.resources&&g.players.every(id=>g.resources[id]&&resources.every(r=>integer(g.resources[id][r],0,19))));
+    check(g.resources&&g.players.every(id=>g.resources[id]&&resources.every(r=>integer(g.resources[id][r],0,supply))));
     if(g.turn===undefined){check(['settlement','road','complete'].includes(g.phase)&&(g.phase==='complete'?g.step===g.order.length:g.step<g.order.length));check(g.phase!=='road'||integer(g.pendingVertex,0,g.vertices.length-1));continue;}
+    check((g.resourceSupply??19)===supply);
     check(g.step===g.order.length&&!['settlement','road','complete'].includes(g.phase));
-    check(integer(g.turn,0,g.players.length-1)&&integer(g.turnNumber)&&integer(g.robber,0,18)&&g.bank&&resources.every(r=>integer(g.bank[r],0,19)&&g.bank[r]+g.players.reduce((n,id)=>n+g.resources[id][r],0)===19));
+    check(integer(g.turn,0,g.players.length-1)&&integer(g.turnNumber)&&integer(g.robber,0,room.board.length-1)&&g.bank&&resources.every(r=>integer(g.bank[r],0,supply)&&g.bank[r]+g.players.reduce((n,id)=>n+g.resources[id][r],0)===supply));
     check(g.dice===null||Array.isArray(g.dice)&&g.dice.length===2&&g.dice.every(n=>integer(n,1,6)));
-    check(g.discards&&Object.entries(g.discards).every(([id,n])=>g.players.includes(id)&&integer(n,1,47))&&Array.isArray(g.victims)&&g.victims.every(id=>g.players.includes(id)));
+    check(g.discards&&Object.entries(g.discards).every(([id,n])=>g.players.includes(id)&&integer(n,1,Math.floor(supply*5/2)))&&Array.isArray(g.victims)&&g.victims.every(id=>g.players.includes(id)));
     check(Array.isArray(g.developmentDeck)&&Array.isArray(g.developmentDiscard)&&g.developmentHands&&g.knightsPlayed&&integer(g.nextDevelopmentId)&&typeof g.developmentPlayed==='boolean'&&integer(g.freeRoadsRemaining,0,2));
     check(g.developmentReturnPhase===undefined||['roll','build'].includes(g.developmentReturnPhase)&&['robber','steal','free-road'].includes(g.phase));
     check(g.phase!=='free-road'||g.freeRoadsRemaining>0&&g.developmentReturnPhase!==undefined);
     const all=[...g.developmentDeck,...g.developmentDiscard],cardIds=new Set();
-    for(const id of g.players){check(Array.isArray(g.developmentHands[id])&&integer(g.knightsPlayed[id],0,14));for(const c of g.developmentHands[id]){check(c&&integer(c.id,1,g.nextDevelopmentId)&&!cardIds.has(c.id)&&integer(c.boughtTurn,0,g.turnNumber));cardIds.add(c.id);all.push(c.type);}}
-    check(all.length===25&&Object.entries(development.counts).every(([type,count])=>all.filter(t=>t===type).length===count));
+    for(const id of g.players){check(Array.isArray(g.developmentHands[id])&&integer(g.knightsPlayed[id],0,deckCounts.Knight));for(const c of g.developmentHands[id]){check(c&&integer(c.id,1,g.nextDevelopmentId)&&!cardIds.has(c.id)&&integer(c.boughtTurn,0,g.turnNumber));cardIds.add(c.id);all.push(c.type);}}
+    check(all.length===Object.values(deckCounts).reduce((a,b)=>a+b,0)&&Object.entries(deckCounts).every(([type,count])=>all.filter(t=>t===type).length===count));
     check(g.players.reduce((n,id)=>n+g.knightsPlayed[id],0)===g.developmentDiscard.filter(t=>t==='Knight').length);
-    if(g.tradeOffer){const t=g.tradeOffer;check(integer(t.id,1,g.tradeSequence)&&g.players.includes(t.from)&&(t.to===null||g.players.includes(t.to))&&t.from!==t.to&&g.phase==='build');if(t.to===null||t.recipients!==undefined){check(Array.isArray(t.recipients)&&t.recipients.length>0&&new Set(t.recipients).size===t.recipients.length&&t.recipients.every(id=>g.players.includes(id)&&id!==t.from));check(t.responses&&Object.keys(t.responses).length===t.recipients.length&&Object.entries(t.responses).every(([id,value])=>t.recipients.includes(id)&&['pending','declined'].includes(value)));}for(const h of [t.give,t.receive])check(h&&Object.keys(h).length>0&&Object.entries(h).every(([r,n])=>resources.includes(r)&&integer(n,1,19)));}
+    if(g.tradeOffer){const t=g.tradeOffer;check(integer(t.id,1,g.tradeSequence)&&g.players.includes(t.from)&&(t.to===null||g.players.includes(t.to))&&t.from!==t.to&&g.phase==='build');if(t.to===null||t.recipients!==undefined){check(Array.isArray(t.recipients)&&t.recipients.length>0&&new Set(t.recipients).size===t.recipients.length&&t.recipients.every(id=>g.players.includes(id)&&id!==t.from));check(t.responses&&Object.keys(t.responses).length===t.recipients.length&&Object.entries(t.responses).every(([id,value])=>t.recipients.includes(id)&&['pending','declined'].includes(value)));}for(const h of [t.give,t.receive])check(h&&Object.keys(h).length>0&&Object.entries(h).every(([r,n])=>resources.includes(r)&&integer(n,1,supply)));}
     check(!g.winner||g.phase==='finished'&&g.players.includes(g.winner)&&integer(g.winningPoints,10,20)&&integer(g.revealedVictoryPoints,0,5));check(g.phase!=='finished'||!!g.winner);
   }
   return data;

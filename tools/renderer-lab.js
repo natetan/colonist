@@ -343,6 +343,7 @@ function controls(state){
   $('score-panel').replaceChildren();
   const hints={settlement:'Choose a white corner marker for your settlement.',road:'Choose a white edge marker for your starting road.',roll:'Roll the dice to collect resources.',build:'Build, trade, or play a development card, then end your turn.',discard:'Players with more than seven cards must discard half their hand.',robber:'Choose a white tile marker to move the robber.',steal:'Choose a player to steal one random resource.', 'free-road':'Choose a white edge marker for a free road.',finished:'The host can return everyone to the lobby for a rematch.'};
   $('hint').textContent=g?(g.discardCount?`Select exactly ${g.discardCount} cards to discard.`:mine?hints[g.phase]||'':`Waiting for ${state.players.find(p=>p.id===g.currentPlayer)?.name||'the other players'}. ${g.phase==='discard'?hints.discard:''}`):'Start with bots to play alone, or invite friends with the room link.';
+  $('room-info').classList.toggle('extended-roster',state.players.filter(p=>p.playing).length>4);
   $('room-info').replaceChildren();
   const roomTitle=document.createElement('strong');roomTitle.textContent=`Room ${state.code}`;$('room-info').append(roomTitle);
   const seats=document.createElement('div');seats.className='player-seats';$('room-info').append(seats);

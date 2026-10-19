@@ -9,3 +9,7 @@ context.window.MainMenu.render({...state,mapType:'random'},'A',(...args)=>sent.p
 context.window.MainMenu.render(state,'B',()=>{});assert.equal(get('map-type').disabled,true);assert.equal(get('menu-start-bots').disabled,true);
 context.window.MainMenu.render({...state,game:{phase:'settlement'}},'A',()=>{});assert.equal(get('game-layout').hidden,false);assert.equal(get('room-menu').hidden,true);
 console.log('PASS: menu preview, Classic/Random controls, regeneration, guest permissions and transition into game');
+
+const large={...state,...boards.classic(true),maxPlayers:6,mapSize:'extended'};context.window.MainMenu.render(large,'A',(...args)=>sent.push(args));assert.equal(get('map-size').value,'extended');assert.equal(get('bot-fill-label').hidden,false);assert.equal(get('lobby-count').textContent,'2 / 6');assert.equal(get('map-preview').children[0].children.filter(n=>n.attributes.points).length,30);
+get('bot-fill').value='5';get('menu-start-bots').onclick();assert.equal(sent[sent.length-1][1].targetPlayers,5);get('map-size').value='standard';get('map-size').onchange();assert.equal(sent[sent.length-1][1].mapSize,'standard');
+console.log('PASS: large-map preview, six-seat lobby, bot target selection and island size requests');

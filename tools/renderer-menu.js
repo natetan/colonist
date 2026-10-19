@@ -4,7 +4,7 @@ window.MainMenu=(()=>{
   const names={wood:'Forest',brick:'Hills',sheep:'Pasture',wheat:'Fields',ore:'Mountains',desert:'Desert'};
   function preview(state){
     const board=state.board;
-    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','-330 -285 660 570');svg.setAttribute('role','img');svg.setAttribute('aria-label','Selected island terrain and number tokens');
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox',state.board.length===30?'-410 -365 740 730':'-330 -285 660 570');svg.setAttribute('role','img');svg.setAttribute('aria-label','Selected island terrain and number tokens');
     const make=(tag,attrs,text)=>{const node=document.createElementNS(svg.namespaceURI,tag);for(const [key,value]of Object.entries(attrs))node.setAttribute(key,value);if(text!==undefined)node.textContent=text;svg.append(node);return node;};
     for(const tile of board){const x=51*Math.sqrt(3)*(tile.q+tile.r/2),y=76.5*tile.r;
       const points=Array.from({length:6},(_,i)=>{const angle=(i*60-30)*Math.PI/180;return `${x+51*Math.cos(angle)},${y+51*Math.sin(angle)}`;}).join(' ');
@@ -23,20 +23,23 @@ window.MainMenu=(()=>{
     const lobby=!state.game,host=state.host===viewer;
     $('lobby').hidden=true;$('room-menu').hidden=!lobby;$('game-layout').hidden=lobby;$('menu-error').hidden=!lobby;
     if(!lobby)return;
-    const type=state.mapType||'random',online=state.players.filter(p=>p.online&&!p.bot).length;
+    const capacity=state.maxPlayers||4,size=capacity===6?'extended':'standard',type=state.mapType||'random',online=state.players.filter(p=>p.online&&!p.bot).length;
     $('room-menu-code').textContent=`Room ${state.code} · Share the code to invite friends`;
+    $('map-size').value=size;$('map-size').disabled=!host;$('map-size').onchange=()=>send('SetMap',{mapType:type,mapSize:$('map-size').value});
+    $('bot-fill-label').hidden=capacity!==6;$('bot-fill').disabled=!host;
     $('map-type').value=type;$('map-type').disabled=!host;
     $('map-kind').textContent=type==='classic'?'CLASSIC':'RANDOM';
     $('map-description').textContent=type==='classic'?'A fixed island with the same terrain, numbers, and harbors every game.':'A fresh island with shuffled terrain, numbers, and harbors. Red 6s and 8s stay apart.';
+    if(capacity===6)$('map-description').textContent+=' 30 tiles · 24 cards per resource · 34 development cards. One player acts at a time.';
     $('regenerate').disabled=!host||type!=='random';
     $('map-host-hint').textContent=host?(type==='classic'?'Choose Random to generate a new island.':'Generate until you find your next island.'):'The host chooses the map. Everyone sees the same island.';
-    $('map-type').onchange=()=>send('SetMap',{mapType:$('map-type').value});
-    $('regenerate').onclick=()=>send('SetMap',{mapType:'random'});
-    $('lobby-count').textContent=`${state.players.length} / 4`;
+    $('map-type').onchange=()=>send('SetMap',{mapType:$('map-type').value,mapSize:size});
+    $('regenerate').onclick=()=>send('SetMap',{mapType:'random',mapSize:size});
+    $('lobby-count').textContent=`${state.players.length} / ${capacity}`;
     $('lobby-players').replaceChildren(...state.players.map(p=>{const li=document.createElement('li');li.textContent=p.name+(p.id===state.host?' · Host':'')+(p.online?'':' · Offline');return li;}));
     $('menu-start').disabled=!host||online<2;$('menu-start-bots').disabled=!host;
-    $('menu-start').onclick=()=>send('StartGame');$('menu-start-bots').onclick=()=>send('StartGame',{bots:true});
-    $('lobby-start-hint').textContent=host?'Start with friends, or fill the remaining seats with bots. Four players maximum.':'Waiting for the host to start.';
+    $('menu-start').onclick=()=>send('StartGame');$('menu-start-bots').onclick=()=>send('StartGame',{bots:true,targetPlayers:capacity===6?Number($('bot-fill').value):4});
+    $('lobby-start-hint').textContent=host?'Start with friends, or fill empty seats with bots. '+capacity+' players maximum.':'Waiting for the host to start.';
     $('menu-copy').onclick=async()=>{const url=new URL(location.href);url.searchParams.set('room',state.code);try{await navigator.clipboard.writeText(url.href);$('menu-copy').textContent='Invite copied';}catch{$('menu-error').textContent='Share room code: '+state.code;}};
     preview(state);
   }

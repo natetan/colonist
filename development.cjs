@@ -1,9 +1,10 @@
 const crypto=require('crypto');
 const resources=require('./trading.cjs').resources;
 const counts=Object.freeze({Knight:14,VictoryPoint:5,RoadBuilding:2,YearOfPlenty:2,Monopoly:2});
+const extendedCounts=Object.freeze({Knight:20,VictoryPoint:5,RoadBuilding:3,YearOfPlenty:3,Monopoly:3});
 const commands=['BuyDevelopmentCard','PlayDevelopmentCard','PlaceFreeRoad'];
 function begin(g){
-  g.developmentDeck=Object.entries(counts).flatMap(([type,n])=>Array(n).fill(type));
+  g.developmentDeck=Object.entries(g.resourceSupply===24?extendedCounts:counts).flatMap(([type,n])=>Array(n).fill(type));
   g.developmentHands=Object.fromEntries(g.players.map(id=>[id,[]]));g.developmentDiscard=[];
   g.knightsPlayed=Object.fromEntries(g.players.map(id=>[id,0]));g.turnNumber=0;g.nextDevelopmentId=0;g.developmentPlayed=false;g.freeRoadsRemaining=0;g.lastDevelopment=null;
 }
@@ -66,4 +67,4 @@ function botAction(g,id,roadLocations){
   }
   return null;
 }
-module.exports={counts,commands,begin,canBuy,playable,act,view,finish,botAction};
+module.exports={extendedCounts,counts,commands,begin,canBuy,playable,act,view,finish,botAction};

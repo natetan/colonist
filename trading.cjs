@@ -1,10 +1,10 @@
 const resources = Object.freeze(['wood','brick','sheep','wheat','ore']);
 const owns = (object,key) => Object.prototype.hasOwnProperty.call(object,key);
-function cards(value) {
+function cards(value,limit=19) {
   if(!value || typeof value!=='object' || Array.isArray(value) || Object.keys(value).some(r=>!resources.includes(r))) throw new Error('Choose valid trade resources.');
   const result={};
   for(const [r,n] of Object.entries(value)){
-    if(!Number.isInteger(n)||n<0||n>19) throw new Error('Trade amounts must be whole numbers from 0 to 19.');
+    if(!Number.isInteger(n)||n<0||n>limit) throw new Error('Trade amounts must be whole numbers from 0 to '+limit+'.');
     if(n>0)result[r]=n;
   }
   if(!Object.keys(result).length)throw new Error('Both sides of a trade need at least one card.');
@@ -49,7 +49,7 @@ function act(g,id,message,eligibleRecipients=g.players) {
   }
   const broadcast=message.player==='all',targets=broadcast?[...new Set(eligibleRecipients)].filter(p=>g.players.includes(p)&&p!==id):[message.player];
   if(!targets.length||targets.some(p=>!g.players.includes(p)||p===id))throw new Error('Choose another player in this match.');
-  const give=cards(message.give),receive=cards(message.receive);
+  const give=cards(message.give,g.resourceSupply||19),receive=cards(message.receive,g.resourceSupply||19);
   if(Object.keys(give).some(r=>owns(receive,r)))throw new Error('A resource cannot appear on both sides of a trade.');
   if(!hasCards(g.resources[id],give))throw new Error('You do not have the cards you offered.');
   g.tradeDecline=null;

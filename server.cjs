@@ -42,7 +42,7 @@ function createApp(options = {}) {
     if(g && g.turn!==undefined){Object.assign(game,{currentPlayer:turns.current(g),dice:g.dice,production:g.production||null,robber:g.robber,discardCount:g.discards[viewer.id]||0,victims:g.phase==='steal'&&turns.current(g)===viewer.id?g.victims:[],builds:g.phase==='build'&&turns.current(g)===viewer.id?Object.fromEntries(Object.keys(turns.costs).map(type=>[type,turns.buildLocations(g,viewer.id,type)])):{},bank:g.bank});}
     if(g && g.turn!==undefined){game.bankRates=trading.rates(g,viewer.id);game.tradeOffer=g.tradeOffer;game.tradeDecline=g.tradeDecline||null;game.canAcceptTrade=!!g.tradeOffer&&trading.canRespond(g.tradeOffer,viewer.id)&&trading.hasCards(g.resources[g.tradeOffer.from]||{},g.tradeOffer.give)&&trading.hasCards(g.resources[viewer.id]||{},g.tradeOffer.receive);}
     if(g && g.turn!==undefined){game.development=development.view(g,viewer.id,turns.roadLocations);game.scoring=scoring.view(g,viewer.id);}
-    const state = { type: 'RoomState', persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', maxPlayers:4, host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
+    const state = { type: 'RoomState', persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', mapSize:room.board.length===30?'extended':'standard', maxPlayers:room.board.length===30?6:4, host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: !!p.bot, online: !!p.ws || !!p.bot, playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
     for(const player of state.players){player.resourceCount=Object.values(g?.resources?.[player.id]||{}).reduce((a,b)=>a+b,0);player.developmentCount=g?.developmentHands?.[player.id]?.length||0;player.knightsPlayed=g?.knightsPlayed?.[player.id]||0;}
     // Optional presentation adapter receives only the already-redacted snapshot.
     if (options.boardPresentation) state.renderer = options.boardPresentation(state);
@@ -98,7 +98,9 @@ function createApp(options = {}) {
           const room=ws.room;if(!room||(room.hostId||room.players[0].id)!==ws.player.id)throw new Error('Only the host can change the map.');
           if(room.game)throw new Error('The map is locked after starting.');
           if(!['classic','random'].includes(message.mapType))throw new Error('Choose Classic or Random.');
-          const next=message.mapType==='classic'?boards.classic():(()=>{const board=boards.generate(options.boardRandom);return {board,harbors:boards.harbors(board,options.boardRandom)};})();
+          const size=message.mapSize||(room.board.length===30?'extended':'standard');if(!['standard','extended'].includes(size))throw new Error('Choose a supported island size.');
+          const extended=size==='extended';if(room.players.length>(extended?6:4))throw new Error('Too many seats for that island size.');
+          const next=message.mapType==='classic'?boards.classic(extended):(()=>{const board=boards.generate(options.boardRandom,extended);return {board,harbors:boards.harbors(board,options.boardRandom)};})();
           room.mapType=message.mapType;room.board=next.board;room.harbors=next.harbors;persist();broadcast(room);return;
         }
         if (['Rematch','StartGame','PlaceSettlement','PlaceRoad','RollDice','EndTurn','BuildRoad','BuildSettlement','BuildCity','MoveRobber','Steal','Discard',...trading.commands,...development.commands].includes(message.type)) {
@@ -114,15 +116,15 @@ function createApp(options = {}) {
             if ((room.hostId||room.players[0].id) !== ws.player.id) throw new Error('Only the host can start.');
             if (room.game) throw new Error('The match has already started.');
             const ids = room.players.filter(p => p.ws).map(p => p.id);
-            if(ids.length>4)throw new Error('The base game supports at most four players. The five/six-player extension is not implemented yet.');
+            const capacity=room.board.length===30?6:4;if(ids.length>capacity)throw new Error('Too many players for this island.');
             const solo = message.solo === true;
             const bots = message.bots === true;
             if (solo && bots) throw new Error('Choose bots or solo placement test.');
-            if (bots && ids.length > 4) throw new Error('Start with bots supports at most four online humans.');
+            const target=message.targetPlayers??capacity;if(bots&&(!Number.isInteger(target)||target<Math.max(2,ids.length)||target>capacity))throw new Error('Choose a valid number of players for bots.');
             if (solo && ids.length !== 1) throw new Error('Solo test requires exactly one online player.');
             if (!solo && !bots && ids.length < 2) throw new Error('Join with another player or use Start with bots.');
             if (bots) {
-              for (let i = 1; ids.length < 4; i++) {
+              for (let i = 1; ids.length < target; i++) {
                 const bot = { id: crypto.randomUUID(), name: `Bot ${i}`, bot: true, ws: null };
                 room.players.push(bot); ids.push(bot.id);
               }
@@ -157,7 +159,7 @@ function createApp(options = {}) {
           room = rooms.get(String(message.code).trim().toUpperCase());
           if (!room) throw new Error('Room not found.');
           if (room.game) throw new Error('Match already started. Only existing players can reconnect.');
-          if (room.players.length >= 4) throw new Error('This table supports four players.');
+          if (room.players.length >= (room.board.length===30?6:4)) throw new Error(room.board.length===30?'This table supports six players.':'This table supports four players.');
         }
         const player = { id: sessionId, token: crypto.randomBytes(24).toString('hex'), name: message.name.trim(), ws };
         room.players.push(player); ws.room = room; ws.player = player;
