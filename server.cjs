@@ -13,6 +13,11 @@ const turnTimer=require('./turn-timer.cjs');
 const {createStore} = require('./persistence.cjs');
 
 function createApp(options = {}) {
+  const allowedOrigins = new Set(options.allowedOrigins || []);
+  for (const origin of allowedOrigins) {
+    const url = new URL(origin);
+    if (!['http:', 'https:'].includes(url.protocol) || url.origin !== origin) throw new Error('Allowed origins must be exact HTTP(S) origins');
+  }
   const random = options.random || crypto.randomInt;
   const store = createStore(options.saveFile);
   const rooms = store.load(),turnTimers=new Map(),now=options.now||Date.now,setTurnTimeout=options.setTurnTimeout||setTimeout,clearTurnTimeout=options.clearTurnTimeout||clearTimeout;
@@ -22,6 +27,10 @@ function createApp(options = {}) {
   }
   const clients = new Set();
   const server = http.createServer((req, res) => {
+    if (req.url === '/healthz') {
+      res.writeHead(storageFailure ? 503 : 200, {'Content-Type':'application/json','Cache-Control':'no-store'});
+      return res.end(JSON.stringify({ok:!storageFailure}));
+    }
     if (options.httpHandler) return options.httpHandler(req, res);
     const files = { '/': ['index.html', 'text/html'], '/app.js': ['app.js', 'text/javascript'], '/style.css': ['style.css', 'text/css'], '/scoring.js':['scoring.js','text/javascript'], '/development.js':['development.js','text/javascript'], '/trading.js':['trading.js','text/javascript'], '/trading.css':['trading.css','text/css'] };
     const file = files[new URL(req.url, 'http://localhost').pathname];
@@ -31,7 +40,7 @@ function createApp(options = {}) {
   });
   const wss = new WebSocketServer({ noServer: true, maxPayload: 4096 });
   server.on('upgrade', (req, socket, head) => {
-    if (req.url !== '/socket' || !['http://localhost:' + server.address().port, 'http://127.0.0.1:' + server.address().port].includes(req.headers.origin)) {
+    if (req.url !== '/socket' || !(allowedOrigins.has(req.headers.origin) || ['http://localhost:' + server.address().port, 'http://127.0.0.1:' + server.address().port].includes(req.headers.origin))) {
       socket.write('HTTP/1.1 403 Forbidden\r\n\r\n'); return socket.destroy();
     }
     wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws));

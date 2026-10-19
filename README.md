@@ -2,6 +2,12 @@
 
 Private multiplayer board-game project for local testing, with eventual Azure hosting.
 
+Windows VM deployment preparation is documented in [deploy/windows/README.md](deploy/windows/README.md).
+It includes a private release packager, HTTPS origin configuration, and a Caddy
+configuration generator that preserves an existing IIS server on port 80.
+Live Azure deployment, service installation, and external multiplayer validation
+are still pending. Run `node tests/hosting.cjs` to check hosting configuration.
+
 ## Current status
 
 Local multiplayer gameplay with initial placement, dice, resource production, building, robber handling, bank/player trading, development cards, scoring, winner detection, and basic bots. The original UI prototype runs on port 3000; an experimental original Colonist board renderer now presents the same local rules on port 3002. Matches can now finish at ten points. Harbors and separated red numbers are implemented; full UI polish remains unfinished. Local saves now survive server restarts.

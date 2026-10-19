@@ -17,8 +17,9 @@ const routes={
   '/fixture.json':path.resolve(__dirname,'../.rea-tools/board-preview-fixture.json'),
 };
 async function startRendererLab(port=3002,options={}){
-const app=createApp({botDelayMs:options.botDelayMs,saveFile:options.saveFile,random:options.random,developmentRandom:options.developmentRandom,boardFactory:options.boardFactory,boardPresentation:presentBoard,httpHandler:(req,res)=>{
+const app=createApp({allowedOrigins:options.allowedOrigins,botDelayMs:options.botDelayMs,saveFile:options.saveFile,random:options.random,developmentRandom:options.developmentRandom,boardFactory:options.boardFactory,boardPresentation:presentBoard,httpHandler:(req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
+  res.setHeader('Cache-Control','no-store');
   if(pathname==='/sprites.css'){
     const names=new Set(['card_lumber','card_brick','card_wool','card_grain','card_ore','card_devcardback','card_knight','card_monopoly','card_roadbuilding','card_yearofplenty','card_vp','icon_trade','icon_hourglass','road_blue','settlement_blue','city_blue','port_lumber','port_brick','port_wool','port_grain','port_ore','icon_player','icon_bot','icon_players','icon_tradehouse','icon_robber']);
     for(const color of ['red','blue','orange','green','purple','white'])for(const piece of ['road','settlement','city'])names.add(piece+'_'+color);
@@ -26,7 +27,7 @@ const app=createApp({botDelayMs:options.botDelayMs,saveFile:options.saveFile,ran
     res.setHeader('Content-Type','text/css');res.setHeader('X-Content-Type-Options','nosniff');return res.end(css);
   }
   let file=routes[pathname];
-  if(/^\/assets\/[a-zA-Z0-9_.-]+$/.test(pathname))file=path.join(root,pathname.slice(1));
+  if(/^\/assets\/[a-zA-Z0-9_.-]+\.(json|png|webp|svg|woff|woff2)$/.test(pathname))file=path.join(root,pathname.slice(1));
   // No remote connections, images, frames, or scripts are permitted.
   // Pixi 7 generates shader helpers; eval is allowed only in this local lab.
   res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self' 'unsafe-eval'; connect-src 'self'; media-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; worker-src 'none'; frame-src 'none'");
