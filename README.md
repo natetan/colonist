@@ -1,12 +1,13 @@
 # Private Settlers
 
-Private multiplayer board-game project for local testing, with eventual Azure hosting.
+Private multiplayer board-game project for local testing and self-hosted Windows/Azure deployment.
 
 Windows VM deployment preparation is documented in [deploy/windows/README.md](deploy/windows/README.md).
 It includes a private release packager, HTTPS origin configuration, and a Caddy
 configuration generator that preserves an existing IIS server on port 80.
-Live Azure deployment, service installation, and external multiplayer validation
-are still pending. Run `node tests/hosting.cjs` to check hosting configuration.
+The existing Windows VM now runs automatic game/HTTPS services; public HTTPS,
+two-player setup, and reconnect have been checked. Run `node tests/hosting.cjs`
+for local configuration checks; see the guide for the live smoke test and limits.
 
 ## Current status
 

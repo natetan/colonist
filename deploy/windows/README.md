@@ -1,6 +1,8 @@
 # Existing Windows VM deployment
 
-Preparation is local; the VM has not been deployed. Keep IIS/FastDL on port 80.
+The existing Windows VM has been deployed and checked over public HTTPS. Keep
+IIS/FastDL on port 80. The hostname is an Azure public-IP DNS label; retrieve its
+current value from Azure rather than committing resource identifiers here.
 Use an Azure public-IP DNS label, giving a hostname such as
 `<label>.<region>.cloudapp.azure.com`. The actual resource names and address are
 runtime inputs, never committed configuration.
@@ -21,7 +23,20 @@ It excludes saves, account configuration, research pages, diagnostic scripts,
 and node_modules. Keep this private archive out of Git. Renderer assets must
 already have been prepared locally using the README's renderer commands.
 
-## Install on the VM (pending live verification)
+## Install on the VM
+
+`Install-Host.ps1` installs a fresh host using a private bundle containing `app/`,
+`node.zip`, `caddy.zip`, `WinSW.exe`, and `Configure-Host.ps1`. Verify downloaded
+runtime checksums and the complete transfer archive before executing it. Pass
+`-BundlePath`, `-Root`, `-Hostname`, and a new `-Release` name. It refuses existing
+services and occupied ports, validates Caddy, installs automatic LocalService
+services, restricts private state ACLs, and opens only Caddy's TCP 443 in Windows
+Firewall. Azure DNS/NSG changes are separate explicit operations.
+
+The initial deployment uses Node 24.22.0, Caddy 2.11.6, and WinSW 2.12.0. Node's
+SHA256 and Caddy's SHA512 were compared to their official release checksums;
+the WinSW binary was downloaded from its official GitHub release over HTTPS.
+The private archive's SHA256 was checked on the VM before extraction.
 
 Copy/extract the private release into a versioned directory such as
 `C:\gameserver\PrivateSettlers\releases\<version>`; verify its archive SHA256
@@ -51,15 +66,31 @@ open that port externally. Check `/healthz` locally and over HTTPS, then verify
 two separate browsers can join, trade, reconnect, and resume after restart.
 Check the existing FastDL health URL still works.
 
-## Remaining deployment steps
+## Operations and verification
 
-After authorization to start/reconfigure the VM: inspect its installed Node,
-IIS bindings, IW5 startup mechanism, and available ports; choose/check the DNS
-label; install and verify the runtimes; add only the required HTTPS rules.
-Configure automatic startup with separate Node and Caddy services using an
-unprivileged service account, read access to releases, and write access only to
-the state/log directories. Service installation and switching are deliberately
-pending inspection of the live VM; no generic process-killing script is supplied.
+Services are `PrivateSettlersGame` and `PrivateSettlersHttps`, both automatic and
+running as `NT AUTHORITY\LocalService`. Their WinSW executable/XML pairs live in
+`<Root>\services`; logs and saves live in `<Root>\state`. Use elevated PowerShell:
+
+```powershell
+Get-Service PrivateSettlersGame,PrivateSettlersHttps
+Restart-Service PrivateSettlersGame
+Stop-Service PrivateSettlersGame,PrivateSettlersHttps
+Start-Service PrivateSettlersGame,PrivateSettlersHttps
+```
+
+Run the external smoke test from this repository:
+
+```powershell
+node tests/hosted-smoke.cjs 'https://<your-hostname>'
+```
+
+It checks HTTPS assets, secure WebSockets, two-human setup, renderer state, and
+seat reconnect, and removes its QA room. It does not claim full browser/animation
+or full-match verification. The existing IW5 FastDL health endpoint was checked
+before and after installation. IW5 binaries, configuration, startup setup, and
+UDP/RDP/HTTP rules are preserved; an IW5 client match has not been run as part
+of this deployment. Temporary private transfer storage is deleted afterward.
 
 Stop only the Settlers service before switching to the existing IW5 launcher.
 Do not deallocate the VM while friends need the web game. For updates, stop the
