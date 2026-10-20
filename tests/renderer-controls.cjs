@@ -15,6 +15,13 @@ costContext.showCostTip({disabled:true,getBoundingClientRect:()=>({top:100})},'C
 assert.equal(costTip.row.children[0].className,'cost-resource-missing');assert.equal(costTip.row.children[0].children[1].textContent,2);assert.equal(costTip.row.children[1].className,'');assert.equal(costTip.row.children[1].children[1].textContent,3);
 costContext.latestState.game.resources.wheat=2;costContext.showCostTip({disabled:false,getBoundingClientRect:()=>({top:100})},'City');assert.equal(costTip.row.children[0].className,'');
 console.log('PASS: cost tooltips mark insufficient resources, keep required counts, and leave affordable cards unfaded');
+let unread=false,chatLabel;const chatInput={},chatHeading={classList:{toggle(_,value){unread=value;}},setAttribute(_,value){chatLabel=value;}};
+const chatContext={joined:{playerId:'A'},document:{activeElement:null},$:id=>id==='chat-input'?chatInput:chatHeading};vm.createContext(chatContext);
+vm.runInContext(source.slice(source.indexOf('function updateChatUnread('),source.indexOf('function connect(')),chatContext);
+chatContext.updateChatUnread({player:'A'});assert.equal(unread,false);chatContext.updateChatUnread({player:'B'});assert.equal(unread,true);assert.match(chatLabel,/unread/);
+chatContext.updateChatUnread({player:'A'});assert.equal(unread,true,'Own messages do not clear unread messages');chatContext.updateChatUnread();assert.equal(unread,false);assert.equal(chatLabel,'Chat');
+chatContext.document.activeElement=chatInput;chatContext.updateChatUnread({player:'B'});assert.equal(unread,false,'Messages received while typing are already read');
+console.log('PASS: unread chat indicator ignores own messages, clears on input focus, and stays clear while typing');
 
 context.cardBadge=()=>new Element();const sent=[];context.send=(...args)=>sent.push(args);vm.runInContext(source.slice(source.indexOf('let discardDraft='),source.indexOf('function controls(state)')),context);const discardState={code:'TEST',game:{phase:'discard',discardCount:4,resources:{wood:0,brick:0,wheat:3,sheep:4,ore:1}}};context.discardAction(discardState);const box=get('action-box');assert.equal(box.hidden,false);assert.equal(box.children[2].children[1].disabled,true);for(let i=0;i<4;i++)box.children[1].children[3].onclick();assert.equal(box.children[2].children[1].disabled,false);box.children[2].children[0].children[0].onclick();assert.equal(box.children[2].children[1].disabled,true);box.children[1].children[4].onclick();box.children[2].children[1].onclick();assert.equal(sent[0][0],'Discard');assert.equal(sent[0][1].cards.sheep,3);assert.equal(sent[0][1].cards.ore,1);console.log('PASS: discard chooser selection, undo, exact count, and submit');
 
