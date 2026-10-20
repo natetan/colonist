@@ -169,3 +169,12 @@
 #hand .resource-card[role="button"]{cursor:pointer}#hand .resource-card:focus-visible{outline:3px solid #148bbb;outline-offset:2px;border-radius:3px}
 
 @media(min-width:701px){#room-info .your-seat,#room-info.extended-roster .your-seat{position:sticky;bottom:0;z-index:3;box-shadow:0 -4px 8px #0e69a344}}
+
+/* Non-blocking global notifications and brief award celebrations. */
+#notifications{position:fixed;z-index:300;top:16px;left:50%;transform:translateX(-50%);width:min(480px,calc(100vw - 32px));display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.game-notification{padding:14px 20px;border:2px solid #efc25d;border-radius:10px;background:#fff5df;color:#293b42;box-shadow:0 5px 20px #0004;text-align:center;font-size:17px;font-weight:650;overflow-wrap:anywhere;animation:notification-arrive .3s ease-out}
+@keyframes notification-arrive{from{opacity:0;transform:translateY(-35px)}to{opacity:1;transform:translateY(0)}}
+#award-confetti{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:290}
+#award-confetti>i{position:absolute;top:-16px;width:7px;height:11px;border-radius:1px;animation:award-confetti-fall 2.6s linear both}
+@keyframes award-confetti-fall{from{transform:translate(0,-20px) rotate(0deg);opacity:.95}to{transform:translate(var(--drift),calc(100dvh + 36px)) rotate(540deg);opacity:0}}
+@media(prefers-reduced-motion:reduce){.game-notification{animation:none}#award-confetti{display:none}}

@@ -268,6 +268,23 @@ function referenceTrade(parent,state,viewerId,send){
   const help=document.createElement('p');help.className='trade-requirements';help.textContent=bankValid?'Bank exchange ready':a.length===1?`Bank rate: ${g.bankRates?.[a[0]]||4} ${a[0]} for one card. Select cards to offer below, then request above.`:'Select cards to offer below, then request above.';offer.append(help);
   if(g.tradeOffer){const existing=g.tradeOffer;const status=document.createElement('p');status.textContent='Pending offer · '+state.players.find(p=>p.id===existing.from)?.name+' → '+(existing.to===null?'All players':state.players.find(p=>p.id===existing.to)?.name);offer.append(status);for(const [label,type,allowed]of [['Cancel offer','CancelTrade',existing.from===viewerId],['Accept offer','AcceptTrade',mayRespond(existing,viewerId)&&g.canAcceptTrade],['Decline offer','DeclineTrade',mayRespond(existing,viewerId)]])if(allowed){const button=document.createElement('button');button.textContent=label;button.onclick=()=>send(type,{offerId:existing.id});offer.append(button);}}
 }
+// Shared notifications: plain text, bounded stacking, and automatic cleanup.
+function notify(message,{celebrate=false,duration=4500}={}){
+  let region=$('notifications');if(!region){region=document.createElement('div');region.id='notifications';region.setAttribute('role','status');region.setAttribute('aria-live','polite');document.body.append(region);}
+  const toast=document.createElement('div');toast.className='game-notification';toast.textContent=message;region.append(toast);
+  while(region.children.length>3)region.firstElementChild.remove();
+  setTimeout(()=>toast.remove(),duration);
+  if(celebrate)celebrateAward();
+}
+let confettiCleanup;
+function celebrateAward(){
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  let layer=$('award-confetti');if(!layer){layer=document.createElement('div');layer.id='award-confetti';layer.setAttribute('aria-hidden','true');document.body.append(layer);}
+  clearTimeout(confettiCleanup);layer.replaceChildren();
+  const colors=['#f3bd44','#68ccdc','#f3ecce','#e56c77','#87c878'];
+  for(let i=0;i<32;i++){const piece=document.createElement('i');piece.style.left=((i+.2+Math.random()*.6)/32*100)+'%';piece.style.backgroundColor=colors[i%colors.length];piece.style.setProperty('--drift',(Math.random()*100-50)+'px');piece.style.animationDelay=(Math.random()*.35)+'s';piece.style.animationDuration=(2.1+Math.random()*.5)+'s';layer.append(piece);}
+  confettiCleanup=setTimeout(()=>layer.remove(),3100);
+}
 let audioContext,diceRollAudio,soundEnabled=localStorage.getItem('settlers-sound')!=='off',turnKey;
 let clockOffset=0,warningDeadline,warningTicks=new Set();
 function unlockSound(){if(!soundEnabled)return;try{audioContext??=new AudioContext();audioContext.resume().catch(()=>{});}catch{/* Audio is optional on browsers without Web Audio. */}}
@@ -314,7 +331,15 @@ function turnFeedback(state){
   const addedRoad=g.edges?.some(e=>e.owner&&!old.edges?.some(previous=>previous.id===e.id&&previous.owner===e.owner));
   const placed=g.vertices?.find(v=>v.owner&&(!old.vertices?.some(previous=>previous.id===v.id&&previous.owner===v.owner)||v.city&&!old.vertices?.find(previous=>previous.id===v.id)?.city));
   if(placed)cue(placed.city?'city':'settlement');else if(addedRoad)cue('road');else if(g.robber!==old.robber)cue('robber');
-  for(const award of ['longestRoad','largestArmy'])if(g.scoring?.[award]&&g.scoring[award]!==old.scoring?.[award])cue(award);
+  let celebrated=false;
+  for(const award of ['longestRoad','largestArmy'])if(g.scoring?.[award]&&g.scoring[award]!==old.scoring?.[award]){
+    cue(award);const player=state.players?.find(p=>p.id===g.scoring[award]);
+    notify(`${player?.name||'A player'} has achieved ${award==='longestRoad'?'Longest Road':'Largest Army'}!`,{celebrate:!celebrated});celebrated=true;
+  }
+  if(g.scoring?.winner&&g.scoring.winner!==old.scoring?.winner){
+    const player=state.players?.find(p=>p.id===g.scoring.winner);
+    notify(`${player?.name||'A player'} has won!`,{celebrate:!celebrated});
+  }
 }
 function updateTurnClock(){
   const state=latestState,g=state?.game,clock=$('phase-clock'),timer=g?.turnTimer;
