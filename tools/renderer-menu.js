@@ -29,8 +29,8 @@ window.MainMenu=(()=>{
     $('bot-fill-label').hidden=capacity!==6;$('bot-fill').disabled=!host;
     $('turn-seconds').value=String(state.turnSeconds??60);$('turn-seconds').disabled=!host;$('turn-seconds').onchange=()=>send('SetTurnTimer',{seconds:Number($('turn-seconds').value)});
     $('map-type').value=type;$('map-type').disabled=!host;
-    $('map-kind').textContent=type.replace('-', ' ').toUpperCase();
-    $('map-description').textContent=type==='classic'?'A fixed island with the same terrain, numbers, and harbors every game.':(type==='china'?'A China-shaped mainland island with a broad west, raised northeast, and tapered southern coast. Resources and production odds are balanced.':type==='random'?'A fresh island with shuffled terrain, numbers, and harbors.':'A shaped island with shuffled terrain, numbers, and harbors. Production odds are spread across resources.')+' Red 6s and 8s stay apart.';
+    $('map-kind').textContent=type==='random-plus'?'RANDOM+':type.replace('-', ' ').toUpperCase();
+    $('map-description').textContent=type==='classic'?'A fixed island with the same terrain, numbers, and harbors every game.':(type==='random-plus'?'A compact, irregular island with a freshly generated coastline, balanced resources, numbers, and harbors.':type==='china'?'A China-shaped mainland island with a broad west, raised northeast, and tapered southern coast. Resources and production odds are balanced.':type==='random'?'A fresh island with shuffled terrain, numbers, and harbors.':'A shaped island with shuffled terrain, numbers, and harbors. Production odds are spread across resources.')+' Red 6s and 8s stay apart.';
     if(capacity===6)$('map-description').textContent+=' 30 tiles · 24 cards per resource · 34 development cards. One player acts at a time.';
     $('regenerate').disabled=!host||type==='classic';
     $('map-host-hint').textContent=host?(type==='classic'?'Choose Random to generate a new island.':'Generate until you find your next island.'):'The host chooses the map. Everyone sees the same island.';

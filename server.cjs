@@ -181,7 +181,7 @@ function createApp(options = {}) {
         if(message.type==='SetMap'){
           const room=ws.room;if(!room||(room.hostId||room.players[0].id)!==ws.player.id)throw new Error('Only the host can change the map.');
           if(room.game)throw new Error('The map is locked after starting.');
-          if(!boards.mapTypes.includes(message.mapType))throw new Error('Choose Classic or Random, Star, Crescent, Long Island, or China.');
+          if(!boards.mapTypes.includes(message.mapType))throw new Error('Choose Classic, Random, Random+, Star, Crescent, Long Island, or China.');
           const size=message.mapSize||(room.board.length===30?'extended':'standard');if(!['standard','extended'].includes(size))throw new Error('Choose a supported island size.');
           const extended=size==='extended';if(room.players.length+(room.joiners?.size||0)>(extended?6:4))throw new Error('Too many seats for that island size.');
           const next=message.mapType==='classic'?boards.classic(extended):(()=>{const board=boards.generate(options.boardRandom,extended,message.mapType);return {board,harbors:boards.harbors(board,options.boardRandom)};})();
