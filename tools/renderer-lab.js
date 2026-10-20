@@ -126,7 +126,7 @@ async function render(fixture,presentation,state){
     const edge=map.tileEdges[presentation.mapping.edges[harbor.edge]],point=edge.hexEdge.centerPointToPixel(view.mapCenter,view.hexagonHeight/2);
 
     // Shift the badge outwards; endpoint positions make harbor ownership unambiguous.
-    const anchor=presentation.harborLocations.find(h=>h.edge===harbor.edge);const {x,y}=anchor,n=Math.hypot(x,y),dx=x/n,dy=y/n;
+    const anchor=presentation.harborLocations.find(h=>h.edge===harbor.edge);const {dx,dy}=anchor;
     const piers=new pixi.Graphics();piers.zIndex=view.layers.robber;for(const id of [anchor.a,anchor.b]){const start=map.tileCorners[presentation.mapping.corners[id]].hexCorner.toPixel(view.mapCenter,view.hexagonHeight/2),end={x:point.x+dx*42,y:point.y+dy*42},vx=end.x-start.x,vy=end.y-start.y,length=Math.hypot(vx,vy),ux=vx/length,uy=vy/length;piers.lineStyle(8,0xd49d35).moveTo(start.x,start.y).lineTo(end.x,end.y);for(let d=4;d<length;d+=5)piers.lineStyle(1,0x805728).moveTo(start.x+ux*d-uy*4,start.y+uy*d+ux*4).lineTo(start.x+ux*d+uy*4,start.y+uy*d-ux*4);}view.addChild(piers);
     point.x+=dx*48;point.y+=dy*48;
     const label=document.createElement('span');label.className='harbor-label harbor-boat';label.setAttribute('aria-label',harbor.resource?`${harbor.resource} harbor 2:1`:'Generic harbor 3:1');

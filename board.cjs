@@ -6,7 +6,23 @@ function adjacent(a,b){return Math.max(Math.abs(a.q-b.q),Math.abs(a.r-b.r),Math.
 const extendedResources=Object.freeze([...resourceBag,'wood','wood','sheep','sheep','wheat','wheat','brick','brick','ore','ore','desert']);
 const extendedNumbers=Object.freeze([...numberBag,2,3,4,5,6,8,9,10,11,12]);
 function layout(extended=false){const tiles=[],radius=extended?3:2,upper=2;for(let r=-radius;r<=radius;r++)for(let q=Math.max(-radius,-r-radius);q<=Math.min(upper,-r+upper);q++)tiles.push({q,r});return tiles;}
-const mapTypes=Object.freeze(['classic','random','random-plus','star','crescent','long-island','china']);
+const mapTypes=Object.freeze(['classic','random','random-plus','random-plus-plus','star','crescent','long-island','china']);
+function wildLayout(random=crypto.randomInt,extended=false){
+  const directions=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]],tiles=[{q:0,r:0},...directions.map(([q,r])=>({q,r}))];
+  const occupied=t=>tiles.some(other=>other.q===t.q&&other.r===t.r);
+  while(tiles.length<(extended?30:19)){
+    const candidates=new Map();
+    for(const t of tiles)for(const [q,r]of directions){
+      const next={q:t.q+q,r:t.r+r};if(occupied(next)||Math.max(Math.abs(next.q),Math.abs(next.r),Math.abs(next.q+next.r))>(extended?6:5))continue;
+      const neighbors=directions.map(([q,r])=>occupied({q:next.q+q,r:next.r+r})),count=neighbors.filter(Boolean).length;
+      // Attach along one continuous arc: branches and bays are allowed, holes aren't.
+      if(count>3||neighbors.filter((value,i)=>value&&!neighbors[(i+5)%6]).length!==1)continue;
+      candidates.set(next.q+','+next.r,{t:next,score:random(20)-count*3});
+    }
+    tiles.push([...candidates.values()].sort((a,b)=>b.score-a.score)[0].t);
+  }
+  return tiles.sort((a,b)=>a.r-b.r||a.q-b.q);
+}
 // Contiguous rows along all three hex axes keep the island compact and hole-free.
 function compact(tiles){
   return ['q','r','s'].every(axis=>{const rows=new Map();for(const t of tiles){const key=axis==='s'?t.q+t.r:t[axis],value=axis==='q'?t.r:t.q;if(!rows.has(key))rows.set(key,[]);rows.get(key).push(value);}return [...rows.values()].every(row=>Math.max(...row)-Math.min(...row)+1===row.length);});
@@ -23,6 +39,7 @@ function irregularLayout(random=crypto.randomInt,extended=false){
 function shapeLayout(type='random',extended=false){
   if(!mapTypes.includes(type))throw new Error('Unsupported map shape.');
   if(type==='random-plus')return irregularLayout(crypto.randomInt,extended);
+  if(type==='random-plus-plus')return wildLayout(crypto.randomInt,extended);
   if(type==='classic'||type==='random')return layout(extended);
   if(type==='china'){
     // Mainland silhouette on the hex grid: broad west, northern indentation,
@@ -56,7 +73,7 @@ function legacyChinaLayout(extended=false){
   return rows.flatMap(([r,columns])=>columns.map(q=>({q,r})));
 }
 function generateOnce(random,extended,type){
-  const locations=type==='random-plus'?irregularLayout(random,extended):shapeLayout(type,extended);
+  const locations=type==='random-plus-plus'?wildLayout(random,extended):type==='random-plus'?irregularLayout(random,extended):shapeLayout(type,extended);
   const bag=shuffle(extended?extendedResources:resourceBag,random),tiles=locations.map(t=>({...t,resource:bag.pop(),number:null}));
   const candidates=shuffle(tiles.map((t,i)=>i).filter(i=>tiles[i].resource!=='desert'),random);
   function select(start,chosen){if(chosen.length===(extended?6:4))return chosen;for(let i=start;i<candidates.length;i++){const next=candidates[i];if(chosen.every(other=>!adjacent(tiles[next],tiles[other]))){const result=select(i+1,[...chosen,next]);if(result)return result;}}return null;}
@@ -92,4 +109,4 @@ function harbors(tiles,random=crypto.randomInt){
   return positions.map((position,i)=>({edge:coast[(position+offset)%coast.length],resource:types[i]}));
 }
 function classic(extended=false){let seed=104729;const random=max=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed%max;};const tiles=generate(random,extended);return {board:tiles,harbors:harbors(tiles,random)};}
-module.exports={layout,shapeLayout,compact,irregularLayout,legacyStarLayout,legacyChinaLayout,mapTypes,productionSpread,extendedResources,extendedNumbers,classic,generate,harbors,coastline,adjacent,resourceBag,numberBag};
+module.exports={layout,shapeLayout,compact,irregularLayout,wildLayout,legacyStarLayout,legacyChinaLayout,mapTypes,productionSpread,extendedResources,extendedNumbers,classic,generate,harbors,coastline,adjacent,resourceBag,numberBag};

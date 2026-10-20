@@ -9,6 +9,7 @@ The fun alternative to Colonist, which is the alternative to Settlers of Catan. 
 Classic and Random, plus these custom shapes:
 
 - Random+ · procedurally generated compact islands
+- Random++ · wild islands with branching peninsulas and deep bays
 - Star
 - Crescent
 - Long Island

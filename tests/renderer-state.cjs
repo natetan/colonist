@@ -22,3 +22,18 @@ for(const tiles of [board,board.slice().reverse()]){
 const lobby=presentBoard({board,players:[],game:null});assert.equal(lobby.robber,board.findIndex(t=>t.resource==='desert'));
 assert(Object.values(lobby.fixture.gameState.mapState.tileCornerStates).every(c=>c.owner===undefined));
 console.log('PASS: all corners/edges map to matching tiles and endpoints; piece ownership, cities, robber, redaction, and immutable snapshots');
+const boards=require('../board.cjs');let inward=0;
+for(const extended of [false,true])for(let seed=1;seed<=40;seed++){
+ let value=seed;const random=n=>{value=(Math.imul(value,1664525)+1013904223)>>>0;return value%n;};
+ const tiles=boards.generate(random,extended,'random-plus-plus'),harbors=boards.coastline(tiles).map(edge=>({edge,resource:null}));
+ const view=presentBoard({board:tiles,harbors,players:[],game:null});
+ for(const port of view.harborLocations){
+  assert(Math.abs(Math.hypot(port.dx,port.dy)-1)<1e-9);
+  if(port.x*port.dx+port.y*port.dy<0)inward++;
+  for(const t of tiles){const x=port.boatX-78*Math.sqrt(3)*(t.q+t.r/2),y=port.boatY-117*t.r;
+   assert(Math.max(Math.abs(x),Math.abs(.5*x+Math.sqrt(3)/2*y),Math.abs(.5*x-Math.sqrt(3)/2*y))>78*Math.sqrt(3)/2,'Port center stays in water');
+  }
+ }
+}
+assert(inward>0,'Fixtures exercise bays facing toward the island center');
+console.log('PASS: all coastal port centers stay in water on 80 wild maps, including inward-facing bays');

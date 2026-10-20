@@ -36,7 +36,13 @@ function presentBoard(snapshot) {
   fixture.gameState.mapState=map;
   // Presentation contains public board data only; never duplicate player hands.
   const geometry=topology(snapshot.board);
-  const harborLocations=(snapshot.harbors||[]).map(h=>{const e=geometry.edges[h.edge],a=geometry.vertices[e.a],b=geometry.vertices[e.b];return {edge:h.edge,a:e.a,b:e.b,x:(a.x+b.x)/2,y:(a.y+b.y)/2};});
+  const harborLocations=(snapshot.harbors||[]).map(h=>{
+    const e=geometry.edges[h.edge],a=geometry.vertices[e.a],b=geometry.vertices[e.b],tile=snapshot.board[a.tiles.find(id=>b.tiles.includes(id))];
+    const x=(a.x+b.x)/2,y=(a.y+b.y)/2,cx=78*Math.sqrt(3)*(tile.q+tile.r/2),cy=117*tile.r,length=Math.hypot(x-cx,y-cy);
+    // Follow this coastal tile's outward normal, including inward-facing bays.
+    const dx=(x-cx)/length,dy=(y-cy)/length;
+    return {edge:h.edge,a:e.a,b:e.b,x,y,dx,dy,boatX:x+dx*48,boatY:y+dy*48};
+  });
   return {fixture,mapping,harborLocations,playerColors,robber:snapshot.game?.robber??snapshot.board.findIndex(t=>t.resource==='desert')};
 }
 module.exports={translateGeometry,presentBoard};

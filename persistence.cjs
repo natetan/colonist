@@ -14,9 +14,9 @@ function validate(data){
     check(Array.isArray(room.board)&&[19,30].includes(room.board.length));
     const extended=room.board.length===30,supply=extended?24:19,deckCounts=extended?development.extendedCounts:development.counts;
     const boards=require('./board.cjs'),legacyLayout=room.mapType==='star'?boards.legacyStarLayout:room.mapType==='china'?boards.legacyChinaLayout:null,legacy=legacyLayout?new Set(legacyLayout(extended).map(t=>t.q+','+t.r)):null;
-    const expectedLocations=legacy&&room.board.every(t=>legacy.has(t.q+','+t.r))?legacy:new Set((room.mapType==='random-plus'?room.board:boards.shapeLayout(room.mapType||'random',extended)).map(t=>t.q+','+t.r)),locations=new Set();
+    const expectedLocations=legacy&&room.board.every(t=>legacy.has(t.q+','+t.r))?legacy:new Set((['random-plus','random-plus-plus'].includes(room.mapType)?room.board:boards.shapeLayout(room.mapType||'random',extended)).map(t=>t.q+','+t.r)),locations=new Set();
     for(const t of room.board){check(t&&Number.isInteger(t.q)&&Number.isInteger(t.r)&&expectedLocations.has(t.q+','+t.r)&&[...resources,'desert'].includes(t.resource)&&(t.resource==='desert'?t.number===null||integer(t.number,2,12):integer(t.number,2,12)&&t.number!==7));locations.add(t.q+','+t.r);}check(locations.size===room.board.length&&room.board.filter(t=>t.resource==='desert').length===(extended?2:1));
-    if(room.mapType==='random-plus'){check(room.board.every(t=>Math.abs(t.q)<=8&&Math.abs(t.r)<=8)&&boards.compact(room.board));boards.coastline(room.board);}
+    if(['random-plus','random-plus-plus'].includes(room.mapType)){check(room.board.every(t=>Math.abs(t.q)<=8&&Math.abs(t.r)<=8));if(room.mapType==='random-plus')check(boards.compact(room.board));boards.coastline(room.board);}
     if(room.harbors!==undefined){
       const coast=require('./board.cjs').coastline(room.board),ends=new Set();check(Array.isArray(room.harbors)&&room.harbors.length===(extended?11:9));
       for(const h of room.harbors){check(h&&coast.includes(h.edge)&&(h.resource===null||resources.includes(h.resource)));const e=rules.topology(room.board).edges[h.edge];check(!ends.has(e.a)&&!ends.has(e.b));ends.add(e.a);ends.add(e.b);}

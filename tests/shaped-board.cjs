@@ -1,5 +1,5 @@
 const assert=require('assert/strict'),boards=require('../board.cjs'),rules=require('../game.cjs'),turns=require('../turns.cjs'),{encode,validate}=require('../persistence.cjs'),{presentBoard}=require('../tools/renderer-state.cjs');
-for(const extended of [false,true])for(const type of ['random-plus','star','crescent','long-island','china']){
+for(const extended of [false,true])for(const type of ['random-plus-plus','random-plus','star','crescent','long-island','china']){
  for(let seed=1;seed<=60;seed++){
   let value=seed;const random=n=>{value=(Math.imul(value,1664525)+1013904223)>>>0;return value%n;};
   const board=boards.generate(random,extended,type),harbors=boards.harbors(board,random),topology=rules.topology(board);
@@ -24,10 +24,19 @@ for(const extended of [false,true])for(const type of ['random-plus','star','cres
 }
 assert.throws(()=>boards.generate(undefined,false,'unknown'),/Unsupported/);
 for(const extended of [false,true]){
+ let wildCoast=0,compactCoast=0,concave=0;const outlines=new Set();
+ for(let seed=1;seed<=40;seed++){
+  let value=seed;const random=n=>{value=(Math.imul(value,1664525)+1013904223)>>>0;return value%n;};
+  const wild=boards.wildLayout(random,extended);outlines.add(JSON.stringify(wild));value=seed;assert.deepEqual(boards.wildLayout(random,extended),wild);
+  wildCoast+=boards.coastline(wild).length;compactCoast+=boards.coastline(boards.irregularLayout(random,extended)).length;if(!boards.compact(wild))concave++;
+ }
+ assert(outlines.size>20);assert(concave>=35,'Wild islands have bays and branches');assert(wildCoast>compactCoast*1.3,'Random++ has substantially wilder coastlines than Random+');
+}
+for(const extended of [false,true]){
  const shapes=new Set();for(let seed=1;seed<=40;seed++){let value=seed;const random=n=>{value=(Math.imul(value,1664525)+1013904223)>>>0;return value%n;};const first=boards.irregularLayout(random,extended);shapes.add(JSON.stringify(first));value=seed;assert.deepEqual(boards.irregularLayout(random,extended),first);}
  assert(shapes.size>20,'Procedural outlines vary across seeds at both sizes');
 }
-console.log('PASS: 600 shaped maps, exact supplies, connected coastlines, separated reds, production balance, disjoint ports, deterministic draws, 4/6-player setup, bot actions, persistence and renderer topology');
+console.log('PASS: 720 shaped maps, exact supplies, connected coastlines, separated reds, production balance, disjoint ports, deterministic draws, 4/6-player setup, bot actions, persistence and renderer topology');
 
 for(const extended of [false,true]){const generated=boards.generate(undefined,extended,'star'),legacy=boards.legacyStarLayout(extended),board=generated.map((t,i)=>({...t,...legacy[i]})),room={code:'ABCDEF',mapType:'star',board,harbors:boards.harbors(board),players:[{id:'P0',name:'Saved player',bot:false,token:'a'.repeat(48)}]};assert.equal(validate(encode(new Map([[room.code,room]]))).rooms[0].board.length,extended?30:19);assert.notDeepEqual(boards.shapeLayout('star',extended),legacy);}
 console.log('PASS: previous Star saves remain compatible at both sizes');
