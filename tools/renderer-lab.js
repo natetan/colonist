@@ -25,6 +25,17 @@ let assetReady, currentManager, latestState, joined, socket, retry, buildMode, c
 let pendingRender, rendering=false,mapDragging=false;
 const $=id=>document.getElementById(id);
 function browserStorage(name){try{return window[name];}catch{return null;}}
+function rememberPlayerName(){
+  const storage=browserStorage('localStorage'),key='settlers-player-name',fields=[$('name'),$('invite-name')];
+  let saved='';try{saved=storage?.getItem(key)||'';}catch{/* Storage may be blocked by browser settings. */}
+  for(const field of fields){
+    field.value=saved.slice(0,24);
+    field.addEventListener('input',()=>{
+      const name=field.value.slice(0,24);for(const other of fields)if(other!==field)other.value=name;
+      try{if(name.trim())storage?.setItem(key,name);else storage?.removeItem(key);}catch{/* Naming still works without storage. */}
+    });
+  }
+}
 const seatSessions=SeatSessions.create(browserStorage('localStorage'),browserStorage('sessionStorage'));
 let pendingResume;
 function resumeSeat(saved){pendingResume=saved;send('Resume',saved);}
@@ -462,6 +473,7 @@ function connect(){
   socket.onerror=()=>{$('connection').textContent='Unable to reach local server';};
 }
 $('quit-game').onclick=()=>send('LeaveRoom');
+rememberPlayerName();
 $('create').onclick=()=>send('CreateRoom',{name:$('name').value});
 $('join').onclick=()=>{const code=$('code').value.trim().toUpperCase(),token=$('recovery-key').value.trim(),saved=token?{code,token}:seatSessions.find(code);if(saved){if(!SeatSessions.valid(saved)){$('menu-error').textContent='Use the 48-character seat recovery key from game settings.';return;}resumeSeat(saved);}else beginInvite(code);};
 $('copy-seat-key').onclick=async()=>{try{await navigator.clipboard.writeText(joined.token);$('copy-seat-key').textContent='Recovery key copied';}catch{$('seat-key').type='text';$('seat-key').select();}};

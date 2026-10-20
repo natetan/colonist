@@ -22,3 +22,15 @@ console.log('PASS: shaped preview bounds for both sizes and regeneration preserv
 
 context.window.MainMenu.render({...state,joiningPlayers:1},'A',()=>{});assert.equal(get('lobby-count').textContent,'3 / 4');assert.equal(get('lobby-players').children.at(-1).textContent,'Player joining…');assert.equal(get('menu-start').disabled,true);assert.equal(get('menu-start-bots').disabled,true);
 console.log('PASS: temporary joining entries and start controls wait for names');
+
+const labSource=fs.readFileSync(require('path').resolve(__dirname,'../tools/renderer-lab.js'),'utf8');
+const nameSetup=labSource.slice(labSource.indexOf('function rememberPlayerName(){'),labSource.indexOf('const seatSessions='));
+const savedNames=new Map(),nameFields={name:{addEventListener(_,fn){this.input=fn;}},'invite-name':{addEventListener(_,fn){this.input=fn;}}};
+const nameStorage={getItem:key=>savedNames.get(key),setItem:(key,value)=>savedNames.set(key,value),removeItem:key=>savedNames.delete(key)};
+const nameContext={browserStorage:()=>nameStorage,$:id=>nameFields[id]};vm.createContext(nameContext);vm.runInContext(nameSetup+'rememberPlayerName();',nameContext);
+assert.equal(nameFields.name.value,'');nameFields.name.value='Nate';nameFields.name.input();assert.equal(savedNames.get('settlers-player-name'),'Nate');assert.equal(nameFields['invite-name'].value,'Nate');
+vm.runInContext('rememberPlayerName();',nameContext);assert.equal(nameFields.name.value,'Nate');
+nameFields['invite-name'].value='Another name';nameFields['invite-name'].input();assert.equal(nameFields.name.value,'Another name');assert.equal(savedNames.get('settlers-player-name'),'Another name');
+nameFields.name.value='';nameFields.name.input();assert(!savedNames.has('settlers-player-name'));assert.equal(nameFields['invite-name'].value,'');
+nameContext.browserStorage=()=>({getItem(){throw Error('Blocked');},setItem(){throw Error('Blocked');}});vm.runInContext('rememberPlayerName();',nameContext);nameFields.name.value='Still works';assert.doesNotThrow(()=>nameFields.name.input());
+console.log('PASS: names persist across visits, sync main/invite fields, update, clear, and tolerate blocked storage');
