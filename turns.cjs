@@ -55,7 +55,7 @@ function applyAct(g, tiles, id, message, random = crypto.randomInt, developmentR
   }
   if(type==='Steal') {
     if(g.phase!=='steal'||!g.victims.includes(message.player))throw new Error('Choose a neighboring opponent with cards.');
-    const hand=g.resources[message.player];let pick=random(total(hand));for(const[r,n]of Object.entries(hand)){if(pick<n){hand[r]--;g.resources[id][r]++;break;}pick-=n;}g.victims=[];development.finish(g);return;
+    const hand=g.resources[message.player];let pick=random(total(hand));for(const[r,n]of Object.entries(hand)){if(pick<n){hand[r]--;g.resources[id][r]++;break;}pick-=n;}g.lastTheft={sequence:(g.lastTheft?.sequence||0)+1,thief:id,victim:message.player};g.victims=[];development.finish(g);return;
   }
   if(g.phase!=='build')throw new Error('Finish rolling or resolving the robber first.');
   if(type==='EndTurn'){g.tradeDecline=null;g.tradeOffer=null;g.turn=(g.turn+1)%g.players.length;g.turnNumber++;g.developmentPlayed=false;g.dice=null;g.phase='roll';return;}

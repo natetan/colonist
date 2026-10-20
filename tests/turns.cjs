@@ -25,6 +25,8 @@ turns.act(g,tiles,'A',{type:'Discard',cards:{wood:4}});assert.equal(g.resources.
 assert.throws(()=>turns.act(g,tiles,'B',{type:'MoveRobber',id:g.robber}),/different tile/);
 const target=city.tiles[0];turns.act(g,tiles,'B',{type:'MoveRobber',id:target},()=>0);assert.equal(g.resources.A.wood,4);assert.equal(g.resources.B.wood,3);assert.equal(g.phase,'build');assert.deepEqual(g.victims,[]);
 // One blocked tile contributes nothing; cities produce two on unblocked matching tiles.
+assert.deepEqual(g.lastTheft,{sequence:1,thief:'B',victim:'A'});
+g.phase='steal';g.victims=['A'];turns.act(g,tiles,'B',{type:'Steal',player:'A'},()=>0);assert.deepEqual(g.lastTheft,{sequence:2,thief:'B',victim:'A'});
 const production=fixture();production.vertices.forEach(v=>{v.owner=null;});production.vertices[city.id].owner='A';production.vertices[city.id].city=true;production.robber=city.tiles[0];production.resources.A.wood=0;production.bank.wood=19;
 turns.act(production,tiles,'A',{type:'RollDice'},()=>3);assert.equal(production.resources.A.wood,2*(city.tiles.length-1));assert.equal(production.production.transfers.reduce((n,t)=>n+t.amount,0),production.resources.A.wood);assert(production.production.transfers.every(t=>t.tile!==production.robber&&t.player==='A'&&t.resource==='wood'&&t.amount===2));
 // A road cannot continue through an opponent's occupied corner.

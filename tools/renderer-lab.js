@@ -251,6 +251,7 @@ function publicEvents(state){const prev=latestState;if(!prev||prev.code!==state.
   for(const e of g.edges)if(e.owner&&!old?.edges[e.id]?.owner)event(e.owner,'placed a Road',[piece(e.owner,'road')]);
   if(g.dice&&old?.phase==='roll'&&g.phase!=='roll'){const dice=g.dice.map(n=>{const img=document.createElement('img');img.src='/assets/'+diceArtwork[n];img.alt='Die '+n;return img;});event(g.currentPlayer,'rolled',dice);}
   if(old?.robber!==undefined&&g.robber!==old.robber)event(g.currentPlayer,'moved the Robber',[sprite('icon_robber')]);
+  if(g.lastTheft&&g.lastTheft.sequence!==old?.lastTheft?.sequence&&old){const theft=g.lastTheft,victim=state.players.find(p=>p.id===theft.victim);event(theft.thief,'stole 1 card from '+(victim?.name||'another player'),[sprite('card_rescardback')]);}
   if(g.development?.lastPlayed&&JSON.stringify(g.development.lastPlayed)!==JSON.stringify(old?.development?.lastPlayed)){const played=g.development.lastPlayed,info=developmentCatalog[played.type];event(played.player,'played '+(info?.name||played.type),info?[sprite(info.picture)]:[]);}
   for(const [r,n]of Object.entries(g.resources||{})){const gain=n-(old?.resources?.[r]??n);if(gain>0)event(joined.playerId,'received '+gain,[sprite(cardSprites[r])]);}
   if(g.scoring?.winner&&!old?.scoring?.winner)event(g.scoring.winner,'won with '+g.scoring.winningPoints+' points!');

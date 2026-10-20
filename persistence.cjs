@@ -23,6 +23,7 @@ function validate(data){
       check(room.harbors.filter(h=>h.resource===null).length===(extended?5:4)&&resources.every(r=>room.harbors.filter(h=>h.resource===r).length===(extended&&r==='sheep'?2:1)));
     }
     const g=room.game;if(!g)continue;
+    if(g.lastTheft)check(integer(g.lastTheft.sequence,1)&&ids.has(g.lastTheft.thief)&&ids.has(g.lastTheft.victim)&&g.lastTheft.thief!==g.lastTheft.victim);
     if(g.turnTimer)check(typeof g.turnTimer.key==='string'&&integer(g.turnTimer.deadline,1));
     if(g.lastTimeout)check(ids.has(g.lastTimeout.player)&&typeof g.lastTimeout.setup==='boolean'&&integer(g.lastTimeout.sequence,1));
     if(room.harbors!==undefined)check(JSON.stringify(g.harbors)===JSON.stringify(room.harbors));
