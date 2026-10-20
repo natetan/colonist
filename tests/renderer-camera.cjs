@@ -15,6 +15,15 @@ listeners.pointerdown({pointerType:'touch',button:0,pointerId:2});listeners.poin
 listeners.pointercancel({pointerId:2});assert.equal(context.mapDragging,false);
 listeners.pointerdown({pointerType:'mouse',button:2,pointerId:3});assert.equal(context.mapDragging,false);
 console.log('PASS: inherited pan walls disabled without removing zoom limits; pointer capture, multitouch release, cancellation and right-click handling');
+listeners.pointermove({clientX:123,clientY:234});assert.equal(vm.runInContext('roadPointer.x',context),123);
+assert.equal(vm.runInContext('roadPointer.y',context),234);listeners.pointerleave();assert.equal(vm.runInContext('roadPointer',context),null);
+const roadGame={vertices:Array.from({length:9},()=>({owner:null})),edges:[[0,1],[1,2],[2,3],[1,4],[5,6]].map(([a,b],id)=>({id,a,b,owner:'A'}))};
+let section=context.roadSection(roadGame,0);assert.equal(section.length,3);assert.deepEqual(Array.from(section.edges).sort(),[0,1,2,3]);assert.equal(context.roadSection(roadGame,4).length,1);
+roadGame.vertices[2].owner='B';assert.equal(context.roadSection(roadGame,0).length,2);assert.equal(context.roadSection(roadGame,2).length,1);
+roadGame.vertices[2].owner=null;roadGame.edges.push({id:5,a:3,b:0,owner:'A'});assert.equal(context.roadSection(roadGame,0).length,5);
+roadGame.edges[4].owner=null;assert.equal(context.roadSection(roadGame,4),null);
+assert.equal(context.roadSection({...roadGame,edges:[...roadGame.edges,{id:6,a:6,b:7,owner:'B'}]},6).length,1);
+console.log('PASS: road section lengths handle branches, loops, disconnected roads and opposing settlements; pointer position survives scene recreation until leave');
 (async()=>{
  const frames=[],renders=[],scheduler={assets:async()=>{},render:async(...args)=>renders.push(args),requestAnimationFrame:fn=>frames.push(fn),status:{}};
  vm.createContext(scheduler);vm.runInContext('let pendingRender,rendering=false,mapDragging=true;'+source.slice(source.indexOf('function scheduleRender('),source.indexOf("if(typeof ResizeObserver")),scheduler);

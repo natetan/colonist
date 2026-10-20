@@ -75,7 +75,20 @@ function configureMapPan(view,mechanics){
   for(const mechanic of mechanics)if(typeof mechanic.updateClamps==='function')mechanic.updateClamps=()=>{};
   view.plugins.remove('clamp');
 }
+let roadPointer;
+function roadSection(game,edgeId){
+  const first=game.edges.find(e=>e.id===edgeId);if(!first?.owner)return null;
+  const edges=new Map([[first.id,first]]),pending=[first],owner=first.owner;
+  const blocked=v=>game.vertices[v].owner&&game.vertices[v].owner!==owner;
+  while(pending.length){const edge=pending.pop();for(const v of [edge.a,edge.b])if(!blocked(v))for(const next of game.edges)if(next.owner===owner&&(next.a===v||next.b===v)&&!edges.has(next.id)){edges.set(next.id,next);pending.push(next);}}
+  const adj=new Map();for(const edge of edges.values())for(const v of [edge.a,edge.b]){if(!adj.has(v))adj.set(v,[]);adj.get(v).push(edge);}
+  function walk(v,used){if(used.size&&blocked(v))return used.size;let best=used.size;for(const e of adj.get(v)||[])if(!used.has(e.id)){used.add(e.id);best=Math.max(best,walk(e.a===v?e.b:e.a,used));used.delete(e.id);}return best;}
+  let length=0;for(const v of adj.keys())length=Math.max(length,walk(v,new Set()));
+  return {edges:[...edges.keys()],length};
+}
 function bindMapDrag(canvas){
+  canvas.addEventListener('pointermove',event=>{roadPointer={x:event.clientX,y:event.clientY};});
+  canvas.addEventListener('pointerleave',()=>{roadPointer=null;});
   const pointers=new Set();
   canvas.addEventListener('pointerdown',event=>{
     if(event.pointerType==='mouse'&&event.button!==0)return;
@@ -163,6 +176,22 @@ async function render(fixture,presentation,state){
     if(g.phase==='robber')targets(state.board.map((_,i)=>i).filter(i=>i!==g.robber),'tile','MoveRobber');
     const positionMarkers=()=>{const rect=app.view.getBoundingClientRect();for(const {dot,point}of markers){const screen=view.toScreen(point);dot.style.left=`${screen.x*rect.width/app.screen.width}px`;dot.style.top=`${screen.y*rect.height/app.screen.height}px`;}};
     positionMarkers();tick(positionMarkers);
+  }
+  let roadTip=$('road-tooltip');if(!roadTip){roadTip=document.createElement('div');roadTip.id='road-tooltip';roadTip.setAttribute('role','tooltip');document.body.append(roadTip);}roadTip.hidden=true;
+  if(state?.game){
+    const highlight=new pixi.Graphics();highlight.zIndex=(view.layers.mapEdgePieces+view.layers.mapCornerPieces)/2;view.addChild(highlight);
+    const roads=state.game.edges.filter(e=>e.owner).map(e=>({edge:e,a:map.tileCorners[presentation.mapping.corners[e.a]].hexCorner.toPixel(view.mapCenter,view.hexagonHeight/2),b:map.tileCorners[presentation.mapping.corners[e.b]].hexCorner.toPixel(view.mapCenter,view.hexagonHeight/2)}));
+    let selected;
+    const updateRoadHover=()=>{
+      const rect=app.view.getBoundingClientRect();let closest=null,distance=12;
+      if(roadPointer&&!mapDragging)for(const road of roads){
+        const a=view.toScreen(road.a),b=view.toScreen(road.b),x=(roadPointer.x-rect.left)*app.screen.width/rect.width,y=(roadPointer.y-rect.top)*app.screen.height/rect.height,vx=b.x-a.x,vy=b.y-a.y,t=Math.max(0,Math.min(1,((x-a.x)*vx+(y-a.y)*vy)/(vx*vx+vy*vy))),d=Math.hypot(x-a.x-t*vx,y-a.y-t*vy)*rect.width/app.screen.width;
+        if(d<distance){distance=d;closest=road;}
+      }
+      if(selected!==closest?.edge.id){selected=closest?.edge.id;highlight.clear();roadTip.hidden=!closest;if(closest){const section=roadSection(state.game,selected);roadTip.textContent=`Road length: ${section.length}`;for(const road of roads)if(section.edges.includes(road.edge.id))highlight.lineStyle(14,0xffffff,.55).moveTo(road.a.x,road.a.y).lineTo(road.b.x,road.b.y);}}
+      if(closest){roadTip.style.left=Math.max(65,Math.min(window.innerWidth-65,roadPointer.x))+'px';roadTip.style.top=Math.max(40,roadPointer.y-18)+'px';}
+    };
+    updateRoadHover();tick(updateRoadHover);
   }
   view.sortChildren();app.render();
   status.textContent=`Rendered ${manager.mapController.tileViews.length} tiles · ${manager.mapController.cornerController.buildingViews.length} buildings · ${map.tileEdges.filter(e=>e.owner!=null).length} roads`;
