@@ -214,7 +214,7 @@ function createApp(options = {}) {
                 room.players.push(bot); ids.push(bot.id);
               }
             }
-            room.game = rules.start(room.board, ids, solo);const order=rules.randomOrder(ids,options.orderRandom);room.game.players=order;room.game.order=[...order,...order.slice().reverse()];room.game.harbors=room.harbors||[];
+            room.game = rules.start(room.board, ids, solo);const colors=rules.randomOrder(rules.palette,options.colorRandom);room.game.colors=Object.fromEntries(ids.map((id,i)=>[id,colors[i]]));const order=rules.randomOrder(ids,options.orderRandom);room.game.players=order;room.game.order=[...order,...order.slice().reverse()];room.game.harbors=room.harbors||[];
           } else {
             if (!room.game) throw new Error('The host must start the match first.');
             const actionTurn=turnTimer.key(room.game);

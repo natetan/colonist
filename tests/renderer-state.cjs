@@ -20,6 +20,11 @@ for(const tiles of [board,board.slice().reverse()]){
   assert.equal(JSON.stringify(snapshot),before);assert(!JSON.stringify(view).includes('999'));
 }
 const lobby=presentBoard({board,players:[],game:null});assert.equal(lobby.robber,board.findIndex(t=>t.resource==='desert'));
+for(const [index,color]of require('../game.cjs').palette.entries()){
+ const local=topology(board);local.vertices[0].owner='a';local.edges[0].owner='a';
+ const view=presentBoard({board,players:[{id:'a',playing:true}],game:{...local,colors:{a:color}}}),expected=[1,2,3,4,10,9][index];
+ assert.equal(view.playerColors.a,expected);assert.equal(view.fixture.gameState.mapState.tileCornerStates[view.mapping.corners[0]].owner,expected);assert.equal(view.fixture.gameState.mapState.tileEdgeStates[view.mapping.edges[0]].owner,expected);
+}
 assert(Object.values(lobby.fixture.gameState.mapState.tileCornerStates).every(c=>c.owner===undefined));
 console.log('PASS: all corners/edges map to matching tiles and endpoints; piece ownership, cities, robber, redaction, and immutable snapshots');
 const boards=require('../board.cjs');let inward=0;

@@ -1,5 +1,5 @@
 const {createGeometry, serializeLandMap} = require('../protocol-map.cjs');
-const {topology} = require('../game.cjs');
+const {topology,palette} = require('../game.cjs');
 const {createPreviewFixture, previewSettings} = require('./preview-fixture.cjs');
 // Original color enum: Red, Blue, Orange, Green, Purple, White.
 const colors = [1, 2, 3, 4, 10, 9];
@@ -22,7 +22,7 @@ function presentBoard(snapshot) {
   const mapping = translateGeometry(snapshot.board);
   const fixture = createPreviewFixture(snapshot.board,{...previewSettings(),maxPlayers:snapshot.maxPlayers||(snapshot.board.length===30?6:4)});
   const map = serializeLandMap(snapshot.board);
-  const playerColors = Object.fromEntries(snapshot.players.filter(p=>p.playing).map((p,i)=>[p.id,colors[i%colors.length]]));
+  const playerColors = Object.fromEntries(snapshot.players.filter(p=>p.playing).map((p,i)=>[p.id,colors[snapshot.game?.colors?.[p.id]?palette.indexOf(snapshot.game.colors[p.id]):i%colors.length]]));
   if(snapshot.game){
     for(const v of snapshot.game.vertices)if(v.owner){
       const color=playerColors[v.owner];if(!color)throw new Error('Unknown building owner');

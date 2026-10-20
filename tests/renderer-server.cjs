@@ -40,7 +40,7 @@ function get(port,url){return new Promise((resolve,reject)=>http.get({hostname:'
   host.send({type:'StartGame',bots:true});let state=await host.next('RoomState');
   for(let pair=0;pair<2;pair++){
     const vertex=state.game.legalVertices[0];host.send({type:'PlaceSettlement',id:vertex});state=await host.next('RoomState');
-    const corner=state.renderer.fixture.gameState.mapState.tileCornerStates[state.renderer.mapping.corners[vertex]];assert.equal(corner.owner,1);assert.equal(corner.buildingType,1);
+    const corner=state.renderer.fixture.gameState.mapState.tileCornerStates[state.renderer.mapping.corners[vertex]];assert.equal(corner.owner,state.renderer.playerColors[state.game.vertices[vertex].owner]);assert.equal(corner.buildingType,1);
     host.send({type:'PlaceRoad',id:state.game.legalEdges[0]});
     do{state=await host.next('RoomState');}while(state.game.currentPlayer!==joined.playerId||!['settlement','roll'].includes(state.game.phase));
   }

@@ -9,6 +9,8 @@ const orderedState={players:['A','B','C','D'].map(id=>({id})),game:{turnOrder:['
 for(const [viewer,expected]of [['A',['D','B','C','A']],['B',['C','A','D','B']],['C',['A','D','B','C']],['D',['B','C','A','D']]])assert.deepEqual(Array.from(context.sidebarPlayers(orderedState,viewer),p=>p.id),expected);
 assert.deepEqual(orderedState.players.map(p=>p.id),['A','B','C','D'],'Display ordering preserves seat/color assignments');
 console.log('PASS: sidebar follows randomized turn order with each viewer at the bottom');
+assert.equal(context.playerColorIndex({players:[{id:'A',playing:true}],game:{colors:{A:'#d592dc'}}},'A'),4);
+assert.equal(context.playerColorIndex({players:[{id:'A',playing:true}],game:{colors:{A:'#ffffff'}}},'A'),5);
 const costTip={style:{},offsetHeight:50,insertBefore(row){this.row=row;}},costContext={document:{createElement:()=>new Element()},showCardTip(){},cardTip:costTip,sprite:()=>new Element(),cardSprites:{wood:'wood',wheat:'wheat',ore:'ore'},actionCosts:{City:{wheat:2,ore:3}},latestState:{game:{resources:{wheat:1,ore:3}}}};
 vm.createContext(costContext);vm.runInContext(source.slice(source.indexOf('function showCostTip('),source.indexOf('function robberAction(')),costContext);
 costContext.showCostTip({disabled:true,getBoundingClientRect:()=>({top:100})},'City');

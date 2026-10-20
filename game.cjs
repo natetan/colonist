@@ -48,4 +48,4 @@ function botMove(game, tiles) {
   candidates.sort((a, b) => score(b) - score(a) || a - b);
   return { type: 'PlaceSettlement', id: candidates[0] };
 }
-module.exports = { randomOrder, start, place, legalVertices, legalEdges, topology, botMove };
+module.exports = { palette, randomOrder, start, place, legalVertices, legalEdges, topology, botMove };
