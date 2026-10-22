@@ -17,12 +17,12 @@ function begin(g, tiles) {
 function affordable(g,id,type) { return Object.entries(costs[type]).every(([r,n])=>g.resources[id][r]>=n); }
 function buildLocations(g,id,type) {
   if (!affordable(g,id,type)) return [];
-  if (type==='BuildCity') return g.vertices.filter(v=>v.owner===id&&!v.city).length && g.vertices.filter(v=>v.owner===id&&v.city).length<4 ? g.vertices.filter(v=>v.owner===id&&!v.city).map(v=>v.id) : [];
-  if (type==='BuildSettlement') return g.vertices.filter(v=>v.owner===id&&!v.city).length<5 ? placement.legalVertices(g).filter(v=>g.edges.some(e=>e.owner===id&&(e.a===v||e.b===v))) : [];
+  if (type==='BuildCity') return g.vertices.filter(v=>v.owner===id&&!v.city).length && g.vertices.filter(v=>v.owner===id&&v.city).length<placement.pieceLimits(g).cities ? g.vertices.filter(v=>v.owner===id&&!v.city).map(v=>v.id) : [];
+  if (type==='BuildSettlement') return g.vertices.filter(v=>v.owner===id&&!v.city).length<placement.pieceLimits(g).settlements ? placement.legalVertices(g).filter(v=>g.edges.some(e=>e.owner===id&&(e.a===v||e.b===v))) : [];
   return roadLocations(g,id);
 }
 function roadLocations(g,id){
-  if (g.edges.filter(e=>e.owner===id).length>=15) return [];
+  if (g.edges.filter(e=>e.owner===id).length>=placement.pieceLimits(g).roads) return [];
   return g.edges.filter(e=>e.owner===null&&[e.a,e.b].some(v=>g.vertices[v].owner===id || (g.vertices[v].owner===null&&g.edges.some(other=>other.owner===id&&(other.a===v||other.b===v))))).map(e=>e.id);
 }
 function applyAct(g, tiles, id, message, random = crypto.randomInt, developmentRandom=crypto.randomInt,tradeRecipients=g.players) {

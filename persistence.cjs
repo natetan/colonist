@@ -13,6 +13,7 @@ function validate(data){
     check((room.hostId?room.players.some(p=>p.id===room.hostId&&!p.bot):!room.players[0].bot)&&room.players.filter(p=>!p.bot).length<=6&&room.players.filter(p=>p.bot).length<=5);
     check(Array.isArray(room.board)&&[19,30,90].includes(room.board.length));
     check(room.board.length!==90||room.mapType==='china');
+    check(room.rules===undefined||rules.validMatchRules(room.rules,room.board.length));
     const extended=room.board.length>=30,supply=room.board.length===90?72:extended?24:19,deckCounts=extended?development.extendedCounts:development.counts;
     const boards=require('./board.cjs'),legacyLayout=room.mapType==='star'?boards.legacyStarLayout:room.mapType==='china'?boards.legacyChinaLayout:null;
     const previousChina=room.mapType==='china'&&room.board.length===30?boards.previousChinaLayout():null;
@@ -27,6 +28,7 @@ function validate(data){
       check(room.harbors.filter(h=>h.resource===null).length===(extended?5:4)&&resources.every(r=>room.harbors.filter(h=>h.resource===r).length===(extended&&r==='sheep'?2:1)));
     }
     const g=room.game;if(!g)continue;
+    check(g.rules===undefined||rules.validMatchRules(g.rules,room.board.length)&&JSON.stringify(g.rules)===JSON.stringify(room.rules));
     if(g.lastTheft)check(integer(g.lastTheft.sequence,1)&&ids.has(g.lastTheft.thief)&&ids.has(g.lastTheft.victim)&&g.lastTheft.thief!==g.lastTheft.victim);
     if(g.turnTimer)check(typeof g.turnTimer.key==='string'&&integer(g.turnTimer.deadline,1));
     if(g.lastTimeout)check(ids.has(g.lastTimeout.player)&&typeof g.lastTimeout.setup==='boolean'&&integer(g.lastTimeout.sequence,1));
@@ -57,7 +59,7 @@ function validate(data){
   }
   return data;
 }
-function encode(rooms){return {version:1,rooms:[...rooms.values()].map(room=>({code:room.code,board:room.board,...(room.turnSeconds!==undefined?{turnSeconds:room.turnSeconds}:{}),...(room.hostId?{hostId:room.hostId}:{}),...(room.mapType?{mapType:room.mapType}:{}),...(room.harbors!==undefined?{harbors:room.harbors}:{}),game:room.game||null,players:room.players.map(p=>({id:p.id,name:p.name,bot:!!p.bot,...(p.autopilot?{autopilot:true}:{}),...(!p.bot?{token:p.token}:{})}))}))};}
+function encode(rooms){return {version:1,rooms:[...rooms.values()].map(room=>({code:room.code,board:room.board,...(room.rules?{rules:room.rules}:{}),...(room.turnSeconds!==undefined?{turnSeconds:room.turnSeconds}:{}),...(room.hostId?{hostId:room.hostId}:{}),...(room.mapType?{mapType:room.mapType}:{}),...(room.harbors!==undefined?{harbors:room.harbors}:{}),game:room.game||null,players:room.players.map(p=>({id:p.id,name:p.name,bot:!!p.bot,...(p.autopilot?{autopilot:true}:{}),...(!p.bot?{token:p.token}:{})}))}))};}
 function createStore(file){
   if(!file)return {load:()=>new Map(),save:()=>{},close:()=>{}};
   file=path.resolve(file);fs.mkdirSync(path.dirname(file),{recursive:true});const lock=file+'.lock';

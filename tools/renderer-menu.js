@@ -29,6 +29,18 @@ window.MainMenu=(()=>{
     $('bot-fill-label').hidden=capacity!==6;$('bot-fill').disabled=!host;
     $('turn-seconds').value=String(state.turnSeconds??60);$('turn-seconds').disabled=!host;$('turn-seconds').onchange=()=>send('SetTurnTimer',{seconds:Number($('turn-seconds').value)});
     $('map-type').value=type;$('map-type').disabled=!host;
+    const rules=state.rules||{victoryPoints:10,pieceSupply:'standard'},presets={standard:{victoryPoints:10,pieceSupply:'standard'},expanded:{victoryPoints:15,pieceSupply:'expanded'},epic:{victoryPoints:20,pieceSupply:'epic'}};
+    $('match-preset').value=Object.keys(presets).find(key=>presets[key].victoryPoints===rules.victoryPoints&&presets[key].pieceSupply===rules.pieceSupply)||'custom';
+    $('victory-points').value=String(rules.victoryPoints);$('piece-supply').value=rules.pieceSupply;
+    const explanation='Epic requires a large map: standard islands have limited room for the extra buildings and a 20-point game.';
+    for(const id of ['match-preset','victory-points','piece-supply']){
+      const input=$(id);input.disabled=!host;input.title=size==='standard'?explanation:'';
+      for(const option of input.options||[])if(option.value==='epic'||option.value==='20'){option.disabled=size==='standard';option.title=size==='standard'?explanation:'';}
+    }
+    $('match-rule-hint').textContent=size==='standard'?explanation:state.board.length===90?'Huge China recommends Epic. You can change points and piece supply separately.':'Choose a preset, or change points and piece supply separately.';
+    $('match-preset').onchange=()=>send('SetMatchRules',{preset:$('match-preset').value});
+    const changeRules=()=>send('SetMatchRules',{victoryPoints:Number($('victory-points').value),pieceSupply:$('piece-supply').value});
+    $('victory-points').onchange=changeRules;$('piece-supply').onchange=changeRules;
     $('map-kind').textContent=type==='random-plus-plus'?'RANDOM++':type==='random-plus'?'RANDOM+':type.replace('-', ' ').toUpperCase();
     $('map-description').textContent=type==='classic'?'A fixed island with the same terrain, numbers, and harbors every game.':(type==='random-plus-plus'?'A wild connected island with branching peninsulas, deep bays, and narrow routes. Resource production is balanced, but starting locations are more challenging.':type==='random-plus'?'A compact, irregular island with a freshly generated coastline, balanced resources, numbers, and harbors.':type==='china'?'A China-shaped mainland island with a broad west, raised northeast, and tapered southern coast. Resources and production odds are balanced.':type==='random'?'A fresh island with shuffled terrain, numbers, and harbors.':'A shaped island with shuffled terrain, numbers, and harbors. Production odds are spread across resources.')+' Red 6s and 8s stay apart.';
     if(capacity===6)$('map-description').textContent+=' '+state.board.length+' tiles · '+(state.board.length===90?72:24)+' cards per resource · 34 development cards. One player acts at a time.';

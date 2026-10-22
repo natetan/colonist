@@ -28,7 +28,7 @@ function refresh(g){
   g.longestRoadHolder=holder(g.roadLengths,g.longestRoadHolder,5);
   g.largestArmyHolder=holder(g.knightsPlayed,g.largestArmyHolder,3);
   const id=g.players[g.turn];
-  if(totalPoints(g,id)>=10){g.winner=id;g.winningPoints=totalPoints(g,id);g.revealedVictoryPoints=privatePoints(g,id);g.phase='finished';g.tradeOffer=null;g.discards={};g.victims=[];g.freeRoadsRemaining=0;delete g.developmentReturnPhase;}
+  if(totalPoints(g,id)>=(g.rules?.victoryPoints||10)){g.winner=id;g.winningPoints=totalPoints(g,id);g.revealedVictoryPoints=privatePoints(g,id);g.phase='finished';g.tradeOffer=null;g.discards={};g.victims=[];g.freeRoadsRemaining=0;delete g.developmentReturnPhase;}
 }
-function view(g,id){return {target:10,yourPoints:totalPoints(g,id),longestRoad:g.longestRoadHolder||null,largestArmy:g.largestArmyHolder||null,roadLengths:g.roadLengths,winner:g.winner||null,winningPoints:g.winningPoints||null,revealedVictoryPoints:g.revealedVictoryPoints||0};}
+function view(g,id){return {target:g.rules?.victoryPoints||10,yourPoints:totalPoints(g,id),longestRoad:g.longestRoadHolder||null,largestArmy:g.largestArmyHolder||null,roadLengths:g.roadLengths,winner:g.winner||null,winningPoints:g.winningPoints||null,revealedVictoryPoints:g.revealedVictoryPoints||0};}
 module.exports={longestRoad,holder,privatePoints,publicPoints,totalPoints,refresh,view};

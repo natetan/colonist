@@ -12,6 +12,7 @@ require('./persistence.cjs');
 require('./board.cjs');
 require('./shaped-board.cjs');
 require('./base-game.cjs');
+require('./match-rules.cjs');
 require('./interaction-controls.cjs');
 async function run() {
   const app = createApp({orderRandom:n=>n-1,random:()=>3});

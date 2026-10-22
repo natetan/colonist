@@ -1,4 +1,8 @@
 const palette = ['#ee795b', '#69aefa', '#edc45d', '#75c18c', '#d592dc', '#ffffff'];
+const pieceSupplies=Object.freeze({standard:{roads:15,settlements:5,cities:4},expanded:{roads:25,settlements:7,cities:6},epic:{roads:30,settlements:10,cities:8}});
+const matchPresets=Object.freeze({standard:{victoryPoints:10,pieceSupply:'standard'},expanded:{victoryPoints:15,pieceSupply:'expanded'},epic:{victoryPoints:20,pieceSupply:'epic'}});
+function validMatchRules(settings,tileCount){return !!settings&&[10,12,15,20].includes(settings.victoryPoints)&&Object.prototype.hasOwnProperty.call(pieceSupplies,settings.pieceSupply)&&(tileCount>=30||settings.victoryPoints!==20&&settings.pieceSupply!=='epic');}
+function pieceLimits(g){return pieceSupplies[g.rules?.pieceSupply||'standard'];}
 function randomOrder(ids,random=require('crypto').randomInt){
   const order=ids.slice();for(let i=order.length-1;i>0;i--){const j=random(i+1);if(!Number.isInteger(j)||j<0||j>i)throw new Error('Invalid turn-order random draw.');[order[i],order[j]]=[order[j],order[i]];}return order;
 }
@@ -48,4 +52,4 @@ function botMove(game, tiles) {
   candidates.sort((a, b) => score(b) - score(a) || a - b);
   return { type: 'PlaceSettlement', id: candidates[0] };
 }
-module.exports = { palette, randomOrder, start, place, legalVertices, legalEdges, topology, botMove };
+module.exports = { pieceSupplies,matchPresets,validMatchRules,pieceLimits,palette, randomOrder, start, place, legalVertices, legalEdges, topology, botMove };

@@ -63,12 +63,12 @@ function createApp(options = {}) {
   const send = (ws, message) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message)); };
   function snapshot(room, viewer) {
     const g = room.game;
-    const game = g ? { phase: g.phase, turnOrder:g.players.slice(), currentPlayer: g.order[g.step] || null, solo: g.solo, colors: g.colors, vertices: g.vertices, edges: g.edges, legalVertices: g.phase === 'settlement' ? rules.legalVertices(g) : [], legalEdges: g.phase === 'road' ? rules.legalEdges(g) : [], resources: g.resources[viewer.id] || null } : null;
+    const game = g ? { phase: g.phase, rules:g.rules||rules.matchPresets.standard,pieceLimits:rules.pieceLimits(g),turnOrder:g.players.slice(), currentPlayer: g.order[g.step] || null, solo: g.solo, colors: g.colors, vertices: g.vertices, edges: g.edges, legalVertices: g.phase === 'settlement' ? rules.legalVertices(g) : [], legalEdges: g.phase === 'road' ? rules.legalEdges(g) : [], resources: g.resources[viewer.id] || null } : null;
     if(g && g.turn!==undefined){Object.assign(game,{currentPlayer:turns.current(g),dice:g.dice,production:g.production||null,lastTheft:g.lastTheft?{sequence:g.lastTheft.sequence,thief:g.lastTheft.thief,victim:g.lastTheft.victim}:null,robber:g.robber,discardCount:g.discards[viewer.id]||0,victims:g.phase==='steal'&&turns.current(g)===viewer.id?g.victims:[],builds:g.phase==='build'&&turns.current(g)===viewer.id?Object.fromEntries(Object.keys(turns.costs).map(type=>[type,turns.buildLocations(g,viewer.id,type)])):{},bank:g.bank});}
     if(g){game.turnTimer=g.turnTimer||null;game.lastTimeout=g.lastTimeout||null;}
     if(g && g.turn!==undefined){game.bankRates=trading.rates(g,viewer.id);game.tradeOffer=g.tradeOffer;game.tradeDecline=g.tradeDecline||null;game.confirmableTradePlayers=trading.confirmable(g,viewer.id);game.canAcceptTrade=!!g.tradeOffer&&g.tradeOffer.responses?.[viewer.id]!=='accepted'&&trading.canRespond(g.tradeOffer,viewer.id)&&trading.hasCards(g.resources[g.tradeOffer.from]||{},g.tradeOffer.give)&&trading.hasCards(g.resources[viewer.id]||{},g.tradeOffer.receive);}
     if(g && g.turn!==undefined){game.development=development.view(g,viewer.id,turns.roadLocations);game.scoring=scoring.view(g,viewer.id);}
-    const state = { type: 'RoomState', joiningPlayers:room.joiners?.size||0, persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', mapSize:room.board.length>=30?'extended':'standard', maxPlayers:room.board.length>=30?6:4, turnSeconds:room.turnSeconds??60, serverTime:now(), host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: isBot(p), autopilot:!!p.autopilot, online: !!p.ws || isBot(p), playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
+    const state = { type: 'RoomState', joiningPlayers:room.joiners?.size||0, persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', rules:room.rules||rules.matchPresets[!g&&room.board.length===90?'epic':'standard'],mapSize:room.board.length>=30?'extended':'standard', maxPlayers:room.board.length>=30?6:4, turnSeconds:room.turnSeconds??60, serverTime:now(), host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: isBot(p), autopilot:!!p.autopilot, online: !!p.ws || isBot(p), playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
     for(const player of state.players){player.resourceCount=Object.values(g?.resources?.[player.id]||{}).reduce((a,b)=>a+b,0);player.developmentCount=g?.developmentHands?.[player.id]?.length||0;player.knightsPlayed=g?.knightsPlayed?.[player.id]||0;}
     // Optional presentation adapter receives only the already-redacted snapshot.
     if (options.boardPresentation) state.renderer = options.boardPresentation(state);
@@ -172,6 +172,13 @@ function createApp(options = {}) {
           if(ws.lastChat&&Date.now()-ws.lastChat<750)throw new Error('Wait a moment before sending another message.');
           ws.lastChat=Date.now();const chat={type:'Chat',player:ws.player.id,name:ws.player.name,text:message.text.trim()};for(const p of ws.room.players)if(p.ws)send(p.ws,chat);return;
         }
+        if(message.type==='SetMatchRules'){
+          const room=ws.room;if(!room||(room.hostId||room.players[0].id)!==ws.player.id)throw new Error('Only the host can change match rules.');
+          if(room.game)throw new Error('Match rules are locked after starting.');
+          const next=message.preset?rules.matchPresets[message.preset]:{victoryPoints:message.victoryPoints,pieceSupply:message.pieceSupply};
+          if(!rules.validMatchRules(next,room.board.length))throw new Error('Choose supported match rules. Epic pieces and 20-point games require a large map.');
+          room.rules={...next};persist();broadcast(room);return;
+        }
         if(message.type==='SetTurnTimer'){
           const room=ws.room;if(!room||(room.hostId||room.players[0].id)!==ws.player.id)throw new Error('Only the host can change the turn timer.');
           if(room.game)throw new Error('Timer settings are locked after starting.');
@@ -185,7 +192,7 @@ function createApp(options = {}) {
           const size=message.mapSize||(room.board.length>=30?'extended':'standard');if(!['standard','extended'].includes(size))throw new Error('Choose a supported island size.');
           const extended=size==='extended';if(room.players.length+(room.joiners?.size||0)>(extended?6:4))throw new Error('Too many seats for that island size.');
           const next=message.mapType==='classic'?boards.classic(extended):(()=>{const board=boards.generate(options.boardRandom,extended,message.mapType);return {board,harbors:boards.harbors(board,options.boardRandom)};})();
-          room.mapType=message.mapType;room.board=next.board;room.harbors=next.harbors;persist();broadcast(room);return;
+          if(room.mapType!==message.mapType||room.board.length!==next.board.length)room.rules={...rules.matchPresets[next.board.length===90?'epic':'standard']};room.mapType=message.mapType;room.board=next.board;room.harbors=next.harbors;persist();broadcast(room);return;
         }
         if (['Rematch','StartGame','PlaceSettlement','PlaceRoad','RollDice','EndTurn','BuildRoad','BuildSettlement','BuildCity','MoveRobber','Steal','Discard',...trading.commands,...development.commands].includes(message.type)) {
           const room = ws.room;
@@ -214,7 +221,7 @@ function createApp(options = {}) {
                 room.players.push(bot); ids.push(bot.id);
               }
             }
-            room.game = rules.start(room.board, ids, solo);const colors=rules.randomOrder(rules.palette,options.colorRandom);room.game.colors=Object.fromEntries(ids.map((id,i)=>[id,colors[i]]));const order=rules.randomOrder(ids,options.orderRandom);room.game.players=order;room.game.order=[...order,...order.slice().reverse()];room.game.harbors=room.harbors||[];
+            room.rules||={...rules.matchPresets[room.board.length===90?'epic':'standard']};room.game = rules.start(room.board, ids, solo);room.game.rules={...room.rules};const colors=rules.randomOrder(rules.palette,options.colorRandom);room.game.colors=Object.fromEntries(ids.map((id,i)=>[id,colors[i]]));const order=rules.randomOrder(ids,options.orderRandom);room.game.players=order;room.game.order=[...order,...order.slice().reverse()];room.game.harbors=room.harbors||[];
           } else {
             if (!room.game) throw new Error('The host must start the match first.');
             const actionTurn=turnTimer.key(room.game);

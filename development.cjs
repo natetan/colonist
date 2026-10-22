@@ -45,7 +45,7 @@ function act(g,id,message,random=crypto.randomInt,roadLocations){
   if(card.type==='Monopoly'&&!resources.includes(message.resource))throw new Error('Choose a resource for Monopoly.');
   g.developmentHands[id].splice(g.developmentHands[id].indexOf(card),1);g.developmentDiscard.push(card.type);g.developmentPlayed=true;g.lastDevelopment={player:id,type:card.type};
   if(card.type==='Knight'){g.knightsPlayed[id]++;g.developmentReturnPhase=g.phase;g.tradeOffer=null;g.phase='robber';g.victims=[];}
-  if(card.type==='RoadBuilding'){g.developmentReturnPhase=g.phase;g.tradeOffer=null;g.freeRoadsRemaining=Math.min(2,15-g.edges.filter(e=>e.owner===id).length);g.phase='free-road';}
+  if(card.type==='RoadBuilding'){g.developmentReturnPhase=g.phase;g.tradeOffer=null;g.freeRoadsRemaining=Math.min(2,require('./game.cjs').pieceLimits(g).roads-g.edges.filter(e=>e.owner===id).length);g.phase='free-road';}
   if(card.type==='YearOfPlenty')for(const [r,n]of Object.entries(chosen)){g.bank[r]-=n;g.resources[id][r]+=n;}
   if(card.type==='Monopoly')for(const player of g.players)if(player!==id){g.resources[id][message.resource]+=g.resources[player][message.resource];g.resources[player][message.resource]=0;}
   return true;
