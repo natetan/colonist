@@ -13,6 +13,6 @@ Classic and Random, plus these custom shapes:
 - Star
 - Crescent
 - Long Island
-- China
+- China · large size has a huge 90-hex mainland for 5–6 players
 
 All maps support standard (3–4 players) and large (5–6 players) sizes.

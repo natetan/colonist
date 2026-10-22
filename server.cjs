@@ -68,7 +68,7 @@ function createApp(options = {}) {
     if(g){game.turnTimer=g.turnTimer||null;game.lastTimeout=g.lastTimeout||null;}
     if(g && g.turn!==undefined){game.bankRates=trading.rates(g,viewer.id);game.tradeOffer=g.tradeOffer;game.tradeDecline=g.tradeDecline||null;game.confirmableTradePlayers=trading.confirmable(g,viewer.id);game.canAcceptTrade=!!g.tradeOffer&&g.tradeOffer.responses?.[viewer.id]!=='accepted'&&trading.canRespond(g.tradeOffer,viewer.id)&&trading.hasCards(g.resources[g.tradeOffer.from]||{},g.tradeOffer.give)&&trading.hasCards(g.resources[viewer.id]||{},g.tradeOffer.receive);}
     if(g && g.turn!==undefined){game.development=development.view(g,viewer.id,turns.roadLocations);game.scoring=scoring.view(g,viewer.id);}
-    const state = { type: 'RoomState', joiningPlayers:room.joiners?.size||0, persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', mapSize:room.board.length===30?'extended':'standard', maxPlayers:room.board.length===30?6:4, turnSeconds:room.turnSeconds??60, serverTime:now(), host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: isBot(p), autopilot:!!p.autopilot, online: !!p.ws || isBot(p), playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
+    const state = { type: 'RoomState', joiningPlayers:room.joiners?.size||0, persistence:!!options.saveFile, code: room.code, mapType:room.mapType||'random', mapSize:room.board.length>=30?'extended':'standard', maxPlayers:room.board.length>=30?6:4, turnSeconds:room.turnSeconds??60, serverTime:now(), host: room.hostId||room.players[0].id, players: room.players.map(p => ({ id: p.id, name: p.name, bot: isBot(p), autopilot:!!p.autopilot, online: !!p.ws || isBot(p), playing: !!g && g.players.includes(p.id),points:g?scoring.publicPoints(g,p.id)+(g.winner===p.id?g.revealedVictoryPoints:0):0 })), board: room.board, harbors:room.harbors||[], game };
     for(const player of state.players){player.resourceCount=Object.values(g?.resources?.[player.id]||{}).reduce((a,b)=>a+b,0);player.developmentCount=g?.developmentHands?.[player.id]?.length||0;player.knightsPlayed=g?.knightsPlayed?.[player.id]||0;}
     // Optional presentation adapter receives only the already-redacted snapshot.
     if (options.boardPresentation) state.renderer = options.boardPresentation(state);
@@ -146,7 +146,7 @@ function createApp(options = {}) {
           const room=rooms.get(String(message.code).trim().toUpperCase());if(!room)throw new Error('Room not found.');
           if(room.game)throw new Error('The match has started. Use your saved seat or private recovery key to return.');
           if(ws.previewRoom===room){send(ws,{...snapshot(room,{id:null}),type:'LobbyPreview'});return;}
-          const capacity=room.board.length===30?6:4;if(room.players.length+(room.joiners?.size||0)>=capacity)throw new Error('This table is full.');
+          const capacity=room.board.length>=30?6:4;if(room.players.length+(room.joiners?.size||0)>=capacity)throw new Error('This table is full.');
           const old=detachPreview(ws);if(old)broadcast(old);
           room.joiners??=new Set();room.joiners.add(ws);ws.previewRoom=room;
           ws.previewTimer=setTimeout(()=>{if(detachPreview(ws)){send(ws,{type:'InviteClosed',message:'Your joining reservation expired. You can try joining again.'});broadcast(room);}},options.joinTimeoutMs??90000);ws.previewTimer.unref();broadcast(room);return;
@@ -182,7 +182,7 @@ function createApp(options = {}) {
           const room=ws.room;if(!room||(room.hostId||room.players[0].id)!==ws.player.id)throw new Error('Only the host can change the map.');
           if(room.game)throw new Error('The map is locked after starting.');
           if(!boards.mapTypes.includes(message.mapType))throw new Error('Choose Classic, Random, Random+, Random++, Star, Crescent, Long Island, or China.');
-          const size=message.mapSize||(room.board.length===30?'extended':'standard');if(!['standard','extended'].includes(size))throw new Error('Choose a supported island size.');
+          const size=message.mapSize||(room.board.length>=30?'extended':'standard');if(!['standard','extended'].includes(size))throw new Error('Choose a supported island size.');
           const extended=size==='extended';if(room.players.length+(room.joiners?.size||0)>(extended?6:4))throw new Error('Too many seats for that island size.');
           const next=message.mapType==='classic'?boards.classic(extended):(()=>{const board=boards.generate(options.boardRandom,extended,message.mapType);return {board,harbors:boards.harbors(board,options.boardRandom)};})();
           room.mapType=message.mapType;room.board=next.board;room.harbors=next.harbors;persist();broadcast(room);return;
@@ -201,7 +201,7 @@ function createApp(options = {}) {
             if (room.game) throw new Error('The match has already started.');
             if(room.joiners?.size)throw new Error('Wait for joining players to enter their names before starting.');
             const ids = room.players.filter(p => p.ws).map(p => p.id);
-            const capacity=room.board.length===30?6:4;if(ids.length>capacity)throw new Error('Too many players for this island.');
+            const capacity=room.board.length>=30?6:4;if(ids.length>capacity)throw new Error('Too many players for this island.');
             const solo = message.solo === true;
             const bots = message.bots === true;
             if (solo && bots) throw new Error('Choose bots or solo placement test.');
@@ -247,7 +247,7 @@ function createApp(options = {}) {
           room = rooms.get(String(message.code).trim().toUpperCase());
           if (!room) throw new Error('Room not found.');
           if (room.game) throw new Error('Match already started. Only existing players can reconnect.');
-          if (room.players.length+(room.joiners?.size||0)-(ws.previewRoom===room?1:0) >= (room.board.length===30?6:4)) throw new Error(room.board.length===30?'This table supports six players.':'This table supports four players.');
+          if (room.players.length+(room.joiners?.size||0)-(ws.previewRoom===room?1:0) >= (room.board.length>=30?6:4)) throw new Error(room.board.length>=30?'This table supports six players.':'This table supports four players.');
         }
         const preview=detachPreview(ws);if(preview&&preview!==room)broadcast(preview);
         const player = { id: sessionId, token: crypto.randomBytes(24).toString('hex'), name: message.name.trim(), ws };

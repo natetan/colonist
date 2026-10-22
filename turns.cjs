@@ -8,7 +8,7 @@ const total = hand => Object.values(hand).reduce((a,b)=>a+b,0);
 const current = g => g.players[g.turn];
 function begin(g, tiles) {
   g.turn = 0; g.phase = 'roll'; g.dice = null; g.robber = tiles.findIndex(t=>t.resource==='desert'); g.discards = {}; g.victims = [];
-  g.resourceSupply=tiles.length===30?24:19;
+  g.resourceSupply=tiles.length===90?72:tiles.length>=30?24:19;
   g.bank = Object.fromEntries(['wood','brick','sheep','wheat','ore'].map(r=>[r,g.resourceSupply-g.players.reduce((n,id)=>n+g.resources[id][r],0)]));
   g.tradeOffer=null;g.tradeSequence=0;
   development.begin(g);

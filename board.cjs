@@ -42,11 +42,10 @@ function shapeLayout(type='random',extended=false){
   if(type==='random-plus-plus')return wildLayout(crypto.randomInt,extended);
   if(type==='classic'||type==='random')return layout(extended);
   if(type==='china'){
+    if(extended)return hugeChinaLayout();
     // Mainland silhouette on the hex grid: broad west, northern indentation,
     // raised northeast, and a southeast coast tapering toward the south.
-    const rows=extended?
-      [[-4,[4,5]],[-3,[0,3,4]],[-2,[-1,0,1,2,3,4]],[-1,[-2,-1,0,1,2,3]],[0,[-2,-1,0,1,2]],[1,[-1,0,1,2]],[2,[0,1,2]],[3,[0]]]:
-      [[-3,[3,4]],[-2,[-1,0,2,3]],[-1,[-1,0,1,2,3]],[0,[-1,0,1]],[1,[-1,0,1]],[2,[0,1]]];
+    const rows=[[-3,[3,4]],[-2,[-1,0,2,3]],[-1,[-1,0,1,2,3]],[0,[-1,0,1]],[1,[-1,0,1]],[2,[0,1]]];
     return rows.flatMap(([r,columns])=>columns.map(q=>({q,r})));
   }
   if(type==='star'){
@@ -72,14 +71,23 @@ function legacyChinaLayout(extended=false){
     [[-3,[3]],[-2,[-1,0,2,3]],[-1,[-2,-1,0,1,2,3]],[0,[-2,-1,0,1]],[1,[-1,0,1]],[2,[0]]];
   return rows.flatMap(([r,columns])=>columns.map(q=>({q,r})));
 }
+function previousChinaLayout(){
+  return [[-4,[4,5]],[-3,[0,3,4]],[-2,[-1,0,1,2,3,4]],[-1,[-2,-1,0,1,2,3]],[0,[-2,-1,0,1,2]],[1,[-1,0,1,2]],[2,[0,1,2]],[3,[0]]].flatMap(([r,columns])=>columns.map(q=>({q,r})));
+}
+function hugeChinaLayout(){
+  const range=(a,b)=>Array.from({length:b-a+1},(_,i)=>a+i);
+  return [[-5,[6,7]],[-4,[6,7,8]],[-3,[-3,-2,...range(4,8)]],[-2,range(-6,7)],[-1,range(-6,6)],[0,range(-6,5)],[1,range(-5,5)],[2,range(-4,5)],[3,range(-1,4)],[4,range(0,4)],[5,range(0,3)],[6,[0,1]],[7,[0]]].flatMap(([r,columns])=>columns.map(q=>({q,r})));
+}
 function generateOnce(random,extended,type){
   const locations=type==='random-plus-plus'?wildLayout(random,extended):type==='random-plus'?irregularLayout(random,extended):shapeLayout(type,extended);
-  const bag=shuffle(extended?extendedResources:resourceBag,random),tiles=locations.map(t=>({...t,resource:bag.pop(),number:null}));
+  const copies=locations.length===90?3:1,resources=extended?extendedResources:resourceBag,numbers=Array.from({length:copies},()=>extended?extendedNumbers:numberBag).flat();
+  const bag=shuffle(Array.from({length:copies},()=>resources).flat(),random),tiles=locations.map(t=>({...t,resource:bag.pop(),number:null}));
   const candidates=shuffle(tiles.map((t,i)=>i).filter(i=>tiles[i].resource!=='desert'),random);
-  function select(start,chosen){if(chosen.length===(extended?6:4))return chosen;for(let i=start;i<candidates.length;i++){const next=candidates[i];if(chosen.every(other=>!adjacent(tiles[next],tiles[other]))){const result=select(i+1,[...chosen,next]);if(result)return result;}}return null;}
+  const redCount=numbers.filter(n=>n===6||n===8).length;
+  function select(start,chosen){if(chosen.length===redCount)return chosen;for(let i=start;i<candidates.length;i++){const next=candidates[i];if(chosen.every(other=>!adjacent(tiles[next],tiles[other]))){const result=select(i+1,[...chosen,next]);if(result)return result;}}return null;}
   const reds=select(0,[]);if(!reds)throw new Error('Cannot place separated red numbers.');
-  const redNumbers=shuffle(extended?[6,6,6,8,8,8]:[6,6,8,8],random);reds.forEach((id,i)=>tiles[id].number=redNumbers[i]);
-  const rest=shuffle((extended?extendedNumbers:numberBag).filter(n=>n!==6&&n!==8),random);for(const tile of tiles)if(tile.resource!=='desert'&&tile.number===null)tile.number=rest.pop();
+  const redNumbers=shuffle(numbers.filter(n=>n===6||n===8),random);reds.forEach((id,i)=>tiles[id].number=redNumbers[i]);
+  const rest=shuffle(numbers.filter(n=>n!==6&&n!==8),random);for(const tile of tiles)if(tile.resource!=='desert'&&tile.number===null)tile.number=rest.pop();
   return tiles;
 }
 function productionSpread(tiles){
@@ -97,16 +105,16 @@ function generate(random=crypto.randomInt,extended=false,type='random'){
 }
 function coastline(tiles){
   const g=topology(tiles),edges=g.edges.filter(e=>g.vertices[e.a].tiles.filter(i=>g.vertices[e.b].tiles.includes(i)).length===1);
-  if(![19,30].includes(tiles.length))throw new Error('Unsupported island size.');
+  if(![19,30,90].includes(tiles.length))throw new Error('Unsupported island size.');
   const start=Math.min(...edges.flatMap(e=>[e.a,e.b])),ordered=[];let vertex=start,previous=-1;
   do{const edge=edges.find(e=>e.id!==previous&&(e.a===vertex||e.b===vertex));if(!edge||ordered.includes(edge.id))throw new Error('Invalid coastline.');ordered.push(edge.id);previous=edge.id;vertex=edge.a===vertex?edge.b:edge.a;}while(vertex!==start);
   if(ordered.length!==edges.length)throw new Error('Incomplete coastline.');return ordered;
 }
 function harbors(tiles,random=crypto.randomInt){
-  const coast=coastline(tiles),extended=tiles.length===30,types=shuffle([null,null,null,null,'wood','brick','sheep','wheat','ore',...(extended?[null,'sheep']:[])],random),offset=random(coast.length);
+  const coast=coastline(tiles),extended=tiles.length>=30,types=shuffle([null,null,null,null,'wood','brick','sheep','wheat','ore',...(extended?[null,'sheep']:[])],random),offset=random(coast.length);
   if(!Number.isInteger(offset)||offset<0||offset>=coast.length)throw new Error('Invalid server harbor random draw.');
   const positions=coast.length===30?[0,3,6,10,13,16,20,23,26]:Array.from({length:types.length},(_,i)=>Math.floor(i*coast.length/types.length));
   return positions.map((position,i)=>({edge:coast[(position+offset)%coast.length],resource:types[i]}));
 }
 function classic(extended=false){let seed=104729;const random=max=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed%max;};const tiles=generate(random,extended);return {board:tiles,harbors:harbors(tiles,random)};}
-module.exports={layout,shapeLayout,compact,irregularLayout,wildLayout,legacyStarLayout,legacyChinaLayout,mapTypes,productionSpread,extendedResources,extendedNumbers,classic,generate,harbors,coastline,adjacent,resourceBag,numberBag};
+module.exports={layout,shapeLayout,compact,irregularLayout,wildLayout,legacyStarLayout,legacyChinaLayout,previousChinaLayout,hugeChinaLayout,mapTypes,productionSpread,extendedResources,extendedNumbers,classic,generate,harbors,coastline,adjacent,resourceBag,numberBag};
