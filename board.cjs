@@ -5,12 +5,17 @@ function shuffle(items,random){const a=items.slice();for(let i=a.length-1;i>0;i-
 function adjacent(a,b){return Math.max(Math.abs(a.q-b.q),Math.abs(a.r-b.r),Math.abs(a.q+a.r-b.q-b.r))===1;}
 const extendedResources=Object.freeze([...resourceBag,'wood','wood','sheep','sheep','wheat','wheat','brick','brick','ore','ore','desert']);
 const extendedNumbers=Object.freeze([...numberBag,2,3,4,5,6,8,9,10,11,12]);
+const jumboResources=Object.freeze([...extendedResources,'wood','wood','sheep','sheep','wheat','brick','ore']);
+const jumboNumbers=Object.freeze([...extendedNumbers,3,4,5,6,8,9,10]);
+function sizeOf(room){return room.mapSize||(room.board.length===37?'jumbo':room.board.length>=30?'extended':'standard');}
+function capacity(room){return {standard:4,extended:6,jumbo:8}[sizeOf(room)];}
+function supportsMap(type,size){return size!=='jumbo'||['classic','random','random-plus','random-plus-plus','china'].includes(type);}
 function layout(extended=false){const tiles=[],radius=extended?3:2,upper=2;for(let r=-radius;r<=radius;r++)for(let q=Math.max(-radius,-r-radius);q<=Math.min(upper,-r+upper);q++)tiles.push({q,r});return tiles;}
 const mapTypes=Object.freeze(['classic','random','random-plus','random-plus-plus','star','crescent','long-island','china']);
 function wildLayout(random=crypto.randomInt,extended=false){
   const directions=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]],tiles=[{q:0,r:0},...directions.map(([q,r])=>({q,r}))];
   const occupied=t=>tiles.some(other=>other.q===t.q&&other.r===t.r);
-  while(tiles.length<(extended?30:19)){
+  while(tiles.length<(extended==='jumbo'?37:extended?30:19)){
     const candidates=new Map();
     for(const t of tiles)for(const [q,r]of directions){
       const next={q:t.q+q,r:t.r+r};if(occupied(next)||Math.max(Math.abs(next.q),Math.abs(next.r),Math.abs(next.q+next.r))>(extended?6:5))continue;
@@ -29,7 +34,7 @@ function compact(tiles){
 }
 function irregularLayout(random=crypto.randomInt,extended=false){
   const tiles=[{q:0,r:0}],directions=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
-  while(tiles.length<(extended?30:19)){
+  while(tiles.length<(extended==='jumbo'?37:extended?30:19)){
     const candidates=new Map();for(const t of tiles)for(const [q,r]of directions){const next={q:t.q+q,r:t.r+r};if(!tiles.some(t=>t.q===next.q&&t.r===next.r)&&compact([...tiles,next]))candidates.set(next.q+','+next.r,next);}
     const ranked=[...candidates.values()].map(t=>({t,score:tiles.filter(other=>adjacent(t,other)).length*3-Math.max(Math.abs(t.q),Math.abs(t.r),Math.abs(t.q+t.r))*2+random(9)})).sort((a,b)=>b.score-a.score);
     tiles.push(ranked[0].t);
@@ -38,6 +43,8 @@ function irregularLayout(random=crypto.randomInt,extended=false){
 }
 function shapeLayout(type='random',extended=false){
   if(!mapTypes.includes(type))throw new Error('Unsupported map shape.');
+  if(!supportsMap(type,extended==='jumbo'?'jumbo':'standard'))throw new Error('This map shape is not available for 7–8 players. Choose Classic, Random, Random+, Random++, or China.');
+  if(extended==='jumbo'&&(type==='classic'||type==='random')){const tiles=[];for(let r=-3;r<=3;r++)for(let q=Math.max(-3,-r-3);q<=Math.min(3,-r+3);q++)tiles.push({q,r});return tiles;}
   if(type==='random-plus')return irregularLayout(crypto.randomInt,extended);
   if(type==='random-plus-plus')return wildLayout(crypto.randomInt,extended);
   if(type==='classic'||type==='random')return layout(extended);
@@ -80,7 +87,7 @@ function hugeChinaLayout(){
 }
 function generateOnce(random,extended,type){
   const locations=type==='random-plus-plus'?wildLayout(random,extended):type==='random-plus'?irregularLayout(random,extended):shapeLayout(type,extended);
-  const copies=locations.length===90?3:1,resources=extended?extendedResources:resourceBag,numbers=Array.from({length:copies},()=>extended?extendedNumbers:numberBag).flat();
+  const copies=locations.length===90?3:1,resources=locations.length===37?jumboResources:extended?extendedResources:resourceBag,numbers=Array.from({length:copies},()=>locations.length===37?jumboNumbers:extended?extendedNumbers:numberBag).flat();
   const bag=shuffle(Array.from({length:copies},()=>resources).flat(),random),tiles=locations.map(t=>({...t,resource:bag.pop(),number:null}));
   const candidates=shuffle(tiles.map((t,i)=>i).filter(i=>tiles[i].resource!=='desert'),random);
   const redCount=numbers.filter(n=>n===6||n===8).length;
@@ -96,7 +103,7 @@ function productionSpread(tiles){
 }
 function generate(random=crypto.randomInt,extended=false,type='random'){
   let best;
-  for(let attempt=0;attempt<(type==='random'?1:100);attempt++){
+  for(let attempt=0;attempt<(type==='random'&&extended!=='jumbo'?1:100);attempt++){
     const tiles=generateOnce(random,extended,type);
     if(!best||productionSpread(tiles)<productionSpread(best))best=tiles;
     if(productionSpread(best)<=1)break;
@@ -105,16 +112,16 @@ function generate(random=crypto.randomInt,extended=false,type='random'){
 }
 function coastline(tiles){
   const g=topology(tiles),edges=g.edges.filter(e=>g.vertices[e.a].tiles.filter(i=>g.vertices[e.b].tiles.includes(i)).length===1);
-  if(![19,30,90].includes(tiles.length))throw new Error('Unsupported island size.');
+  if(![19,30,37,90].includes(tiles.length))throw new Error('Unsupported island size.');
   const start=Math.min(...edges.flatMap(e=>[e.a,e.b])),ordered=[];let vertex=start,previous=-1;
   do{const edge=edges.find(e=>e.id!==previous&&(e.a===vertex||e.b===vertex));if(!edge||ordered.includes(edge.id))throw new Error('Invalid coastline.');ordered.push(edge.id);previous=edge.id;vertex=edge.a===vertex?edge.b:edge.a;}while(vertex!==start);
   if(ordered.length!==edges.length)throw new Error('Incomplete coastline.');return ordered;
 }
 function harbors(tiles,random=crypto.randomInt){
-  const coast=coastline(tiles),extended=tiles.length>=30,types=shuffle([null,null,null,null,'wood','brick','sheep','wheat','ore',...(extended?[null,'sheep']:[])],random),offset=random(coast.length);
+  const coast=coastline(tiles),extended=tiles.length>=30,types=shuffle([null,null,null,null,'wood','brick','sheep','wheat','ore',...(extended?[null,'sheep']:[]),...(tiles.length===37?[null,'wood']:[])],random),offset=random(coast.length);
   if(!Number.isInteger(offset)||offset<0||offset>=coast.length)throw new Error('Invalid server harbor random draw.');
   const positions=coast.length===30?[0,3,6,10,13,16,20,23,26]:Array.from({length:types.length},(_,i)=>Math.floor(i*coast.length/types.length));
   return positions.map((position,i)=>({edge:coast[(position+offset)%coast.length],resource:types[i]}));
 }
 function classic(extended=false){let seed=104729;const random=max=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed%max;};const tiles=generate(random,extended);return {board:tiles,harbors:harbors(tiles,random)};}
-module.exports={layout,shapeLayout,compact,irregularLayout,wildLayout,legacyStarLayout,legacyChinaLayout,previousChinaLayout,hugeChinaLayout,mapTypes,productionSpread,extendedResources,extendedNumbers,classic,generate,harbors,coastline,adjacent,resourceBag,numberBag};
+module.exports={sizeOf,capacity,supportsMap,jumboResources,jumboNumbers,layout,shapeLayout,compact,irregularLayout,wildLayout,legacyStarLayout,legacyChinaLayout,previousChinaLayout,hugeChinaLayout,mapTypes,productionSpread,extendedResources,extendedNumbers,classic,generate,harbors,coastline,adjacent,resourceBag,numberBag};

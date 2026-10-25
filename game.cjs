@@ -1,4 +1,4 @@
-const palette = ['#ee795b', '#69aefa', '#edc45d', '#75c18c', '#d592dc', '#ffffff'];
+const palette = ['#ee795b', '#69aefa', '#edc45d', '#75c18c', '#d592dc', '#ffffff', '#333333', '#ad7544'];
 const pieceSupplies=Object.freeze({standard:{roads:15,settlements:5,cities:4},expanded:{roads:25,settlements:7,cities:6},epic:{roads:30,settlements:10,cities:8}});
 const matchPresets=Object.freeze({standard:{victoryPoints:10,pieceSupply:'standard'},expanded:{victoryPoints:15,pieceSupply:'expanded'},epic:{victoryPoints:20,pieceSupply:'epic'}});
 function validMatchRules(settings,tileCount){return !!settings&&[10,12,15,20].includes(settings.victoryPoints)&&Object.prototype.hasOwnProperty.call(pieceSupplies,settings.pieceSupply)&&(tileCount>=30||settings.victoryPoints!==20&&settings.pieceSupply!=='epic');}

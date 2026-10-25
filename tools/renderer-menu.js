@@ -23,12 +23,17 @@ window.MainMenu=(()=>{
     const lobby=!state.game,host=state.host===viewer;
     $('lobby').hidden=true;$('room-menu').hidden=!lobby;$('game-layout').hidden=lobby;$('menu-error').hidden=!lobby;
     if(!lobby)return;
-    const capacity=state.maxPlayers||4,size=capacity===6?'extended':'standard',type=state.mapType||'random',online=state.players.filter(p=>p.online&&!p.bot).length;
+    const capacity=state.maxPlayers||4,size=capacity===8?'jumbo':capacity===6?'extended':'standard',type=state.mapType||'random',online=state.players.filter(p=>p.online&&!p.bot).length;
     $('room-menu-code').textContent=`Room ${state.code} · Share the code to invite friends`;
     $('map-size').value=size;$('map-size').disabled=!host;$('map-size').onchange=()=>send('SetMap',{mapType:type,mapSize:$('map-size').value});
-    $('bot-fill-label').hidden=capacity!==6;$('bot-fill').disabled=!host;
+    $('bot-fill-label').hidden=capacity===4;$('bot-fill').disabled=!host;
+    for(const option of $('bot-fill').options||[]){option.hidden=Number(option.value)>capacity||Number(option.value)<(capacity===8?7:5);option.disabled=option.hidden;}
+    if(![capacity-1,capacity].includes(Number($('bot-fill').value)))$('bot-fill').value=String(capacity);
     $('turn-seconds').value=String(state.turnSeconds??60);$('turn-seconds').disabled=!host;$('turn-seconds').onchange=()=>send('SetTurnTimer',{seconds:Number($('turn-seconds').value)});
     $('map-type').value=type;$('map-type').disabled=!host;
+    const unavailable=['star','crescent','long-island'],mapReason='This fixed shape is not enlarged for 7–8 players. Choose another map or switch to a smaller island size.';
+    for(const option of $('map-type').options||[]){option.disabled=size==='jumbo'&&unavailable.includes(option.value);option.title=option.disabled?mapReason:'';}
+    const jumboOption=[...($('map-size').options||[])].find(o=>o.value==='jumbo');if(jumboOption){jumboOption.disabled=unavailable.includes(type);jumboOption.title=jumboOption.disabled?mapReason:'';}
     const rules=state.rules||{victoryPoints:10,pieceSupply:'standard'},presets={standard:{victoryPoints:10,pieceSupply:'standard'},expanded:{victoryPoints:15,pieceSupply:'expanded'},epic:{victoryPoints:20,pieceSupply:'epic'}};
     $('match-preset').value=Object.keys(presets).find(key=>presets[key].victoryPoints===rules.victoryPoints&&presets[key].pieceSupply===rules.pieceSupply)||'custom';
     $('victory-points').value=String(rules.victoryPoints);$('piece-supply').value=rules.pieceSupply;
@@ -43,16 +48,17 @@ window.MainMenu=(()=>{
     $('victory-points').onchange=changeRules;$('piece-supply').onchange=changeRules;
     $('map-kind').textContent=type==='random-plus-plus'?'RANDOM++':type==='random-plus'?'RANDOM+':type.replace('-', ' ').toUpperCase();
     $('map-description').textContent=type==='classic'?'A fixed island with the same terrain, numbers, and harbors every game.':(type==='random-plus-plus'?'A wild connected island with branching peninsulas, deep bays, and narrow routes. Resource production is balanced, but starting locations are more challenging.':type==='random-plus'?'A compact, irregular island with a freshly generated coastline, balanced resources, numbers, and harbors.':type==='china'?'A China-shaped mainland island with a broad west, raised northeast, and tapered southern coast. Resources and production odds are balanced.':type==='random'?'A fresh island with shuffled terrain, numbers, and harbors.':'A shaped island with shuffled terrain, numbers, and harbors. Production odds are spread across resources.')+' Red 6s and 8s stay apart.';
-    if(capacity===6)$('map-description').textContent+=' '+state.board.length+' tiles · '+(state.board.length===90?72:24)+' cards per resource · 34 development cards. One player acts at a time.';
+    if(capacity>=6)$('map-description').textContent+=' '+state.board.length+' tiles · '+(state.board.length===90?72:capacity===8?32:24)+' cards per resource · '+(capacity===8?43:34)+' development cards. One player acts at a time.';
     $('regenerate').disabled=!host||type==='classic';
     $('map-host-hint').textContent=host?(type==='classic'?'Choose Random to generate a new island.':'Generate until you find your next island.'):'The host chooses the map. Everyone sees the same island.';
+    if(size==='jumbo'||unavailable.includes(type))$('map-host-hint').textContent+=' Star, Crescent, and Long Island support at most 6 players.';
     $('map-type').onchange=()=>send('SetMap',{mapType:$('map-type').value,mapSize:size});
     $('regenerate').onclick=()=>send('SetMap',{mapType:type,mapSize:size});
     $('lobby-count').textContent=`${state.players.length+(state.joiningPlayers||0)} / ${capacity}`;
     $('lobby-players').replaceChildren(...state.players.map(p=>{const li=document.createElement('li');li.textContent=p.name+(p.id===state.host?' · Host':'')+(p.online?'':' · Offline');return li;}));
     for(let i=0;i<(state.joiningPlayers||0);i++){const li=document.createElement('li');li.textContent='Player joining…';li.className='joining-player';$('lobby-players').append(li);}
     $('menu-start').disabled=!host||online<2||!!state.joiningPlayers;$('menu-start-bots').disabled=!host||!!state.joiningPlayers;
-    $('menu-start').onclick=()=>send('StartGame');$('menu-start-bots').onclick=()=>send('StartGame',{bots:true,targetPlayers:capacity===6?Number($('bot-fill').value):4});
+    $('menu-start').onclick=()=>send('StartGame');$('menu-start-bots').onclick=()=>send('StartGame',{bots:true,targetPlayers:capacity>=6?Number($('bot-fill').value):4});
     $('lobby-start-hint').textContent=state.joiningPlayers?'Waiting for joining players to enter their names…':host?'Start with friends, or fill empty seats with bots. '+capacity+' players maximum.':'Waiting for the host to start.';
     $('menu-copy').onclick=async()=>{const url=new URL(location.href);url.searchParams.set('room',state.code);try{await navigator.clipboard.writeText(url.href);$('menu-copy').textContent='Invite copied';}catch{$('menu-error').textContent='Share room code: '+state.code;}};
     preview(state);

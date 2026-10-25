@@ -11,6 +11,7 @@ require('./scoring.cjs');
 require('./persistence.cjs');
 require('./board.cjs');
 require('./shaped-board.cjs');
+require('./jumbo-board.cjs');
 require('./base-game.cjs');
 require('./match-rules.cjs');
 require('./interaction-controls.cjs');

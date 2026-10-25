@@ -1,8 +1,8 @@
 const {createGeometry, serializeLandMap} = require('../protocol-map.cjs');
 const {topology,palette} = require('../game.cjs');
 const {createPreviewFixture, previewSettings} = require('./preview-fixture.cjs');
-// Original color enum: Red, Blue, Orange, Green, Purple, White.
-const colors = [1, 2, 3, 4, 10, 9];
+// Original color enum: Red, Blue, Orange, Green, Purple, White, Black, Bronze.
+const colors = [1, 2, 3, 4, 10, 9, 5, 6];
 const pointKey = (x,y) => `${Math.round(x*1000)},${Math.round(y*1000)}`;
 function translateGeometry(board) {
   const geometry = createGeometry(board.map(t=>({x:t.q,y:t.r})));
@@ -20,7 +20,7 @@ function translateGeometry(board) {
 }
 function presentBoard(snapshot) {
   const mapping = translateGeometry(snapshot.board);
-  const fixture = createPreviewFixture(snapshot.board,{...previewSettings(),maxPlayers:snapshot.maxPlayers||(snapshot.board.length>=30?6:4)});
+  const fixture = createPreviewFixture(snapshot.board,{...previewSettings(),maxPlayers:snapshot.maxPlayers||(snapshot.board.length===37?8:snapshot.board.length>=30?6:4)});
   const map = serializeLandMap(snapshot.board);
   const playerColors = Object.fromEntries(snapshot.players.filter(p=>p.playing).map((p,i)=>[p.id,colors[snapshot.game?.colors?.[p.id]?palette.indexOf(snapshot.game.colors[p.id]):i%colors.length]]));
   if(snapshot.game){

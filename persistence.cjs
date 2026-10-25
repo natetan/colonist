@@ -8,24 +8,25 @@ function validate(data){
     check(room&&/^[A-F0-9]{6}$/.test(room.code)&&!codes.has(room.code));codes.add(room.code);
     check(room.turnSeconds===undefined||require('./turn-timer.cjs').choices.includes(room.turnSeconds));
     check(room.mapType===undefined||require('./board.cjs').mapTypes.includes(room.mapType));
-    check(Array.isArray(room.players)&&room.players.length>0&&room.players.length<=11);
+    check(Array.isArray(room.players)&&room.players.length>0&&room.players.length<=15);
     const ids=new Set();for(const p of room.players){check(p&&typeof p.id==='string'&&p.id.length>0&&!ids.has(p.id)&&typeof p.name==='string'&&p.name.length>0&&p.name.length<=24&&typeof p.bot==='boolean'&&(p.autopilot===undefined||typeof p.autopilot==='boolean'&&!p.bot)&&(p.bot||typeof p.token==='string'&&/^[a-f0-9]{48}$/.test(p.token)));ids.add(p.id);}
-    check((room.hostId?room.players.some(p=>p.id===room.hostId&&!p.bot):!room.players[0].bot)&&room.players.filter(p=>!p.bot).length<=6&&room.players.filter(p=>p.bot).length<=5);
-    check(Array.isArray(room.board)&&[19,30,90].includes(room.board.length));
+    check((room.hostId?room.players.some(p=>p.id===room.hostId&&!p.bot):!room.players[0].bot)&&room.players.filter(p=>!p.bot).length<=8&&room.players.filter(p=>p.bot).length<=7);
+    check(Array.isArray(room.board)&&[19,30,37,90].includes(room.board.length));
     check(room.board.length!==90||room.mapType==='china');
     check(room.rules===undefined||rules.validMatchRules(room.rules,room.board.length));
-    const extended=room.board.length>=30,supply=room.board.length===90?72:extended?24:19,deckCounts=extended?development.extendedCounts:development.counts;
+    const extended=room.board.length>=30,supply=room.board.length===90?72:room.board.length===37?32:extended?24:19,deckCounts=room.board.length===37||room.game?.players?.length>6?development.jumboCounts:extended?development.extendedCounts:development.counts;
     const boards=require('./board.cjs'),legacyLayout=room.mapType==='star'?boards.legacyStarLayout:room.mapType==='china'?boards.legacyChinaLayout:null;
+    check(room.mapSize===undefined||['standard','extended','jumbo'].includes(room.mapSize));check(boards.supportsMap(room.mapType||'random',boards.sizeOf(room))&&(room.game||room.players.length<=boards.capacity(room)));check((boards.sizeOf(room)==='standard'?[19]:boards.sizeOf(room)==='extended'?[30,90]:[37,90]).includes(room.board.length));
     const previousChina=room.mapType==='china'&&room.board.length===30?boards.previousChinaLayout():null;
     const oldLocations=previousChina&&room.board.every(t=>previousChina.some(p=>p.q===t.q&&p.r===t.r))?previousChina:legacyLayout?.(extended);
     const legacy=oldLocations?new Set(oldLocations.map(t=>t.q+','+t.r)):null;
-    const expectedLocations=legacy&&room.board.every(t=>legacy.has(t.q+','+t.r))?legacy:new Set((['random-plus','random-plus-plus'].includes(room.mapType)?room.board:boards.shapeLayout(room.mapType||'random',extended)).map(t=>t.q+','+t.r)),locations=new Set();
+    const expectedLocations=legacy&&room.board.every(t=>legacy.has(t.q+','+t.r))?legacy:new Set((['random-plus','random-plus-plus'].includes(room.mapType)?room.board:boards.shapeLayout(room.mapType||'random',room.board.length===37?'jumbo':extended)).map(t=>t.q+','+t.r)),locations=new Set();
     for(const t of room.board){check(t&&Number.isInteger(t.q)&&Number.isInteger(t.r)&&expectedLocations.has(t.q+','+t.r)&&[...resources,'desert'].includes(t.resource)&&(t.resource==='desert'?t.number===null||integer(t.number,2,12):integer(t.number,2,12)&&t.number!==7));locations.add(t.q+','+t.r);}check(locations.size===room.board.length&&room.board.filter(t=>t.resource==='desert').length===(room.board.length===90?6:extended?2:1));
     if(['random-plus','random-plus-plus'].includes(room.mapType)){check(room.board.every(t=>Math.abs(t.q)<=8&&Math.abs(t.r)<=8));if(room.mapType==='random-plus')check(boards.compact(room.board));boards.coastline(room.board);}
     if(room.harbors!==undefined){
-      const coast=require('./board.cjs').coastline(room.board),ends=new Set();check(Array.isArray(room.harbors)&&room.harbors.length===(extended?11:9));
+      const coast=require('./board.cjs').coastline(room.board),ends=new Set();check(Array.isArray(room.harbors)&&room.harbors.length===(room.board.length===37?13:extended?11:9));
       for(const h of room.harbors){check(h&&coast.includes(h.edge)&&(h.resource===null||resources.includes(h.resource)));const e=rules.topology(room.board).edges[h.edge];check(!ends.has(e.a)&&!ends.has(e.b));ends.add(e.a);ends.add(e.b);}
-      check(room.harbors.filter(h=>h.resource===null).length===(extended?5:4)&&resources.every(r=>room.harbors.filter(h=>h.resource===r).length===(extended&&r==='sheep'?2:1)));
+      check(room.harbors.filter(h=>h.resource===null).length===(room.board.length===37?6:extended?5:4)&&resources.every(r=>room.harbors.filter(h=>h.resource===r).length===(extended&&r==='sheep'||room.board.length===37&&r==='wood'?2:1)));
     }
     const g=room.game;if(!g)continue;
     check(g.rules===undefined||rules.validMatchRules(g.rules,room.board.length)&&JSON.stringify(g.rules)===JSON.stringify(room.rules));
@@ -33,7 +34,7 @@ function validate(data){
     if(g.turnTimer)check(typeof g.turnTimer.key==='string'&&integer(g.turnTimer.deadline,1));
     if(g.lastTimeout)check(ids.has(g.lastTimeout.player)&&typeof g.lastTimeout.setup==='boolean'&&integer(g.lastTimeout.sequence,1));
     if(room.harbors!==undefined)check(JSON.stringify(g.harbors)===JSON.stringify(room.harbors));
-    check(Array.isArray(g.players)&&g.players.length>0&&g.players.length<=6&&new Set(g.players).size===g.players.length&&g.players.every(id=>ids.has(id))&&g.colors&&g.players.every(id=>typeof g.colors[id]==='string'));
+    check(Array.isArray(g.players)&&g.players.length>0&&g.players.length<=boards.capacity(room)&&new Set(g.players).size===g.players.length&&g.players.every(id=>ids.has(id))&&g.colors&&g.players.every(id=>typeof g.colors[id]==='string'));
     const geometry=rules.topology(room.board);check(Array.isArray(g.vertices)&&g.vertices.length===geometry.vertices.length&&Array.isArray(g.edges)&&g.edges.length===geometry.edges.length);
     const owner=id=>id===null||g.players.includes(id);
     for(const [i,v]of g.vertices.entries()){const expected=geometry.vertices[i];check(v&&v.id===i&&v.x===expected.x&&v.y===expected.y&&JSON.stringify(v.tiles)===JSON.stringify(expected.tiles)&&owner(v.owner)&&(v.city===undefined||typeof v.city==='boolean'));}
@@ -59,7 +60,7 @@ function validate(data){
   }
   return data;
 }
-function encode(rooms){return {version:1,rooms:[...rooms.values()].map(room=>({code:room.code,board:room.board,...(room.rules?{rules:room.rules}:{}),...(room.turnSeconds!==undefined?{turnSeconds:room.turnSeconds}:{}),...(room.hostId?{hostId:room.hostId}:{}),...(room.mapType?{mapType:room.mapType}:{}),...(room.harbors!==undefined?{harbors:room.harbors}:{}),game:room.game||null,players:room.players.map(p=>({id:p.id,name:p.name,bot:!!p.bot,...(p.autopilot?{autopilot:true}:{}),...(!p.bot?{token:p.token}:{})}))}))};}
+function encode(rooms){return {version:1,rooms:[...rooms.values()].map(room=>({code:room.code,board:room.board,...(room.mapSize?{mapSize:room.mapSize}:{}),...(room.rules?{rules:room.rules}:{}),...(room.turnSeconds!==undefined?{turnSeconds:room.turnSeconds}:{}),...(room.hostId?{hostId:room.hostId}:{}),...(room.mapType?{mapType:room.mapType}:{}),...(room.harbors!==undefined?{harbors:room.harbors}:{}),game:room.game||null,players:room.players.map(p=>({id:p.id,name:p.name,bot:!!p.bot,...(p.autopilot?{autopilot:true}:{}),...(!p.bot?{token:p.token}:{})}))}))};}
 function createStore(file){
   if(!file)return {load:()=>new Map(),save:()=>{},close:()=>{}};
   file=path.resolve(file);fs.mkdirSync(path.dirname(file),{recursive:true});const lock=file+'.lock';
