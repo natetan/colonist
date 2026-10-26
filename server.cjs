@@ -140,7 +140,7 @@ function createApp(options = {}) {
       try {
         if(storageFailure)throw new Error('Saving failed. Moves are paused; restart the server after fixing storage.');
         const message = JSON.parse(bytes.toString());
-        if(ws.room&&expireTurn(ws.room)&&!['Chat','LeaveRoom'].includes(message.type))throw new Error('Time expired. The turn has advanced.');
+        if(ws.room&&expireTurn(ws.room)&&!['Chat','LeaveRoom'].includes(message.type))throw new Error('Time expired. The game has updated; try your action again.');
         if(message.type==='PreviewRoom'){
           if(ws.room)throw new Error('You are already in a room.');
           const room=rooms.get(String(message.code).trim().toUpperCase());if(!room)throw new Error('Room not found.');
