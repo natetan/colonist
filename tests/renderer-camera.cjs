@@ -31,3 +31,28 @@ console.log('PASS: road section lengths handle branches, loops, disconnected roa
  vm.runInContext('mapDragging=false;scheduleRender(...pendingRender)',scheduler);assert.equal(frames.length,1);await frames.shift()();assert.equal(renders.length,1);assert.equal(renders[0][0],'latest');
  console.log('PASS: moves arriving during a drag are coalesced and drawn only after release');
 })().catch(error=>{console.error(error);process.exitCode=1;});
+// Exercise the actual hover renderer so building priority and road clearing stay linked.
+const tip={hidden:true,style:{}},ticks=[],highlight={zIndex:0,clear(){this.drawn=false;},lineStyle(){this.drawn=true;return this;},moveTo(){return this;},lineTo(){return this;}};
+const hoverContext={
+ $:()=>tip,document:{},window:{innerWidth:1000},joined:null,mapDragging:false,
+ pixi:{Graphics:function(){return highlight;}},
+ app:{view:{getBoundingClientRect:()=>({left:0,top:0,width:1000,height:700})},screen:{width:1000,height:700}},
+ view:{hexagonHeight:120,mapCenter:{},layers:{mapEdgePieces:1,mapCornerPieces:3},addChild(){},toWorld:(x,y)=>({x,y}),toScreen:p=>p},
+ map:{tileCorners:[0,100].map(x=>({hexCorner:{toPixel:()=>({x,y:0})}}))},
+ presentation:{mapping:{corners:[0,1]}},
+ state:{players:[{id:'A',name:'Alice <owner>'},{id:'B',name:'Bob'}],game:{vertices:[{id:0,owner:'A'},{id:1,owner:'B',city:true}],edges:[{id:0,a:0,b:1,owner:'A'}]}},
+ tick:fn=>ticks.push(fn),roadPointer:{x:0,y:-20}
+};
+vm.createContext(hoverContext);
+vm.runInContext(source.slice(source.indexOf('function roadSection('),source.indexOf('function bindMapDrag(')),hoverContext);
+const hoverSource=source.slice(source.indexOf("  let roadTip=$('road-tooltip')"),source.indexOf('  view.sortChildren();'));
+vm.runInContext('{'+hoverSource+'}',hoverContext);
+assert.equal(tip.textContent,'Alice <owner>');assert.equal(tip.hidden,false);assert.equal(highlight.drawn,false);
+hoverContext.roadPointer={x:50,y:0};ticks[0]();assert.equal(tip.textContent,'Road length: 1');assert.equal(highlight.drawn,true);
+hoverContext.roadPointer={x:100,y:-20};ticks[0]();assert.equal(tip.textContent,'Bob');assert.equal(highlight.drawn,false);
+hoverContext.mapDragging=true;ticks[0]();assert.equal(tip.hidden,true);
+hoverContext.mapDragging=false;hoverContext.roadPointer=null;ticks[0]();assert.equal(tip.hidden,true);
+hoverContext.roadPointer={x:100,y:-20};hoverContext.state.players[1].name='Updated owner';vm.runInContext('{'+hoverSource+'}',hoverContext);assert.equal(tip.textContent,'Updated owner');
+const scaledView={hexagonHeight:60,toWorld:(x,y)=>({x:x/2,y:y/2})};
+assert(context.hoveredBuilding([{point:{x:50,y:50}}],scaledView,{x:60,y:60},{left:10,top:20,width:500,height:350},{width:1000,height:700}));
+console.log('PASS: settlement/city owner tooltips replace road hover, restore road length, hide while dragging/leaving, survive scene updates, and follow scaled coordinates');

@@ -86,6 +86,12 @@ function roadSection(game,edgeId){
   let length=0;for(const v of adj.keys())length=Math.max(length,walk(v,new Set()));
   return {edges:[...edges.keys()],length};
 }
+function hoveredBuilding(buildings,view,pointer,rect,screen){
+  if(!pointer)return null;
+  const x=(pointer.x-rect.left)*screen.width/rect.width,y=(pointer.y-rect.top)*screen.height/rect.height;
+  const point=view.toWorld(x,y),unit=view.hexagonHeight/120;
+  return buildings.find(({point:p})=>Math.abs(point.x-p.x)<=23*unit&&point.y>=p.y-43*unit&&point.y<=p.y+8*unit)||null;
+}
 function bindMapDrag(canvas){
   canvas.addEventListener('pointermove',event=>{roadPointer={x:event.clientX,y:event.clientY};});
   canvas.addEventListener('pointerleave',()=>{roadPointer=null;});
@@ -181,14 +187,24 @@ async function render(fixture,presentation,state){
   if(state?.game){
     const highlight=new pixi.Graphics();highlight.zIndex=(view.layers.mapEdgePieces+view.layers.mapCornerPieces)/2;view.addChild(highlight);
     const roads=state.game.edges.filter(e=>e.owner).map(e=>({edge:e,a:map.tileCorners[presentation.mapping.corners[e.a]].hexCorner.toPixel(view.mapCenter,view.hexagonHeight/2),b:map.tileCorners[presentation.mapping.corners[e.b]].hexCorner.toPixel(view.mapCenter,view.hexagonHeight/2)}));
+    const buildings=state.game.vertices.filter(v=>v.owner).map(vertex=>({vertex,point:map.tileCorners[presentation.mapping.corners[vertex.id]].hexCorner.toPixel(view.mapCenter,view.hexagonHeight/2)}));
     let selected;
     const updateRoadHover=()=>{
       const rect=app.view.getBoundingClientRect();let closest=null,distance=12;
+      const building=!mapDragging&&hoveredBuilding(buildings,view,roadPointer,rect,app.screen);
+      if(building){
+        selected=undefined;highlight.clear();roadTip.hidden=false;
+        roadTip.textContent=state.players.find(p=>p.id===building.vertex.owner)?.name||'Unknown player';
+        const anchor=view.toScreen({...building.point,y:building.point.y-view.hexagonHeight*43/120});
+        roadTip.style.left=Math.max(65,Math.min(window.innerWidth-65,rect.left+anchor.x*rect.width/app.screen.width))+'px';
+        roadTip.style.top=Math.max(40,rect.top+anchor.y*rect.height/app.screen.height-8)+'px';return;
+      }
       if(roadPointer&&!mapDragging)for(const road of roads){
         const a=view.toScreen(road.a),b=view.toScreen(road.b),x=(roadPointer.x-rect.left)*app.screen.width/rect.width,y=(roadPointer.y-rect.top)*app.screen.height/rect.height,vx=b.x-a.x,vy=b.y-a.y,t=Math.max(0,Math.min(1,((x-a.x)*vx+(y-a.y)*vy)/(vx*vx+vy*vy))),d=Math.hypot(x-a.x-t*vx,y-a.y-t*vy)*rect.width/app.screen.width;
         if(d<distance){distance=d;closest=road;}
       }
       if(selected!==closest?.edge.id){selected=closest?.edge.id;highlight.clear();roadTip.hidden=!closest;if(closest){const section=roadSection(state.game,selected);roadTip.textContent=`Road length: ${section.length}`;for(const road of roads)if(section.edges.includes(road.edge.id))highlight.lineStyle(14,0xffffff,.55).moveTo(road.a.x,road.a.y).lineTo(road.b.x,road.b.y);}}
+      roadTip.hidden=!closest;
       if(closest){roadTip.style.left=Math.max(65,Math.min(window.innerWidth-65,roadPointer.x))+'px';roadTip.style.top=Math.max(40,roadPointer.y-18)+'px';}
     };
     updateRoadHover();tick(updateRoadHover);
